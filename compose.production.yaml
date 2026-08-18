@@ -1,0 +1,144 @@
+name: booker-tee-production
+
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - booker_tee_postgres_data:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *bounded-logging
+
+  app:
+    image: ${BOOKER_TEE_IMAGE:-booker-tee:production}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ${BOOKER_TEE_ENV_FILE:?Set BOOKER_TEE_ENV_FILE to the production environment file}
+    environment:
+      BOOKER_TEE_DOMAIN: ${BOOKER_TEE_DOMAIN:?Set BOOKER_TEE_DOMAIN}
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--proxy-headers",
+        "--forwarded-allow-ips=${BOOKER_TEE_PROXY_SUBNET:-172.30.0.0/24}",
+      ]
+    expose:
+      - "8000"
+    volumes:
+      - booker_tee_uploads:/app/var/uploads
+    networks:
+      - proxy
+      - database
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/health', headers={'Host': os.environ['BOOKER_TEE_DOMAIN']}); urllib.request.urlopen(request, timeout=3).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging: *bounded-logging
+
+  nginx:
+    image: ${BOOKER_TEE_NGINX_IMAGE:-booker-tee-nginx:production}
+    build:
+      context: docker/nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      BOOKER_TEE_DOMAIN: ${BOOKER_TEE_DOMAIN:?Set BOOKER_TEE_DOMAIN}
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    extra_hosts:
+      - "${BOOKER_TEE_DOMAIN}:127.0.0.1"
+    ports:
+      - "${BOOKER_TEE_HTTP_PORT:-80}:80"
+      - "${BOOKER_TEE_HTTPS_PORT:-443}:443"
+    volumes:
+      - booker_tee_letsencrypt:/etc/letsencrypt:ro
+      - booker_tee_acme_webroot:/var/www/certbot:ro
+    networks:
+      - proxy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-check-certificate --quiet --spider https://$${BOOKER_TEE_DOMAIN}/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging: *bounded-logging
+
+  certbot:
+    image: certbot/certbot:v5.7.0
+    profiles: ["tls"]
+    environment:
+      BOOKER_TEE_DOMAIN: ${BOOKER_TEE_DOMAIN:?Set BOOKER_TEE_DOMAIN}
+      BOOKER_TEE_CERTBOT_EMAIL: ${BOOKER_TEE_CERTBOT_EMAIL:?Set BOOKER_TEE_CERTBOT_EMAIL}
+    ports:
+      - "${BOOKER_TEE_HTTP_PORT:-80}:80"
+    volumes:
+      - booker_tee_letsencrypt:/etc/letsencrypt
+      - booker_tee_acme_webroot:/var/www/certbot
+    networks:
+      - proxy
+    command:
+      [
+        "certonly",
+        "--standalone",
+        "--non-interactive",
+        "--agree-tos",
+        "--no-eff-email",
+        "--email",
+        "${BOOKER_TEE_CERTBOT_EMAIL}",
+        "--domain",
+        "${BOOKER_TEE_DOMAIN}",
+      ]
+
+volumes:
+  booker_tee_postgres_data:
+  booker_tee_uploads:
+  booker_tee_letsencrypt:
+  booker_tee_acme_webroot:
+
+networks:
+  proxy:
+    ipam:
+      config:
+        - subnet: ${BOOKER_TEE_PROXY_SUBNET:-172.30.0.0/24}
+  database:
+    internal: true

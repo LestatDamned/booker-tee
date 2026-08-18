@@ -9,8 +9,8 @@
 
 ```text
 Internet
-  -> Nginx (80/443, TLS, rate limits)
-  -> FastAPI + React build (127.0.0.1:8000)
+  -> Nginx container (80/443, TLS, rate limits)
+  -> FastAPI + React build (app:8000, private proxy network)
   -> PostgreSQL (private Docker network)
   -> upload storage (persistent volume)
 ```
@@ -206,7 +206,8 @@ FastAPI, монтирует исходники и запускает Uvicorn с 
 2. Не монтировать исходники и не запускать `uv sync` при старте.
 3. Не использовать `--reload`.
 4. Не публиковать PostgreSQL на host network.
-5. FastAPI привязать только к `127.0.0.1:8000`.
+5. Не публиковать FastAPI на host network; разрешить доступ только Nginx в
+   private Compose network.
 6. Хранить PostgreSQL и uploads в persistent volumes.
 7. Запускать application container не от `root`.
 8. Добавить healthcheck и ограниченную ротацию логов.
@@ -220,6 +221,48 @@ Exit gate:
 - application image запускается без исходников и development dependencies;
 - неуспешная миграция не запускает новую версию приложения.
 
+Статус: выполнено 18 августа 2026 года.
+
+Реализовано:
+
+- `Dockerfile` собирает React и FastAPI в один image и запускает приложение от
+  непривилегированного пользователя `app` с UID/GID `10001`;
+- `compose.production.yaml` не монтирует исходники, не запускает development
+  frontend, `uv sync`, Alembic или Uvicorn `--reload` при старте;
+- PostgreSQL и FastAPI доступны только в разделённых private Compose networks;
+- PostgreSQL data и uploads хранятся в отдельных named volumes;
+- app и PostgreSQL имеют healthchecks, restart policy и bounded Docker logs;
+- секреты читаются из внешнего файла, путь к которому передаётся через
+  `BOOKER_TEE_ENV_FILE`.
+
+Release-последовательность:
+
+```bash
+export BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env
+export BOOKER_TEE_IMAGE=booker-tee:$(git rev-parse --short HEAD)
+
+docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml build app nginx
+docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml \
+  run --rm app alembic upgrade head && \
+  docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml up -d
+```
+
+Оператор запускает новую версию только через `&&`: при ошибке Alembic команда
+`up -d` не выполняется. Регистрацию Telegram webhook следует запускать отдельной
+release-командой после успешного старта приложения.
+
+Проверки этапа:
+
+- production Compose config: passed;
+- production image build и React build: passed;
+- runtime user, отсутствие tests/dev dependencies и наличие SPA: passed;
+- migration до `20260818_0031 (head)` отдельным one-off container: passed;
+- healthcheck и private-network-only FastAPI binding: passed;
+- PostgreSQL без published port: passed;
+- PostgreSQL и uploads сохранились после `--force-recreate`: passed.
+
+Exit gate этапа закрыт.
+
 ## 5. Настроить Nginx и TLS
 
 Nginx работает как единственная публичная точка входа.
@@ -228,7 +271,7 @@ Nginx работает как единственная публичная точ
 
 1. Открыть `80/443`; HTTP перенаправлять на HTTPS.
 2. Получить и автоматически обновлять сертификат Let's Encrypt.
-3. Проксировать запросы на `127.0.0.1:8000`.
+3. Проксировать запросы на `app:8000` внутри private Compose network.
 4. Передавать `Host`, `X-Forwarded-For` и `X-Forwarded-Proto`.
 5. Uvicorn должен доверять forwarded headers только адресу Nginx, не `*`.
 6. Ограничить частоту запросов к auth endpoints и Telegram webhook.
@@ -252,6 +295,69 @@ Exit gate:
 - [FastAPI behind a proxy](https://fastapi.tiangolo.com/advanced/behind-a-proxy/);
 - [Nginx proxy module](https://nginx.org/en/docs/http/ngx_http_proxy_module.html);
 - [Nginx request rate limiting](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html).
+
+Статус: repository-часть выполнена 18 августа 2026 года. Выпуск настоящего
+сертификата и renewal dry-run ожидают домен, DNS и VPS.
+
+Реализовано:
+
+- Nginx `1.28.3-alpine` собирается как отдельный immutable image и является
+  единственным сервисом с published ports `80/443`;
+- FastAPI не имеет host-порта, а PostgreSQL и app разделены на proxy и internal
+  database networks;
+- Nginx передаёт canonical `Host`, `X-Forwarded-For` и `X-Forwarded-Proto`;
+- Uvicorn доверяет только настраиваемой proxy CIDR, а не `*`;
+- неизвестный Host отклоняется приложением;
+- HTTP перенаправляется на canonical HTTPS URL;
+- `/health/db`, `/docs`, `/redoc` и `/openapi.json` возвращают `404`;
+- auth и Telegram webhook используют отдельные rate-limit zones с ответом
+  `429`;
+- общий body limit равен `1m`, а upload endpoint получает `25m`;
+- connect/send/read timeouts ограничены, request body и секретные заголовки не
+  добавлены в access log;
+- Certbot `5.7.0` работает как one-off service с persistent certificate и ACME
+  webroot volumes;
+- `docker/renew-certificates.sh` выполняет renewal и reload Nginx; его следует
+  запускать ежедневно из cron или systemd timer.
+
+Первичный выпуск сертификата выполняется до запуска Nginx, когда DNS уже
+указывает на VPS и порт `80` свободен:
+
+```bash
+export BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env
+
+docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml \
+  run --rm --service-ports certbot
+docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml up -d
+```
+
+Проверка renewal после запуска Nginx:
+
+```bash
+docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml \
+  run --rm certbot renew --dry-run --webroot --webroot-path /var/www/certbot
+```
+
+Пример ежедневного cron на VPS:
+
+```cron
+17 3 * * * cd /opt/booker-tee && BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env ./docker/renew-certificates.sh
+```
+
+Локальные проверки этапа:
+
+- production Compose config и `nginx -t`: passed;
+- HTTP `301`, HTTPS proxy health и container healthchecks: passed;
+- invalid Host: `400`;
+- internal endpoints: `404`;
+- обычный body размером 2 MiB: `413`, upload body: passed through Nginx;
+- auth и Telegram webhook rate limits: `429`;
+- FastAPI и PostgreSQL без published ports: passed;
+- trusted forwarded client address через ограниченную proxy CIDR: passed;
+- закреплённый Certbot image и one-off service: passed.
+
+Внешний exit gate остаётся открытым только для валидного Let's Encrypt
+сертификата и успешного renewal dry-run на реальном домене.
 
 ## 6. Настроить production environment и VPS
 

@@ -23,13 +23,20 @@ ENV PATH="/opt/booker-tee-venv/bin:$PATH" \
 
 WORKDIR /app
 
+RUN groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
+
 COPY pyproject.toml uv.lock README.md ./
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY src ./src
 COPY --from=frontend-builder /frontend/build/client ./frontend/build/client
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev \
+    && mkdir -p /app/var/uploads \
+    && chown app:app /app/var/uploads
+
+USER app
 
 EXPOSE 8000
 
