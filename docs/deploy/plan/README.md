@@ -539,8 +539,12 @@ PostgreSQL. Долгое хранение source file увеличивает у�
 - migration `20260819_0032` проверена полным upgrade, downgrade с уже очищенным
   storage key и повторным upgrade на PostgreSQL;
 - удаление document уже безопасно обрабатывает отсутствующий source file;
-- фактическое удаление originals после parse, retention cleanup и пункты 5-11
-  ещё не реализованы.
+- пункт 5 выполнен: после commit распознанного или автоматически mapped parse
+  source удаляется, а `storage_key=NULL` и `source_file_deleted_at` фиксируются
+  отдельным commit; `needs_mapping`, failed и incomplete сохраняются для
+  retention cleanup;
+- filesystem error не отменяет committed parse и логируется без path/filename;
+- retention cleanup и пункты 6-11 ещё не реализованы.
 
 Exit gate:
 

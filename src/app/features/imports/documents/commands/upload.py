@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from pathlib import Path
 from uuid import UUID, uuid4, uuid5
 
@@ -7,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
+from app.db.base import utc_now
 from app.features.imports.documents.attempts import (
     PARSER_EXCEPTIONS,
     create_running_parse_attempt,
@@ -18,14 +20,20 @@ from app.features.imports.documents.errors import (
     UploadValidationError,
 )
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.documents.storage import UploadStorage, sanitize_upload_filename
+from app.features.imports.documents.storage import (
+    StoredUpload,
+    UploadStorage,
+    sanitize_upload_filename,
+)
 from app.features.imports.documents.types import (
+    ParseAttemptStatus,
     UploadedDocumentSource,
     UploadedDocumentStatus,
     UploadedDocumentType,
 )
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import (
+    ParseAttempt,
     UploadedDocument,
 )
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
@@ -48,6 +56,8 @@ from app.features.workspaces.application.activity_writer import WorkspaceActivit
 from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.schemas import ApplicationModel
+
+logger = logging.getLogger(__name__)
 
 
 class StatementUploadResult(ApplicationModel):
@@ -202,7 +212,29 @@ class StatementUploadUseCase:
                 )
 
         await self.session.commit()
+        await self._delete_processed_source(document, attempt, stored_upload)
         return self._upload_result(document, replayed=False)
+
+    async def _delete_processed_source(
+        self,
+        document: UploadedDocument,
+        attempt: ParseAttempt,
+        stored_upload: StoredUpload,
+    ) -> None:
+        if should_retain_source_file(attempt):
+            return
+        try:
+            await self.storage.delete_stored_upload(stored_upload)
+        except OSError as error:
+            logger.warning(
+                "Processed upload source deletion failed error_type=%s",
+                type(error).__name__,
+            )
+            return
+
+        document.storage_key = None
+        document.source_file_deleted_at = utc_now()
+        await self.session.commit()
 
     @staticmethod
     def _upload_result(
@@ -258,3 +290,10 @@ async def extract_statement(
     file_path: Path,
 ) -> ExtractedStatement:
     return await asyncio.to_thread(extractor.extract, file_path)
+
+
+def should_retain_source_file(attempt: ParseAttempt) -> bool:
+    if attempt.status not in {ParseAttemptStatus.SUCCESS, ParseAttemptStatus.REQUIRES_REVIEW}:
+        return True
+    validation_report = attempt.validation_report_json or {}
+    return validation_report.get("status") == "needs_mapping"

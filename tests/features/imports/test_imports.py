@@ -21,6 +21,7 @@ from app.features.imports.documents.attempts import record_failed_parse_attempt
 from app.features.imports.documents.commands.upload import (
     StatementUploadUseCase,
     extract_statement,
+    should_retain_source_file,
     validate_statement_upload,
 )
 from app.features.imports.documents.errors import (
@@ -29,10 +30,11 @@ from app.features.imports.documents.errors import (
     UploadValidationError,
 )
 from app.features.imports.documents.storage import (
+    StoredUpload,
     UploadStorage,
     sanitize_upload_filename,
 )
-from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.models import ParseAttempt, RawTransaction, UploadedDocument
 from app.features.imports.parsers.extractors import pdf as pdf_extractor_module
 from app.features.imports.parsers.extractors.dto import (
@@ -393,6 +395,93 @@ def test_validate_statement_upload_rejects_unknown_extension() -> None:
 
     with pytest.raises(UploadValidationError):
         validate_statement_upload(upload)
+
+
+@pytest.mark.parametrize(
+    ("status", "validation_report", "expected"),
+    [
+        (ParseAttemptStatus.SUCCESS, None, False),
+        (ParseAttemptStatus.REQUIRES_REVIEW, {"status": "valid"}, False),
+        (ParseAttemptStatus.REQUIRES_REVIEW, {"status": "needs_mapping"}, True),
+        (ParseAttemptStatus.FAILED, None, True),
+        (ParseAttemptStatus.RUNNING, None, True),
+    ],
+)
+def test_source_file_retention_policy(
+    status: ParseAttemptStatus,
+    validation_report: dict[str, object] | None,
+    expected: bool,
+) -> None:
+    attempt = cast(
+        ParseAttempt,
+        SimpleNamespace(status=status, validation_report_json=validation_report),
+    )
+
+    assert should_retain_source_file(attempt) is expected
+
+
+@pytest.mark.asyncio
+async def test_processed_source_is_deleted_and_marked_after_parse(tmp_path: Path) -> None:
+    storage = UploadStorage(tmp_path)
+    stored = await storage.save_upload(
+        UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"),
+        workspace_id=uuid4(),
+        document_id=uuid4(),
+    )
+    document = cast(
+        UploadedDocument,
+        SimpleNamespace(storage_key=stored.storage_key, source_file_deleted_at=None),
+    )
+    attempt = cast(
+        ParseAttempt,
+        SimpleNamespace(status=ParseAttemptStatus.SUCCESS, validation_report_json=None),
+    )
+    commit = AsyncMock()
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.storage = storage
+    use_case.session = cast(Any, SimpleNamespace(commit=commit))
+
+    await use_case._delete_processed_source(document, attempt, stored)
+
+    assert not stored.path.exists()  # noqa: ASYNC240
+    assert document.storage_key is None
+    assert document.source_file_deleted_at is not None
+    commit.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_source_deletion_failure_preserves_reference_for_cleanup(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    storage_key = f"{uuid4()}/{uuid4()}/source.pdf"
+    stored = StoredUpload(
+        storage_key=storage_key,
+        path=tmp_path / storage_key,
+        sha256_hash="a" * 64,
+        file_size_bytes=10,
+    )
+    document = cast(
+        UploadedDocument,
+        SimpleNamespace(storage_key=storage_key, source_file_deleted_at=None),
+    )
+    attempt = cast(
+        ParseAttempt,
+        SimpleNamespace(status=ParseAttemptStatus.SUCCESS, validation_report_json=None),
+    )
+    delete = AsyncMock(side_effect=PermissionError("sensitive path"))
+    commit = AsyncMock()
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.storage = cast(Any, SimpleNamespace(delete_stored_upload=delete))
+    use_case.session = cast(Any, SimpleNamespace(commit=commit))
+
+    await use_case._delete_processed_source(document, attempt, stored)
+
+    assert document.storage_key == storage_key
+    assert document.source_file_deleted_at is None
+    commit.assert_not_awaited()
+    assert "PermissionError" in caplog.text
+    assert "sensitive path" not in caplog.text
 
 
 @pytest.mark.asyncio
