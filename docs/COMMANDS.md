@@ -200,6 +200,15 @@ export BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env
 ./scripts/backup.sh /var/backups/booker-tee/2026-08-19T120000Z
 ```
 
+Восстановить backup только в новый изолированный Compose project. Имя обязано
+начинаться с `booker-tee-restore-`; существующие volumes скрипт не изменяет:
+
+```bash
+./scripts/restore-backup.sh \
+  /var/backups/booker-tee/2026-08-19T120000Z \
+  booker-tee-restore-test
+```
+
 Почасовая очистка временных originals и Telegram file metadata:
 
 ```bash

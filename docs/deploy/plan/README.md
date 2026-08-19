@@ -715,7 +715,11 @@ Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
 останавливается на время согласованного `pg_dump -Fc` и гарантированно
 запускается обратно; новый приватный backup-каталог получает dump, manifest и
 SHA-256 checksums. Upload volume и временные originals не читаются и не
-архивируются.
+архивируются. Второй increment добавляет `scripts/restore-backup.sh`: он
+проверяет backup и восстанавливает его только в новый Compose project с
+префиксом `booker-tee-restore-`, сверяет Alembic revision и создаёт пустой
+uploads volume. Production project и существующие volumes недоступны этому
+пути восстановления.
 
 Один backup set должен включать:
 
