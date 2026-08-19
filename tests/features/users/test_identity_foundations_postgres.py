@@ -271,7 +271,7 @@ async def test_verification_first_signup_creates_identity_then_workspace_once() 
         signup_results = await asyncio.gather(signup(), signup())
         messages = [result.email for result in signup_results if result.email is not None]
         assert len(messages) == 1
-        token = parse_qs(urlparse(messages[0].text.splitlines()[2]).query)["token"][0]
+        token = parse_qs(urlparse(messages[0].text.splitlines()[2]).fragment)["token"][0]
 
         async with sessions() as session:
             user = await session.scalar(select(User).where(User.email == email))
@@ -570,7 +570,7 @@ async def test_password_change_rotates_current_session_and_reset_revokes_every_s
                 network_key=f"network-{unique}",
             )
             assert request.email is not None
-            reset_token = parse_qs(urlparse(request.email.text.splitlines()[2]).query)["token"][0]
+            reset_token = parse_qs(urlparse(request.email.text.splitlines()[2]).fragment)["token"][0]
 
         async with sessions() as session:
             await PasswordService(session, settings).reset_password(

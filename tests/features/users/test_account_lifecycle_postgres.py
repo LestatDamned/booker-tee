@@ -90,7 +90,7 @@ async def test_email_change_is_confirmed_once_rotates_session_and_rechecks_colli
             assert requested.messages[0].recipient == old_email
             assert "token=" not in requested.messages[0].text
             assert requested.messages[1].recipient == new_email
-            token = parse_qs(urlparse(requested.messages[1].text.splitlines()[2]).query)["token"][0]
+            token = parse_qs(urlparse(requested.messages[1].text.splitlines()[2]).fragment)["token"][0]
 
         async with sessions() as session:
             user = await session.get(User, user_id)
@@ -118,7 +118,7 @@ async def test_email_change_is_confirmed_once_rotates_session_and_rechecks_colli
                 target_email=collision_email,
                 base_url="https://booker.example",
             )
-            collision_token = parse_qs(urlparse(requested.messages[1].text.splitlines()[2]).query)[
+            collision_token = parse_qs(urlparse(requested.messages[1].text.splitlines()[2]).fragment)[
                 "token"
             ][0]
 

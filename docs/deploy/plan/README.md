@@ -773,6 +773,21 @@ Restore](https://www.postgresql.org/docs/16/backup.html).
 
 ## 9. Автоматизировать release gate и clean-room rehearsal
 
+Статус: в работе с 19 августа 2026 года.
+
+Базовый GitHub Actions CI добавлен для pull request и push в `main`:
+
+- backend Ruff, ty, Alembic migrations и полный pytest с PostgreSQL, а также
+  production dependency audit;
+- frontend format, lint, styles, API contract, typecheck, tests, production build
+  и production dependency audit;
+- параллельные backend/frontend jobs, read-only GitHub permissions и отмена
+  устаревшего запуска для той же ветки.
+
+Следующий шаг этапа — отдельный release gate с production image/Compose,
+миграцией чистой БД и clean-room rehearsal. CD на VPS будет добавлен после
+получения адреса сервера и отдельного deploy SSH key.
+
 Release gate должен выполняться локально и в выбранной CI-системе:
 
 1. Backend Ruff, ty и полный pytest с PostgreSQL.
