@@ -22,6 +22,11 @@ def test_uploaded_document_children_are_deleted_with_document() -> None:
     assert attempt_raw_transactions.passive_deletes is True
 
 
+def test_uploaded_document_tracks_source_file_deletion() -> None:
+    assert UploadedDocument.__table__.c.storage_key.nullable is True
+    assert UploadedDocument.__table__.c.source_file_deleted_at.nullable is True
+
+
 def test_user_identity_foundation_schema_is_registered() -> None:
     assert {"email_verified_at", "deactivated_at"} <= set(User.__table__.columns.keys())
     assert "user_agent_summary" in UserSession.__table__.columns

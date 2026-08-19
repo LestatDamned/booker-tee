@@ -37,6 +37,12 @@ def test_allowed_hosts_accepts_comma_separated_env(monkeypatch) -> None:
     assert settings.allowed_hosts == ["app.example.com", "127.0.0.1"]
 
 
+def test_upload_retention_reads_hours_from_env(monkeypatch) -> None:
+    monkeypatch.setenv("BOOKER_TEE_UPLOAD_RETENTION_HOURS", "72")
+
+    assert Settings().upload_retention_hours == 72
+
+
 def test_trusted_host_blocks_unknown_host(client: TestClient) -> None:
     response = client.get("/health", headers={"host": "evil.example"})
 

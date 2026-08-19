@@ -52,10 +52,15 @@ class ImportDocumentManagementUseCase:
         document = await self._get_document(workspace_id, document_id, expected_status)
         if has_linked_operations(document.raw_transactions):
             raise ImportDocumentManagementError("Нельзя удалить документ со связанными операциями.")
-        storage_path = self.settings.upload_storage_dir / document.storage_key
+        storage_path = (
+            self.settings.upload_storage_dir / document.storage_key
+            if document.storage_key is not None
+            else None
+        )
         await self.documents.delete_document(document)
         await self.session.commit()
-        storage_path.unlink(missing_ok=True)
+        if storage_path is not None:
+            storage_path.unlink(missing_ok=True)
 
     async def _get_document(
         self,

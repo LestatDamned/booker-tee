@@ -126,6 +126,11 @@ class Settings(BaseSettings):
         default=Path("var/uploads"),
         validation_alias="BOOKER_TEE_UPLOAD_STORAGE_DIR",
     )
+    upload_retention_hours: int = Field(
+        default=48,
+        ge=1,
+        validation_alias="BOOKER_TEE_UPLOAD_RETENTION_HOURS",
+    )
     statement_upload_max_bytes: int = Field(
         default=20 * 1024 * 1024,
         ge=1,

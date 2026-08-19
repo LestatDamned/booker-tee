@@ -109,7 +109,8 @@ class UploadedDocument(Base):
         default=UploadedDocumentStatus.UPLOADED,
     )
     original_filename: Mapped[str] = mapped_column(String(512))
-    storage_key: Mapped[str] = mapped_column(String(1024), unique=True)
+    storage_key: Mapped[str | None] = mapped_column(String(1024), unique=True)
+    source_file_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     content_type: Mapped[str | None] = mapped_column(String(255))
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger)
     sha256_hash: Mapped[str] = mapped_column(String(64), index=True)

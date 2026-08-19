@@ -12,7 +12,7 @@ Internet
   -> Nginx container (80/443, TLS, rate limits)
   -> FastAPI + React build (app:8000, private proxy network)
   -> PostgreSQL (private Docker network)
-  -> upload storage (persistent volume)
+  -> temporary upload storage (persistent volume, retention-controlled)
 ```
 
 На первом этапе не нужны Kubernetes, Redis, Celery, отдельный frontend-сервер
@@ -208,7 +208,8 @@ FastAPI, монтирует исходники и запускает Uvicorn с 
 4. Не публиковать PostgreSQL на host network.
 5. Не публиковать FastAPI на host network; разрешить доступ только Nginx в
    private Compose network.
-6. Хранить PostgreSQL и uploads в persistent volumes.
+6. Хранить PostgreSQL и временные uploads в разных persistent volumes;
+   originals удаляются по retention policy и не являются backup-данными.
 7. Запускать application container не от `root`.
 8. Добавить healthcheck и ограниченную ротацию логов.
 9. Запускать `alembic upgrade head` отдельной одноразовой release-командой,
@@ -216,7 +217,8 @@ FastAPI, монтирует исходники и запускает Uvicorn с 
 
 Exit gate:
 
-- после пересоздания контейнеров база и документы сохраняются;
+- после пересоздания контейнеров база и ещё не удалённые временные originals
+  сохраняются;
 - порты PostgreSQL и FastAPI недоступны снаружи;
 - application image запускается без исходников и development dependencies;
 - неуспешная миграция не запускает новую версию приложения.
@@ -230,7 +232,7 @@ Exit gate:
 - `compose.production.yaml` не монтирует исходники, не запускает development
   frontend, `uv sync`, Alembic или Uvicorn `--reload` при старте;
 - PostgreSQL и FastAPI доступны только в разделённых private Compose networks;
-- PostgreSQL data и uploads хранятся в отдельных named volumes;
+- PostgreSQL data и временные uploads хранятся в отдельных named volumes;
 - app и PostgreSQL имеют healthchecks, restart policy и bounded Docker logs;
 - секреты читаются из внешнего файла, путь к которому передаётся через
   `BOOKER_TEE_ENV_FILE`.
@@ -259,7 +261,8 @@ release-командой после успешного старта прилож
 - migration до `20260818_0031 (head)` отдельным one-off container: passed;
 - healthcheck и private-network-only FastAPI binding: passed;
 - PostgreSQL без published port: passed;
-- PostgreSQL и uploads сохранились после `--force-recreate`: passed.
+- PostgreSQL и ещё не истёкшие uploads сохранились после `--force-recreate`:
+  passed.
 
 Exit gate этапа закрыт.
 
@@ -460,6 +463,112 @@ Exit gate:
 
 Exit gate этапа 6.2 закрыт.
 
+### 6.2.1. Защитить originals и ограничить retention 48 часами
+
+Оригинальный PDF/XLSX нужен только до надёжного сохранения результата parse.
+После этого финансовый audit опирается на document metadata, SHA-256, raw
+extraction, raw transactions, parse attempts и confirmed ledger records в
+PostgreSQL. Долгое хранение source file увеличивает ущерб при утечке и не даёт
+текущему приложению дополнительной функции.
+
+Политика:
+
+- после успешного commit распознанной или автоматически mapped выписки удалять
+  original сразу;
+- неизвестную выписку со `StoredValidationReport.status == "needs_mapping"`
+  хранить до 48 часов с момента upload, даже если extraction успешно сохранил
+  raw tables; это окно позволяет проверить и исправить ручной mapping;
+- при failed/incomplete parse также хранить original не более 48 часов, после
+  чего пользователь при необходимости загружает выписку заново;
+- 48 часов — верхняя граница и аварийная страховка, а не обязательный срок
+  хранения каждого файла;
+- document record, SHA-256, raw extraction, raw transactions и ledger records
+  retention cleanup не удаляет;
+- originals не входят в долгосрочные backups.
+
+Работы:
+
+1. Добавить `BOOKER_TEE_UPLOAD_RETENTION_HOURS=48`, nullable `storage_key` и
+   `source_file_deleted_at`; после удаления очищать storage key и записывать
+   timestamp без удаления `UploadedDocument`.
+2. Хранить файл под сгенерированным application именем без original filename;
+   original filename оставлять только в авторизованном document metadata.
+3. Создавать upload directories с mode `0700`, файлы с mode `0600`, запрещать
+   overwrite и проверять, что resolved path находится внутри upload root.
+4. Проверять не только extension и недоверенный Content-Type, но также PDF/XLSX
+   file signature и ожидаемую XLSX ZIP structure до parser processing.
+5. После успешного parse commit удалять source file, кроме документа с
+   `needs_mapping`. Для него cleanup использует обычный 48-hour cutoff даже
+   после завершения ручного mapping. Ошибка удаления не откатывает сохранённый
+   parse: файл подхватывает idempotent retention cleanup.
+6. Добавить одну CLI-команду без отдельного scheduler dependency. Она каждый
+   час небольшими batches удаляет expired originals, чистит orphan files и
+   согласует DB metadata с отсутствующими файлами. Сначала удаляется файл,
+   затем фиксируется `source_file_deleted_at`; повторный запуск безопасен.
+7. Не выводить в cleanup logs filename, storage key, содержимое или financial
+   metadata: только counts, итоговый статус и безопасный error category.
+8. Сделать root filesystem application container read-only, дать bounded
+   `tmpfs` для `/tmp`, сбросить Linux capabilities и включить
+   `no-new-privileges`; upload volume остаётся единственным постоянным writable
+   filesystem приложения.
+9. После завершения Telegram upload очищать из conversation state `file_id`,
+   `file_unique_id`, filename и MIME metadata; то же делать для expired upload
+   states.
+10. После Telegram upload показывать сообщение:
+
+    > Выписка загружена. Исходный файл на сервере Booker Tee удаляется сразу
+    > после успешной автоматической обработки. Если выписке нужен ручной
+    > маппинг или обработка не завершилась, файл автоматически удаляется через
+    > 48 часов. Для дополнительной конфиденциальности удалите сообщение с
+    > файлом из этого чата. Telegram хранит свою копию отдельно от Booker Tee.
+
+    Первый increment только уведомляет пользователя и не удаляет Telegram
+    message автоматически.
+
+11. Исключить upload volume из долгосрочного backup. После восстановления
+    PostgreSQL запускать reconciliation той же CLI-командой: отсутствующие
+    originals отмечаются удалёнными, а parsed/raw/ledger data остаются доступны.
+
+Прогресс на 19 августа 2026 года:
+
+- пункт 1 выполнен: добавлены `BOOKER_TEE_UPLOAD_RETENTION_HOURS=48`, nullable
+  `UploadedDocument.storage_key` и `source_file_deleted_at`;
+- migration `20260819_0032` проверена полным upgrade, downgrade с уже очищенным
+  storage key и повторным upgrade на PostgreSQL;
+- удаление document уже безопасно обрабатывает отсутствующий source file;
+- фактическое удаление originals, cleanup и остальные пункты этапа ещё не
+  реализованы.
+
+Exit gate:
+
+- original распознанной или автоматически mapped выписки отсутствует после
+  parse commit, а document, raw data и операции доступны;
+- original с `needs_mapping` доступен cleanup-процессу до 48-hour cutoff; после
+  удаления ручной mapping продолжает работать с raw tables из PostgreSQL;
+- failed, abandoned и orphan uploads старше 48 часов удаляются почасовой
+  idempotent командой;
+- cleanup crash между file deletion и DB update исправляется повторным запуском;
+- новые файлы и каталоги имеют `0600/0700`, user filename не участвует в
+  filesystem path;
+- Nginx и browser API не получают upload volume или storage key;
+- production backup/restore не содержит originals и корректно reconciles их
+  отсутствие;
+- Telegram file metadata очищается, а пользователь получает privacy notice;
+- web и Telegram uploads проходят одинаковую signature, parser и retention
+  policy.
+
+Не включать в первый increment ClamAV sidecar, file download endpoint,
+application-level file encryption, отдельный queue или scheduler. Вернуться к
+anti-malware scanning при расширении регистрации, появлении file sharing или
+измеренном риске, который не покрывают allowlist, signature validation,
+resource limits и container isolation.
+
+Справка:
+
+- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html);
+- [Telegram Bot API deleteMessage](https://core.telegram.org/bots/api#deletemessage);
+- [Telegram Privacy Policy: Cloud Chats](https://telegram.org/privacy#3-3-1-cloud-chats).
+
 ### 6.3. Добавить bootstrap первого owner
 
 При `invite_only` первый пользователь не может получить приглашение от ещё не
@@ -530,17 +639,22 @@ Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
 Один backup set должен включать:
 
 - PostgreSQL custom-format dump;
-- upload storage archive;
-- manifest с временем, application image, Alembic revision и checksums.
+- manifest с временем, application image, Alembic revision, checksums и явной
+  отметкой, что временные originals исключены.
+
+Upload storage archive в backup не входит: originals являются временными
+данными с максимальным retention 48 часов. Их долгосрочная копия нарушила бы
+эту политику.
 
 Минимальная безопасная процедура:
 
 1. Остановить application mutations на время согласованного backup set.
 2. Выполнить `pg_dump -Fc` из совместимой PostgreSQL image.
-3. Архивировать upload storage.
-4. Сформировать manifest и SHA-256 checksums.
-5. Восстановить dump и uploads в чистые volumes.
-6. Выполнить login, открытие документа и проверку ledger balance.
+3. Сформировать manifest и SHA-256 checksums без upload volume.
+4. Восстановить dump в чистый PostgreSQL volume и создать пустой upload volume.
+5. Выполнить upload reconciliation: отсутствующие originals отметить удалёнными
+   без удаления document/raw/ledger data.
+6. Выполнить login, открытие документа, import review и проверку ledger balance.
 
 Retention baseline после появления VPS:
 
@@ -549,8 +663,9 @@ Retention baseline после появления VPS:
 - ежемесячный restore-test;
 - целевые RPO 24 часа и RTO 2 часа.
 
-Exit gate: repeatable backup/restore commands полностью восстанавливают
-sanitized production-like dataset на чистом Compose project.
+Exit gate: repeatable backup/restore commands восстанавливают sanitized
+production-like PostgreSQL dataset на чистом Compose project; originals
+ожидаемо отсутствуют, а document/raw/ledger workflows продолжают работать.
 
 Справка: [PostgreSQL Backup and
 Restore](https://www.postgresql.org/docs/16/backup.html).
@@ -566,7 +681,8 @@ Release gate должен выполняться локально и в выбр
 5. Container vulnerability scan без blocker/high findings.
 6. SBOM и provenance для публикуемых immutable images.
 7. Clean-room flow: bootstrap owner -> invite -> login -> PDF/XLSX import ->
-   Telegram replay -> restart -> backup -> clean restore -> smoke test.
+   Telegram replay -> source cleanup -> restart -> backup без originals -> clean
+   restore -> reconciliation -> smoke test.
 8. Проверить rollback к предыдущему application image без Alembic downgrade.
 
 Exit gate: проверки повторяемы одной release-инструкцией; ручной release не
@@ -593,6 +709,7 @@ BOOKER_TEE_PUBLIC_BASE_URL=https://finance.example.com
 BOOKER_TEE_SECURITY_HEADERS_ENABLED=true
 BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED=true
 BOOKER_TEE_TELEGRAM_MODE=webhook
+BOOKER_TEE_UPLOAD_RETENTION_HOURS=48
 ```
 
 Секреты:
@@ -615,8 +732,10 @@ VPS:
 
 Дополнительно на VPS:
 
-- зашифровать backup и копировать его вне VPS;
-- установить расписание backup, certificate renewal и restore-test;
+- зашифровать PostgreSQL backup и копировать его вне VPS; upload originals в
+  backup не включать;
+- установить расписание backup, hourly upload cleanup, certificate renewal и
+  restore-test;
 - настроить domain A/AAAA и необходимые SMTP SPF/DKIM/DMARC records;
 - настроить alert по availability, `5xx`, certificate expiry и заполнению диска.
 
@@ -655,6 +774,7 @@ Rollback:
 ## 12. Поддерживать после запуска
 
 - ежедневно проверять успешность backup;
+- проверять успешность hourly upload cleanup и отсутствие expired/orphan files;
 - мониторить availability, ошибки `5xx`, rate-limit rejects, disk и certificate
   expiry;
 - не отправлять raw financial data и документы во внешние monitoring services;
@@ -670,7 +790,7 @@ Rollback:
 3. Telegram webhook hardening
 4. Production image and Compose
 5. Containerized Nginx and TLS repository setup
-6. Pre-VPS token/log/parser/bootstrap/preflight hardening
+6. Pre-VPS token/log/parser/upload-retention/bootstrap/preflight hardening
 7. Strict CSP
 8. Local backup and clean restore test
 9. Automated release gate and clean-room rehearsal
