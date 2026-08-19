@@ -533,11 +533,14 @@ PostgreSQL. Долгое хранение source file увеличивает у�
 
 - пункт 1 выполнен: добавлены `BOOKER_TEE_UPLOAD_RETENTION_HOURS=48`, nullable
   `UploadedDocument.storage_key` и `source_file_deleted_at`;
+- пункты 2-4 выполнены: original filename больше не участвует в storage key,
+  directories/files создаются с `0700/0600`, overwrite запрещён, resolved path
+  ограничен upload root, PDF/XLSX проходят signature/ZIP structure validation;
 - migration `20260819_0032` проверена полным upgrade, downgrade с уже очищенным
   storage key и повторным upgrade на PostgreSQL;
 - удаление document уже безопасно обрабатывает отсутствующий source file;
-- фактическое удаление originals, cleanup и остальные пункты этапа ещё не
-  реализованы.
+- фактическое удаление originals после parse, retention cleanup и пункты 5-11
+  ещё не реализованы.
 
 Exit gate:
 

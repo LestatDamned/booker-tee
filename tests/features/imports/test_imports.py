@@ -3,6 +3,7 @@ from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
+from stat import S_IMODE
 from threading import get_ident
 from types import SimpleNamespace
 from typing import Any, cast
@@ -69,7 +70,7 @@ def test_sanitize_upload_filename_removes_paths_and_unsafe_characters() -> None:
 @pytest.mark.asyncio
 async def test_upload_storage_preserves_pdf_bytes(tmp_path: Path) -> None:
     content = b"%PDF-1.4 local fixture bytes"
-    upload = UploadFile(file=BytesIO(content), filename="../statement.pdf")
+    upload = UploadFile(file=BytesIO(content), filename="../private-bank-statement.pdf")
     workspace_id = uuid4()
     document_id = uuid4()
 
@@ -82,12 +83,22 @@ async def test_upload_storage_preserves_pdf_bytes(tmp_path: Path) -> None:
     assert stored.file_size_bytes == len(content)
     assert stored.sha256_hash == sha256(content).hexdigest()
     assert stored.path.read_bytes() == content
-    assert stored.storage_key == f"{workspace_id}/{document_id}/statement.pdf"
+    assert stored.storage_key == f"{workspace_id}/{document_id}/source.pdf"
+    assert "private-bank-statement" not in stored.storage_key
+    assert S_IMODE(stored.path.stat().st_mode) == 0o600
+    assert S_IMODE(tmp_path.stat().st_mode) == 0o700  # noqa: ASYNC240
+    assert S_IMODE(stored.path.parent.stat().st_mode) == 0o700
+    assert S_IMODE(stored.path.parent.parent.stat().st_mode) == 0o700
 
 
 @pytest.mark.asyncio
 async def test_upload_storage_preserves_xlsx_extension(tmp_path: Path) -> None:
-    content = b"local xlsx fixture bytes"
+    workbook_file = BytesIO()
+    workbook = Workbook()
+    workbook.active["A1"] = "Дата"
+    workbook.save(workbook_file)
+    workbook.close()
+    content = workbook_file.getvalue()
     upload = UploadFile(file=BytesIO(content), filename="../statement.xlsx")
     workspace_id = uuid4()
     document_id = uuid4()
@@ -101,7 +112,7 @@ async def test_upload_storage_preserves_xlsx_extension(tmp_path: Path) -> None:
     assert stored.file_size_bytes == len(content)
     assert stored.sha256_hash == sha256(content).hexdigest()
     assert stored.path.read_bytes() == content
-    assert stored.storage_key == f"{workspace_id}/{document_id}/statement.xlsx"
+    assert stored.storage_key == f"{workspace_id}/{document_id}/source.xlsx"
 
 
 @pytest.mark.asyncio
@@ -118,7 +129,88 @@ async def test_upload_storage_rejects_oversized_file_without_leaving_partial(
             max_bytes=4,
         )
 
-    assert list(tmp_path.rglob("statement.pdf")) == []  # noqa: ASYNC240
+    assert list(tmp_path.rglob("source.pdf")) == []  # noqa: ASYNC240
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filename", "content", "message"),
+    [
+        ("statement.pdf", b"not a PDF", "PDF"),
+        ("statement.xlsx", b"not an XLSX", "XLSX"),
+    ],
+)
+async def test_upload_storage_rejects_invalid_file_signature(
+    tmp_path: Path,
+    filename: str,
+    content: bytes,
+    message: str,
+) -> None:
+    with pytest.raises(UploadValidationError, match=message):
+        await UploadStorage(tmp_path).save_upload(
+            UploadFile(file=BytesIO(content), filename=filename),
+            workspace_id=uuid4(),
+            document_id=uuid4(),
+        )
+
+    assert list(tmp_path.rglob("source.*")) == []  # noqa: ASYNC240
+
+
+@pytest.mark.asyncio
+async def test_upload_storage_rejects_zip_without_xlsx_structure(tmp_path: Path) -> None:
+    content = BytesIO()
+    with ZipFile(content, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("unrelated.txt", "not a workbook")
+
+    with pytest.raises(UploadValidationError, match="XLSX"):
+        await UploadStorage(tmp_path).save_upload(
+            UploadFile(file=BytesIO(content.getvalue()), filename="statement.xlsx"),
+            workspace_id=uuid4(),
+            document_id=uuid4(),
+        )
+
+    assert list(tmp_path.rglob("source.xlsx")) == []  # noqa: ASYNC240
+
+
+@pytest.mark.asyncio
+async def test_upload_storage_does_not_overwrite_existing_file(tmp_path: Path) -> None:
+    storage = UploadStorage(tmp_path)
+    workspace_id = uuid4()
+    document_id = uuid4()
+    original = b"%PDF-1.4 original"
+    stored = await storage.save_upload(
+        UploadFile(file=BytesIO(original), filename="first.pdf"),
+        workspace_id=workspace_id,
+        document_id=document_id,
+    )
+
+    with pytest.raises(UploadValidationError, match="уже существует"):
+        await storage.save_upload(
+            UploadFile(file=BytesIO(b"%PDF-1.4 replacement"), filename="second.pdf"),
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+
+    assert stored.path.read_bytes() == original
+
+
+@pytest.mark.asyncio
+async def test_upload_storage_rejects_path_through_symlink(tmp_path: Path) -> None:
+    root_dir = tmp_path / "uploads"
+    outside_dir = tmp_path / "outside"
+    root_dir.mkdir()
+    outside_dir.mkdir()
+    workspace_id = uuid4()
+    (root_dir / str(workspace_id)).symlink_to(outside_dir, target_is_directory=True)
+
+    with pytest.raises(UploadValidationError, match="storage path"):
+        await UploadStorage(root_dir).save_upload(
+            UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"),
+            workspace_id=workspace_id,
+            document_id=uuid4(),
+        )
+
+    assert list(outside_dir.iterdir()) == []
 
 
 @pytest.mark.asyncio
@@ -168,7 +260,7 @@ async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) 
     assert result.document_id == existing.id
     assert result.document_status is existing.status
     assert result.filename == existing.original_filename
-    assert list(tmp_path.rglob("statement.pdf")) == []  # noqa: ASYNC240
+    assert list(tmp_path.rglob("source.pdf")) == []  # noqa: ASYNC240
 
 
 @pytest.mark.asyncio
@@ -288,7 +380,7 @@ async def test_statement_upload_cleans_stored_file_when_first_transaction_fails(
     if activity_fails:
         assert activity.await_args is not None
         assert activity.await_args.kwargs["details"].display_filename == "statement.pdf"
-    assert list(tmp_path.rglob("statement.pdf")) == []  # noqa: ASYNC240
+    assert list(tmp_path.rglob("source.pdf")) == []  # noqa: ASYNC240
 
 
 def test_validate_statement_upload_accepts_pdf_and_xlsx() -> None:
