@@ -784,25 +784,40 @@ Restore](https://www.postgresql.org/docs/16/backup.html).
 - параллельные backend/frontend jobs, read-only GitHub permissions и отмена
   устаревшего запуска для той же ветки.
 
-Следующий шаг этапа — отдельный release gate с production image/Compose,
-миграцией чистой БД и clean-room rehearsal. CD на VPS будет добавлен после
-получения адреса сервера и отдельного deploy SSH key.
+Минимальный release gate запускается вручную локально или через GitHub Actions:
 
-Release gate должен выполняться локально и в выбранной CI-системе:
+1. Разрешает только `main` и требует успешный CI для точного commit SHA, не
+   повторяя Ruff, ty, pytest, frontend checks и dependency audits.
+2. Проверяет Production Compose config и собирает app/Nginx images.
+3. Запускает application production preflight на синтетических секретах.
+4. Применяет Alembic migrations к чистой PostgreSQL.
+5. Запускает production app и Nginx с временным self-signed TLS certificate.
+6. Проверяет HTTPS health, HTTP redirect и закрытый `/health/db`.
+7. Всегда удаляет изолированные containers, volumes, certificate и env-файл.
 
-1. Backend Ruff, ty и полный pytest с PostgreSQL.
-2. Frontend format, lint, styles, typecheck, tests и production build.
-3. Python/npm production dependency audits.
-4. Production Compose config, app/Nginx image build и migration на чистой БД.
-5. Container vulnerability scan без blocker/high findings.
-6. SBOM и provenance для публикуемых immutable images.
-7. Clean-room flow: bootstrap owner -> invite -> login -> PDF/XLSX import ->
-   Telegram replay -> source cleanup -> restart -> backup без originals -> clean
-   restore -> reconciliation -> smoke test.
-8. Проверить rollback к предыдущему application image без Alembic downgrade.
+Локальный gate пройден 19 августа 2026 года: оба image собраны, production
+preflight прошёл, чистая база мигрирована до `20260819_0032`, app и Nginx стали
+healthy, TLS/redirect/internal-endpoint smoke checks прошли. Временные Docker
+resources удалены. Связь с зелёным GitHub CI проверяется после push workflow в
+`main`.
 
-Exit gate: проверки повторяемы одной release-инструкцией; ручной release не
-может обойти migration, audit, backup и smoke-test gates незаметно.
+CD на VPS будет добавлен после получения адреса сервера и отдельного deploy SSH
+key. Deploy job будет зависеть от release gate и использовать тот же immutable
+image digest без повторной сборки.
+
+До первого релиза остаются отдельные проверки:
+
+- container vulnerability scan для production image;
+- SBOM и provenance при публикации immutable image в registry;
+- полный clean-room import/Telegram/backup/restore rehearsal;
+- rollback rehearsal к предыдущему application image без Alembic downgrade.
+
+Полный clean-room и rollback повторяются после изменений соответствующих
+workflows и периодически, а не на каждом обычном релизе.
+
+Exit gate: `./scripts/release-gate.sh` повторяемо проходит локально и ручной
+GitHub Actions `Release Gate` не допускает production-проверки без зелёного CI
+того же commit SHA.
 
 Справка: [Docker build
 attestations](https://docs.docker.com/build/metadata/attestations/).

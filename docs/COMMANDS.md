@@ -100,6 +100,17 @@ history и могут попасть в process list.
 
 ## 4. Production: проверка и сборка
 
+Запустить изолированный release gate локально:
+
+```bash
+./scripts/release-gate.sh
+```
+
+Gate использует синтетические production-настройки и отдельный Compose project,
+собирает app/Nginx images, применяет migrations к чистой PostgreSQL и проверяет
+TLS health, HTTP redirect и закрытый `/health/db`. После проверки временные
+containers, volumes, сертификат и env-файл удаляются.
+
 Проверить итоговую Compose-конфигурацию:
 
 ```bash
