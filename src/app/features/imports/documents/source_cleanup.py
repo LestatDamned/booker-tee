@@ -8,24 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.settings import Settings
+from app.db import model_registry as model_registry  # noqa: F401
 from app.db.base import utc_now
 from app.db.session import session_factory
-from app.features.accounts import models as account_models  # noqa: F401
-from app.features.categories import models as category_models  # noqa: F401
-from app.features.chat_integrations import models as chat_integration_models  # noqa: F401
 from app.features.chat_integrations.repository import ChatIntegrationRepository
-from app.features.debts import models as debt_models  # noqa: F401
-from app.features.imports import models as import_models  # noqa: F401
 from app.features.imports.documents.commands.upload import should_retain_source_file
 from app.features.imports.documents.errors import UploadValidationError
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.storage import UploadStorage
 from app.features.imports.models import UploadedDocument
-from app.features.ledger import models as ledger_models  # noqa: F401
-from app.features.properties import models as property_models  # noqa: F401
-from app.features.transaction_rules import models as transaction_rule_models  # noqa: F401
-from app.features.users import models as user_models  # noqa: F401
-from app.features.workspaces import models as workspace_models  # noqa: F401
 
 logger = logging.getLogger(__name__)
 DEFAULT_CLEANUP_BATCH_SIZE = 100

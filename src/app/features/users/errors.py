@@ -22,6 +22,10 @@ class SignupsClosedError(UserError):
     pass
 
 
+class BootstrapOwnerError(UserError):
+    pass
+
+
 class InvalidEmailVerificationTokenError(UserError):
     pass
 

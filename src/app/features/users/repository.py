@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,6 +13,13 @@ from app.features.users.models import User, UserSession
 class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def lock_for_owner_bootstrap(self) -> None:
+        await self.session.execute(text("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE"))
+
+    async def has_any(self) -> bool:
+        result = await self.session.execute(select(User.id).limit(1))
+        return result.scalar_one_or_none() is not None
 
     async def get_by_email(self, email: str) -> User | None:
         result = await self.session.execute(select(User).where(User.email == email.lower()))

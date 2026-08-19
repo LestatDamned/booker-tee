@@ -613,6 +613,20 @@ Exit gate:
 - bootstrap owner входит в приложение и создаёт первое приглашение;
 - публичная регистрация всё время остаётся `invite_only`.
 
+Статус: выполнено 19 августа 2026 года.
+
+Команда запускается интерактивно после применения migrations:
+
+```bash
+docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml \
+  run --rm app python -m app.features.users.bootstrap
+```
+
+Она использует скрытый ввод и подтверждение пароля, блокирует конкурентное
+создание пользователей на время транзакции, создаёт verified user, personal
+workspace, owner membership и audit event одним commit. Если в базе уже есть
+хотя бы один пользователь, bootstrap безопасно завершается с ошибкой.
+
 ### 6.4. Добавить production preflight
 
 Deployment-specific preflight должен завершаться до migration/start и не
