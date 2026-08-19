@@ -40,6 +40,8 @@
 
 ## Операционные документы
 
+- [`COMMANDS.md`](COMMANDS.md) — единый справочник локальных, deployment и
+  эксплуатационных CLI-команд.
 - [`Production deployment plan`](deploy/plan/README.md) — подготовка приложения,
   Nginx, Telegram, backup/restore и первый production release.
 - [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md) — локальный запуск и smoke flow.
