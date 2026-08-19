@@ -544,7 +544,15 @@ PostgreSQL. Долгое хранение source file увеличивает у�
   отдельным commit; `needs_mapping`, failed и incomplete сохраняются для
   retention cleanup;
 - filesystem error не отменяет committed parse и логируется без path/filename;
-- retention cleanup и пункты 6-11 ещё не реализованы.
+- пункты 6-7 выполнены: команда
+  `uv run python -m app.features.imports.documents.source_cleanup` небольшими
+  DB batches удаляет originals старше 48 часов, согласует отсутствующие файлы,
+  удаляет один bounded batch старых orphan files и безопасна для повторного
+  запуска;
+- команда выводит только итоговый status и counts, логирует только тип ошибки и
+  возвращает ненулевой exit code при частичном сбое;
+- почасовой systemd timer для этой команды будет добавлен при подготовке VPS;
+- пункты 8-11 ещё не реализованы.
 
 Exit gate:
 

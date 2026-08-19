@@ -1,9 +1,10 @@
 """Persistence reads owned by the imported document capability."""
 
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -129,6 +130,41 @@ class DocumentRepository:
             .order_by(UploadedDocument.created_at.desc())
         )
         return list(result.scalars().all())
+
+    async def list_documents_with_source_file(
+        self,
+        *,
+        after_created_at: datetime | None,
+        after_id: UUID | None,
+        limit: int,
+    ) -> list[UploadedDocument]:
+        statement = (
+            select(UploadedDocument)
+            .options(selectinload(UploadedDocument.parse_attempts))
+            .where(UploadedDocument.storage_key.is_not(None))
+        )
+        if after_created_at is not None and after_id is not None:
+            statement = statement.where(
+                or_(
+                    UploadedDocument.created_at > after_created_at,
+                    and_(
+                        UploadedDocument.created_at == after_created_at,
+                        UploadedDocument.id > after_id,
+                    ),
+                )
+            )
+        result = await self.session.execute(
+            statement.order_by(UploadedDocument.created_at.asc(), UploadedDocument.id.asc())
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        return list(result.scalars().all())
+
+    async def list_active_storage_keys(self) -> set[str]:
+        result = await self.session.execute(
+            select(UploadedDocument.storage_key).where(UploadedDocument.storage_key.is_not(None))
+        )
+        return {storage_key for storage_key in result.scalars() if storage_key is not None}
 
     async def list_document_rows_for_workspace(
         self,

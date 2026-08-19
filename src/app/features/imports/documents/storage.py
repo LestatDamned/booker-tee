@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from hashlib import sha256
 from pathlib import Path, PurePath
 from re import sub
@@ -58,11 +59,48 @@ class UploadStorage:
         return digest.hexdigest(), size
 
     async def delete_stored_upload(self, stored_upload: StoredUpload) -> None:
-        root_dir = self.root_dir.resolve()
-        stored_path = stored_upload.path.resolve()
-        ensure_path_within_root(stored_path, root_dir)
+        await self.delete_storage_key(stored_upload.storage_key)
+
+    async def delete_storage_key(self, storage_key: str) -> None:
+        root_dir, stored_path = resolve_storage_path(self.root_dir, storage_key)
         stored_path.unlink(missing_ok=True)
         remove_empty_upload_directories(stored_path.parent, root_dir)
+
+    def storage_key_exists(self, storage_key: str) -> bool:
+        _, stored_path = resolve_storage_path(self.root_dir, storage_key)
+        return stored_path.is_file()
+
+    def find_orphan_storage_keys(
+        self,
+        referenced_keys: set[str],
+        *,
+        older_than: datetime,
+        limit: int,
+    ) -> list[str]:
+        if limit < 1:
+            return []
+        if not self.root_dir.exists():
+            return []
+        root_dir = self.root_dir.resolve()
+        orphan_keys: list[str] = []
+        for workspace_dir in root_dir.iterdir():
+            if workspace_dir.is_symlink() or not workspace_dir.is_dir():
+                continue
+            for document_dir in workspace_dir.iterdir():
+                if document_dir.is_symlink() or not document_dir.is_dir():
+                    continue
+                for source_file in document_dir.iterdir():
+                    if source_file.is_symlink() or not source_file.is_file():
+                        continue
+                    storage_key = source_file.relative_to(root_dir).as_posix()
+                    if (
+                        storage_key not in referenced_keys
+                        and source_file.stat().st_mtime <= older_than.timestamp()
+                    ):
+                        orphan_keys.append(storage_key)
+                        if len(orphan_keys) == limit:
+                            return orphan_keys
+        return orphan_keys
 
     async def _save(
         self,
@@ -131,6 +169,23 @@ def prepare_upload_path(root_dir: Path, storage_key: str) -> tuple[Path, Path]:
     document_dir.mkdir(exist_ok=True, mode=0o700)
     document_dir.chmod(0o700)
     return resolved_root, target_path
+
+
+def resolve_storage_path(root_dir: Path, storage_key: str) -> tuple[Path, Path]:
+    root_dir = root_dir.resolve()
+    relative_path = Path(storage_key)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise UploadValidationError("Некорректный storage path.")
+
+    candidate = root_dir / relative_path
+    current = root_dir
+    for part in relative_path.parts:
+        current /= part
+        if current.is_symlink():
+            raise UploadValidationError("Некорректный storage path.")
+    resolved_path = candidate.resolve()
+    ensure_path_within_root(resolved_path, root_dir)
+    return root_dir, resolved_path
 
 
 def ensure_path_within_root(path: Path, root_dir: Path) -> None:
