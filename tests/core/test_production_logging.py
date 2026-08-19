@@ -16,3 +16,14 @@ def test_production_access_logs_exclude_request_secrets() -> None:
     assert "$http_authorization" not in safe_format
     assert nginx.count("access_log /var/log/nginx/access.log safe;") == 2
     assert "--no-access-log" in compose
+
+
+def test_production_app_container_is_hardened() -> None:
+    compose = (PROJECT_ROOT / "compose.production.yaml").read_text()
+    app_service = compose.split("  app:\n", 1)[1].split("  nginx:\n", 1)[0]
+
+    assert "read_only: true" in app_service
+    assert "/tmp:rw,noexec,nosuid,nodev,size=128m,mode=1777" in app_service
+    assert "cap_drop:\n      - ALL" in app_service
+    assert "security_opt:\n      - no-new-privileges:true" in app_service
+    assert "booker_tee_uploads:/app/var/uploads" in app_service

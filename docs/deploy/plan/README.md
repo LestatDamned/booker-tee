@@ -552,7 +552,12 @@ PostgreSQL. Долгое хранение source file увеличивает у�
 - команда выводит только итоговый status и counts, логирует только тип ошибки и
   возвращает ненулевой exit code при частичном сбое;
 - почасовой systemd timer для этой команды будет добавлен при подготовке VPS;
-- пункты 8-11 ещё не реализованы.
+- пункт 8 выполнен: root filesystem application container работает read-only,
+  `/tmp` предоставляется как `tmpfs` с лимитом 128 MiB и флагами
+  `noexec,nosuid,nodev`, все Linux capabilities сброшены, повышение привилегий
+  запрещено через `no-new-privileges`; upload volume остаётся единственным
+  постоянным writable filesystem приложения;
+- пункты 9-11 ещё не реализованы.
 
 Exit gate:
 

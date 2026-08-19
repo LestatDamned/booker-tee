@@ -34,6 +34,13 @@ services:
     cpus: ${BOOKER_TEE_APP_CPUS:-1.0}
     mem_limit: ${BOOKER_TEE_APP_MEMORY_LIMIT:-1g}
     pids_limit: ${BOOKER_TEE_APP_PIDS_LIMIT:-256}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       postgres:
         condition: service_healthy
