@@ -711,6 +711,12 @@ Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
 
 ## 8. Реализовать и проверить backup/restore локально
 
+Статус: выполняется. Первый increment добавляет `scripts/backup.sh`: приложение
+останавливается на время согласованного `pg_dump -Fc` и гарантированно
+запускается обратно; новый приватный backup-каталог получает dump, manifest и
+SHA-256 checksums. Upload volume и временные originals не читаются и не
+архивируются.
+
 Один backup set должен включать:
 
 - PostgreSQL custom-format dump;

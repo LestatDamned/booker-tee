@@ -192,6 +192,14 @@ preflight или миграции. Предыдущий image tag сохраня
 
 ## 7. Production-обслуживание
 
+Создать новый backup set PostgreSQL. Каталог назначения не должен существовать;
+скрипт не включает временные originals и не перезаписывает готовые копии:
+
+```bash
+export BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env
+./scripts/backup.sh /var/backups/booker-tee/2026-08-19T120000Z
+```
+
 Почасовая очистка временных originals и Telegram file metadata:
 
 ```bash
