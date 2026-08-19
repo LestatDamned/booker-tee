@@ -98,6 +98,10 @@ class Settings(BaseSettings):
         default=True,
         validation_alias="BOOKER_TEE_SECURITY_HEADERS_ENABLED",
     )
+    domain: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_DOMAIN",
+    )
     chat_integrations_enabled: bool = Field(
         default=False,
         validation_alias="BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED",
@@ -196,6 +200,7 @@ class Settings(BaseSettings):
         "telegram_bot_token",
         "telegram_webhook_secret",
         "public_base_url",
+        "domain",
         "identity_email_from",
         "smtp_host",
         "smtp_username",

@@ -244,7 +244,8 @@ export BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env
 export BOOKER_TEE_IMAGE=booker-tee:$(git rev-parse --short HEAD)
 
 docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml build app nginx
-docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml \
+./scripts/production-preflight.sh && \
+  docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml \
   run --rm app alembic upgrade head && \
   docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml up -d
 ```
@@ -646,6 +647,22 @@ Deployment-specific preflight должен завершаться до migration
 
 Exit gate: одна preflight-команда принимает корректный sanitized test env и
 отклоняет каждую небезопасную конфигурацию отдельным понятным сообщением.
+
+Статус: выполнено 19 августа 2026 года.
+
+После сборки production image и до migrations оператор запускает:
+
+```bash
+export BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env
+./scripts/production-preflight.sh
+```
+
+Host wrapper отклоняет отсутствующий, отслеживаемый Git или доступный шире
+`0600` env-файл. Затем one-off application container проверяет production mode,
+debug/registration/security settings, согласованность domain/allowed hosts/HTTPS
+URL, SMTP STARTTLS и обязательные email/Telegram параметры, Compose database
+host, placeholder/короткие/совпадающие secrets. Вывод содержит только названия
+переменных и причины; подключения к SMTP и Telegram не выполняются.
 
 ## 7. Добавить strict Content Security Policy
 
