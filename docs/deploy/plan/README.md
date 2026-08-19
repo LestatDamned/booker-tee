@@ -675,6 +675,20 @@ React SPA build содержит inline bootstrap scripts, поэтому `scrip
 разрешает эти хэши вместе с same-origin assets. API и static asset responses не
 получают CSP; внешняя отправка violation reports пока не выполняется.
 
+Browser validation 19 августа 2026 года:
+
+- login проверен в desktop/tablet/mobile без CSP console errors;
+- authenticated operations, reports и upload дали 9 ответов `200`, без console
+  errors, page errors и failed requests;
+- реальный XLSX прошёл upload, mapping и import review; целевой desktop review
+  audit завершился без CSP или runtime ошибок;
+- audit использует канонический `/app/operations` и поддерживает точечный выбор
+  `--viewport`, чтобы stateful security gate не зависел от полного visual audit.
+
+Enforced CSP пока не включён: следующим increment остаётся негативный browser
+test блокировки неизвестного inline/external script и затем замена report-only
+header на enforced header.
+
 Работы:
 
 1. Генерировать SHA-256 hashes inline scripts из того же immutable build,

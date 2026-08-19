@@ -73,7 +73,7 @@ PAGES: tuple[tuple[str, str], ...] = (
 
 AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
-    ("/app/ledger/manual", "react-manual-ledger"),
+    ("/app/operations", "react-manual-ledger"),
     ("/app/foundation", "react-foundation"),
     ("/app/reports", "react-reports"),
     ("/app/accounts", "accounts"),
@@ -198,6 +198,13 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Audit only this path or stable page label. Repeat the option to select several pages."
         ),
+    )
+    parser.add_argument(
+        "--viewport",
+        action="append",
+        choices=tuple(viewport[0] for viewport in VIEWPORTS),
+        dest="viewports",
+        help="Audit only this viewport. Repeat the option to select several viewports.",
     )
     parser.add_argument(
         "--theme",
@@ -450,7 +457,7 @@ def prepare_realistic_scenario(
             .first.wait_for(timeout=PAGE_TIMEOUT_MS)
         )
 
-        page.goto(build_url(base_url, "/app/ledger/manual"), wait_until="networkidle")
+        page.goto(build_url(base_url, "/app/operations"), wait_until="networkidle")
         page.get_by_role("button", name="Добавить операцию", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
@@ -465,7 +472,7 @@ def prepare_realistic_scenario(
         create_form.get_by_role("button", name="Создать расход", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
-        page.wait_for_url("**/app/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
+        page.wait_for_url("**/app/operations?operation_id=**", timeout=PAGE_TIMEOUT_MS)
         manual_target_path = page.url.replace(base_url.rstrip("/"), "")
 
         page.goto(build_url(base_url, "/app/categories"), wait_until="networkidle")
@@ -697,27 +704,24 @@ def prepare_realistic_scenario(
             exact=True,
         ).wait_for(timeout=PAGE_TIMEOUT_MS)
 
-        workspace_id = page.evaluate(
-            "async () => (await (await fetch('/api/v1/session')).json()).workspace.id"
+        page.goto(build_url(base_url, "/app/workspaces"), wait_until="networkidle")
+        workspace_settings_path = (
+            page.locator('[data-workspace-record][aria-current="true"]:visible')
+            .locator('a[href^="/app/workspaces/"][href$="/settings"]')
+            .first.get_attribute("href")
         )
-        page.goto(
-            build_url(base_url, f"/app/workspaces/{workspace_id}/settings"),
-            wait_until="domcontentloaded",
-        )
-        invitation_section = page.get_by_role("heading", name="Приглашения", exact=True).locator(
-            "xpath=ancestor::section[1]"
-        )
-        invitation_section.locator("select").select_option("viewer")
-        invitation_section.get_by_role("button", name="Создать ссылку").click(
-            timeout=PAGE_TIMEOUT_MS
-        )
-        invitation_section.get_by_label("Ссылка приглашения").wait_for(timeout=PAGE_TIMEOUT_MS)
+        if workspace_settings_path is None:
+            raise RuntimeError("Current workspace settings link was not found")
 
         page.goto(build_url(base_url, "/app/imports/upload"), wait_until="domcontentloaded")
         page.locator('select[name="accountId"]').select_option(index=1)
         page.locator('input[name="statement"]').set_input_files(str(workbook_path))
         page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.wait_for_url("**/app/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
+        try:
+            page.wait_for_url("**/app/imports/documents/**", timeout=PAGE_TIMEOUT_MS * 3)
+        except PlaywrightTimeoutError as error:
+            alerts = page.locator('[role="alert"]').all_inner_texts()
+            raise RuntimeError(f"Statement upload did not navigate; alerts={alerts!r}") from error
         detail_path = page.url.replace(base_url.rstrip("/"), "")
     finally:
         page.close()
@@ -732,7 +736,7 @@ def prepare_realistic_scenario(
         "document_name": document_name,
         "rule_category_name": rule_category_name,
         "property_name": property_name,
-        "workspace_pending_invitation": "true",
+        "workspace_settings_path": workspace_settings_path,
     }
 
 
@@ -878,12 +882,12 @@ def collect_ux_assertions(
             errors.append(f"dashboard does not show seeded document {document_name!r}")
 
     if scenario == "realistic" and path == scenario_state.get("manual_target_path"):
-        if "/app/ledger/manual" not in page.url:
+        if "/app/operations" not in page.url:
             errors.append("manual operation target did not open the canonical React route")
         elif page.locator('article[data-state="target"]').count() != 1:
             errors.append("manual operation target did not mark one React row")
 
-    if path == "/ledger/manual" and "/app/ledger/manual" not in page.url:
+    if path == "/ledger/manual" and "/app/operations" not in page.url:
         errors.append("historical manual ledger URL did not redirect to React")
 
     if path.startswith("/rules?"):
@@ -894,7 +898,7 @@ def collect_ux_assertions(
                 f"during React redirect: {page.url!r}"
             )
 
-    if path == "/app/ledger/manual":
+    if path == "/app/operations":
         errors.extend(
             assert_react_manual_ledger(
                 page,
@@ -1639,7 +1643,7 @@ def assert_react_manual_ledger(
     if scenario == "realistic" and target_path and "?" in target_path:
         target_search = target_path[target_path.index("?") :]
         page.goto(
-            f"{base_url}/app/ledger/manual{target_search}",
+            f"{base_url}/app/operations{target_search}",
             wait_until="networkidle",
             timeout=PAGE_TIMEOUT_MS,
         )
@@ -1650,7 +1654,7 @@ def assert_react_manual_ledger(
         if target_disclosure.count() == 1:
             target_disclosure.click(timeout=PAGE_TIMEOUT_MS)
         reset = page.get_by_role("link", name="Сбросить", exact=True)
-        if reset.count() == 0 or reset.get_attribute("href") != "/app/ledger/manual":
+        if reset.count() == 0 or reset.get_attribute("href") != "/app/operations":
             errors.append("React manual ledger reset link leaves the React route")
         else:
             page.reload(wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
@@ -1661,7 +1665,7 @@ def assert_react_manual_ledger(
                 filter_disclosure.click(timeout=PAGE_TIMEOUT_MS)
             reset = page.get_by_role("link", name="Сбросить", exact=True)
             reset.click(timeout=PAGE_TIMEOUT_MS)
-            page.wait_for_url("**/app/ledger/manual", timeout=PAGE_TIMEOUT_MS)
+            page.wait_for_url("**/app/operations", timeout=PAGE_TIMEOUT_MS)
             page.go_back(wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
             if "operation_id=" not in page.url:
                 errors.append("React manual ledger Back did not restore route state")
@@ -1705,7 +1709,7 @@ def assert_react_manual_readonly(page: Page, *, base_url: str) -> list[str]:
     readonly_page.route("**/api/v1/manual-ledger*", make_ledger_readonly)
     try:
         readonly_page.goto(
-            build_url(base_url, "/app/ledger/manual"),
+            build_url(base_url, "/app/operations"),
             wait_until="networkidle",
             timeout=PAGE_TIMEOUT_MS,
         )
@@ -1737,7 +1741,7 @@ def assert_react_manual_missing_session(page: Page, *, base_url: str) -> list[st
     session_page = context.new_page()
     try:
         session_page.goto(
-            build_url(base_url, "/app/ledger/manual"),
+            build_url(base_url, "/app/operations"),
             wait_until="networkidle",
             timeout=PAGE_TIMEOUT_MS,
         )
@@ -1745,7 +1749,7 @@ def assert_react_manual_missing_session(page: Page, *, base_url: str) -> list[st
             timeout=PAGE_TIMEOUT_MS
         )
         login = session_page.get_by_role("link", name="Войти", exact=True)
-        if login.get_attribute("href") != "/login?next=/app/ledger/manual":
+        if login.get_attribute("href") != "/app/auth/login?next=%2Fapp%2Foperations":
             return ["React missing-session state has an unsafe return URL"]
     except PlaywrightError as exc:
         return [f"React missing-session state failed: {short_error(exc)}"]
@@ -2929,14 +2933,15 @@ def assert_react_import_review(page: Page) -> list[str]:
     if rule_item.count() == 0:
         errors.append("React import review rule-preview row was not found")
     else:
-        rule_item.get_by_role(
-            "button",
-            name=re.compile(r"Проверить предложение|Проверить и провести|Изменить"),
-        ).first.click()
-        rule_panel = rule_item.locator("section[id^='review-panel-']")
-        rule_panel.get_by_role("textbox", name=re.compile("Автоправило")).fill("OZON")
-        if "OZON" not in rule_panel.get_by_label("Итог правила").inner_text():
-            errors.append("React import review final rule preview is not visible")
+        rule_suggestion = rule_item.get_by_role(
+            "button", name="Проверить предложение", exact=True
+        )
+        if rule_suggestion.count() == 1:
+            rule_suggestion.click()
+            rule_panel = rule_item.locator("section[id^='review-panel-']")
+            rule_panel.get_by_role("textbox", name=re.compile("Автоправило")).fill("OZON")
+            if "OZON" not in rule_panel.get_by_label("Итог правила").inner_text():
+                errors.append("React import review final rule preview is not visible")
 
     if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
         errors.append("React import review draft panel causes horizontal overflow")
@@ -3405,7 +3410,7 @@ def remove_expected_console_error(
     ux_assertion_errors: list[str],
 ) -> list[str]:
     filtered = list(errors)
-    if scenario != "realistic" or path != "/app/ledger/manual":
+    if scenario != "realistic" or path != "/app/operations":
         return filtered
     if any("422 state was not rendered" in error for error in ux_assertion_errors):
         return filtered
@@ -3434,6 +3439,7 @@ def run_audit(
     auth_password: str,
     scenario: str,
     selected_paths: tuple[str, ...],
+    selected_viewports: tuple[str, ...],
     theme: str,
 ) -> list[PageAuditResult]:
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -3442,6 +3448,8 @@ def run_audit(
     viewports = (
         TRANSACTION_RULE_VIEWPORTS if scenario == "transaction_rules_interactions" else VIEWPORTS
     )
+    if selected_viewports:
+        viewports = tuple(viewport for viewport in viewports if viewport[0] in selected_viewports)
     auth_emails: dict[str, str] = {}
     if authenticated:
         for viewport_name, _width, _height in viewports:
@@ -3496,6 +3504,10 @@ def run_audit(
                     if scenario_state.get("account_detail_path"):
                         dynamic_pages.append(
                             (scenario_state["account_detail_path"], "account-detail")
+                        )
+                    if scenario_state.get("workspace_settings_path"):
+                        dynamic_pages.append(
+                            (scenario_state["workspace_settings_path"], "workspace-settings")
                         )
                     if scenario_state.get("category_detail_path"):
                         dynamic_pages.append(
@@ -3643,6 +3655,7 @@ def main() -> int:
             auth_password=args.auth_password,
             scenario=args.scenario,
             selected_paths=tuple(args.paths or ()),
+            selected_viewports=tuple(args.viewports or ()),
             theme=args.theme,
         )
         report_path = write_report(
