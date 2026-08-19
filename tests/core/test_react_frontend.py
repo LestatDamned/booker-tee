@@ -1,15 +1,22 @@
+import base64
+import hashlib
 from pathlib import Path
 
 from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
-from app.react_frontend import install_react_frontend
+from app.react_frontend import CONTENT_SECURITY_POLICY_REPORT_ONLY, install_react_frontend
 
 
 def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> None:
     build_root = tmp_path / "client"
     build_root.mkdir()
-    (build_root / "index.html").write_text("<h1>React shell</h1>", encoding="utf-8")
+    inline_script = "window.__booker = { ready: true };"
+    (build_root / "index.html").write_text(
+        f"<h1>React shell</h1><script>{inline_script}</script>"
+        '<script src="/assets/app.js"></script>',
+        encoding="utf-8",
+    )
     assets_root = build_root / "assets"
     assets_root.mkdir()
     (assets_root / "app.js").write_text("console.log('shell')", encoding="utf-8")
@@ -26,6 +33,15 @@ def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> No
     assert "React shell" in nested_response.text
     assert nested_response.headers["Cache-Control"] == "no-store"
     assert nested_response.headers["Referrer-Policy"] == "no-referrer"
+    expected_hash = base64.b64encode(hashlib.sha256(inline_script.encode()).digest()).decode()
+    unexpected_hash = base64.b64encode(hashlib.sha256(b"alert('injected')").digest()).decode()
+    policy = nested_response.headers[CONTENT_SECURITY_POLICY_REPORT_ONLY]
+    assert f"script-src 'self' 'sha256-{expected_hash}'" in policy
+    assert unexpected_hash not in policy
+    assert "default-src 'none'" in policy
+    assert "object-src 'none'" in policy
+    assert "frame-ancestors 'none'" in policy
+    assert asset_response.headers.get(CONTENT_SECURITY_POLICY_REPORT_ONLY) is None
     assert asset_response.status_code == 200
 
 

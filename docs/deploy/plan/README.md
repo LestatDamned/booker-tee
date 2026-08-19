@@ -669,6 +669,12 @@ host, placeholder/короткие/совпадающие secrets. Вывод с
 React SPA build содержит inline bootstrap scripts, поэтому `script-src 'self'`
 без подготовки сломает приложение.
 
+Статус: выполняется. Первый increment добавляет
+`Content-Security-Policy-Report-Only` только к SPA HTML. FastAPI один раз при
+старте читает immutable `index.html`, вычисляет SHA-256 каждого inline script и
+разрешает эти хэши вместе с same-origin assets. API и static asset responses не
+получают CSP; внешняя отправка violation reports пока не выполняется.
+
 Работы:
 
 1. Генерировать SHA-256 hashes inline scripts из того же immutable build,
