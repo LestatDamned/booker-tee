@@ -295,6 +295,7 @@ uv run python scripts/export_openapi.py frontend/openapi.json
 
 ```bash
 uv run python scripts/ui_audit.py --help
+uv run python scripts/ui_audit.py --check-csp
 uv run python scripts/ui_audit.py
 uv run python scripts/ui_audit.py --scenario realistic
 uv run python scripts/ui_audit.py --scenario review_interactions

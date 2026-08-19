@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
-from app.react_frontend import CONTENT_SECURITY_POLICY_REPORT_ONLY, install_react_frontend
+from app.react_frontend import CONTENT_SECURITY_POLICY, install_react_frontend
 
 
 def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> None:
@@ -35,13 +35,14 @@ def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> No
     assert nested_response.headers["Referrer-Policy"] == "no-referrer"
     expected_hash = base64.b64encode(hashlib.sha256(inline_script.encode()).digest()).decode()
     unexpected_hash = base64.b64encode(hashlib.sha256(b"alert('injected')").digest()).decode()
-    policy = nested_response.headers[CONTENT_SECURITY_POLICY_REPORT_ONLY]
+    policy = nested_response.headers[CONTENT_SECURITY_POLICY]
     assert f"script-src 'self' 'sha256-{expected_hash}'" in policy
     assert unexpected_hash not in policy
     assert "default-src 'none'" in policy
     assert "object-src 'none'" in policy
     assert "frame-ancestors 'none'" in policy
-    assert asset_response.headers.get(CONTENT_SECURITY_POLICY_REPORT_ONLY) is None
+    assert "Content-Security-Policy-Report-Only" not in nested_response.headers
+    assert asset_response.headers.get(CONTENT_SECURITY_POLICY) is None
     assert asset_response.status_code == 200
 
 

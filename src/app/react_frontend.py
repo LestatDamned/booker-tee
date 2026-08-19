@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 REACT_BUILD_ROOT = Path("frontend/build/client")
-CONTENT_SECURITY_POLICY_REPORT_ONLY = "Content-Security-Policy-Report-Only"
+CONTENT_SECURITY_POLICY = "Content-Security-Policy"
 
 
 class _InlineScriptCollector(HTMLParser):
@@ -78,7 +78,7 @@ def install_react_frontend(
             headers={
                 "Cache-Control": "no-store",
                 "Referrer-Policy": "no-referrer",
-                CONTENT_SECURITY_POLICY_REPORT_ONLY: csp or "default-src 'none'",
+                CONTENT_SECURITY_POLICY: csp or "default-src 'none'",
             },
         )
 

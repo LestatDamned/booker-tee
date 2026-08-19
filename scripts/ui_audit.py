@@ -212,6 +212,11 @@ def parse_args() -> argparse.Namespace:
         default="catppuccin-mocha",
         help="Force one React theme for screenshots and browser checks.",
     )
+    parser.add_argument(
+        "--check-csp",
+        action="store_true",
+        help="Verify that enforced CSP allows the React app and blocks injected scripts.",
+    )
     return parser.parse_args()
 
 
@@ -2933,9 +2938,7 @@ def assert_react_import_review(page: Page) -> list[str]:
     if rule_item.count() == 0:
         errors.append("React import review rule-preview row was not found")
     else:
-        rule_suggestion = rule_item.get_by_role(
-            "button", name="Проверить предложение", exact=True
-        )
+        rule_suggestion = rule_item.get_by_role("button", name="Проверить предложение", exact=True)
         if rule_suggestion.count() == 1:
             rule_suggestion.click()
             rule_panel = rule_item.locator("section[id^='review-panel-']")
@@ -3580,6 +3583,55 @@ def run_audit(
     return results
 
 
+def check_csp_enforcement(base_url: str) -> None:
+    external_requests: list[str] = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.route(
+            "https://csp-probe.invalid/**",
+            lambda route: (
+                external_requests.append(route.request.url),
+                route.fulfill(
+                    content_type="application/javascript",
+                    body="window.__bookerCspExternal = true",
+                ),
+            ),
+        )
+        try:
+            response = page.goto(
+                build_url(base_url, "/app/auth/login"),
+                wait_until="domcontentloaded",
+                timeout=PAGE_TIMEOUT_MS,
+            )
+            page.get_by_role("heading", name="Вход").wait_for(timeout=PAGE_TIMEOUT_MS)
+            page.evaluate(
+                """() => {
+                    window.__bookerCspInline = false;
+                    window.__bookerCspExternal = false;
+                    const inline = document.createElement("script");
+                    inline.textContent = "window.__bookerCspInline = true";
+                    document.head.append(inline);
+                    const external = document.createElement("script");
+                    external.src = "https://csp-probe.invalid/injected.js";
+                    document.head.append(external);
+                }"""
+            )
+            page.wait_for_timeout(200)
+            headers = response.headers if response is not None else {}
+            if "content-security-policy" not in headers:
+                raise RuntimeError("SPA response has no enforced Content-Security-Policy header")
+            if "content-security-policy-report-only" in headers:
+                raise RuntimeError("SPA response still uses report-only CSP")
+            if page.evaluate("window.__bookerCspInline"):
+                raise RuntimeError("CSP allowed an unknown inline script")
+            if page.evaluate("window.__bookerCspExternal") or external_requests:
+                raise RuntimeError("CSP allowed a cross-origin external script")
+        finally:
+            browser.close()
+    print("CSP enforcement check: passed")
+
+
 def write_report(
     results: list[PageAuditResult],
     output_dir: Path,
@@ -3647,6 +3699,9 @@ def main() -> int:
     try:
         if base_url is None:
             base_url, server_process = start_uvicorn(args.timeout)
+        if args.check_csp:
+            check_csp_enforcement(base_url)
+            return 0
         results = run_audit(
             base_url,
             output_dir,

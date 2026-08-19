@@ -669,11 +669,10 @@ host, placeholder/короткие/совпадающие secrets. Вывод с
 React SPA build содержит inline bootstrap scripts, поэтому `script-src 'self'`
 без подготовки сломает приложение.
 
-Статус: выполняется. Первый increment добавляет
-`Content-Security-Policy-Report-Only` только к SPA HTML. FastAPI один раз при
-старте читает immutable `index.html`, вычисляет SHA-256 каждого inline script и
-разрешает эти хэши вместе с same-origin assets. API и static asset responses не
-получают CSP; внешняя отправка violation reports пока не выполняется.
+Статус: завершено 19 августа 2026 года. FastAPI один раз при старте читает
+immutable `index.html`, вычисляет SHA-256 каждого inline script и разрешает эти
+хэши вместе с same-origin assets. Enforced `Content-Security-Policy` применяется
+только к SPA HTML; API и static asset responses не получают CSP.
 
 Browser validation 19 августа 2026 года:
 
@@ -685,9 +684,10 @@ Browser validation 19 августа 2026 года:
 - audit использует канонический `/app/operations` и поддерживает точечный выбор
   `--viewport`, чтобы stateful security gate не зависел от полного visual audit.
 
-Enforced CSP пока не включён: следующим increment остаётся негативный browser
-test блокировки неизвестного inline/external script и затем замена report-only
-header на enforced header.
+После включения enforced CSP негативная Playwright-проверка подтвердила, что
+React login загружается, а неизвестный inline script и внешний cross-origin
+script не выполняются и не отправляют запрос. Проверка запускается командой
+`uv run python scripts/ui_audit.py --check-csp`.
 
 Работы:
 
