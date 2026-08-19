@@ -124,6 +124,11 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
         settings,
     )
     cleanup.documents = cast(Any, DocumentsStub(documents))
+    scrub_states = AsyncMock(return_value=2)
+    cleanup.chat_integrations = cast(
+        Any,
+        SimpleNamespace(scrub_terminal_upload_state_payloads=scrub_states),
+    )
 
     result = await cleanup.run(now=now, batch_size=2)
 
@@ -131,6 +136,7 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
     assert result.source_deleted == 2
     assert result.missing_reconciled == 1
     assert result.orphan_deleted == 1
+    assert result.telegram_states_scrubbed == 2
     assert result.failures == 0
     assert documents[0].storage_key is None
     assert documents[0].source_file_deleted_at == now
@@ -143,7 +149,8 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
     assert not retry_path.exists()  # noqa: ASYNC240
     assert not (tmp_path / old_orphan_key).exists()  # noqa: ASYNC240
     assert fresh_orphan_path.exists()  # noqa: ASYNC240
-    assert commit.await_count == 2
+    assert commit.await_count == 3
+    scrub_states.assert_awaited_once_with(now=now)
 
     def fail_orphan_scan(*_args: object, **_kwargs: object) -> list[str]:
         raise PermissionError("sensitive path")

@@ -108,6 +108,7 @@ async def test_telegram_upload_uses_conversation_state_as_idempotency_key(
 
     assert result == upload_result
     assert seen_idempotency_keys == [state_id]
+    assert state.state_payload == {}
     chat_repository.consume_conversation_state.assert_awaited_once()
 
 
@@ -307,6 +308,9 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
     assert response is not None
     assert "Выписка загружена" in response.text
     assert "требует проверки" in response.text
+    assert "удалится через 48 часов" in response.text
+    assert "удали сообщение с файлом" in response.text
+    assert "Telegram хранит свою копию отдельно" in response.text
     assert response.buttons[0][0].text == "🔎 Проверка"
     assert response.buttons[0][0].callback_data == "review:choose"
     assert response.buttons[0][1].callback_data == "status:show"

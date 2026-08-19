@@ -13,6 +13,7 @@ from app.db.session import session_factory
 from app.features.accounts import models as account_models  # noqa: F401
 from app.features.categories import models as category_models  # noqa: F401
 from app.features.chat_integrations import models as chat_integration_models  # noqa: F401
+from app.features.chat_integrations.repository import ChatIntegrationRepository
 from app.features.debts import models as debt_models  # noqa: F401
 from app.features.imports import models as import_models  # noqa: F401
 from app.features.imports.documents.commands.upload import should_retain_source_file
@@ -36,6 +37,7 @@ class UploadSourceCleanupResult:
     source_deleted: int = 0
     missing_reconciled: int = 0
     orphan_deleted: int = 0
+    telegram_states_scrubbed: int = 0
     failures: int = 0
 
 
@@ -44,6 +46,7 @@ class UploadSourceCleanup:
         self.session = session
         self.settings = settings
         self.documents = DocumentRepository(session)
+        self.chat_integrations = ChatIntegrationRepository(session)
         self.storage = UploadStorage(settings.upload_storage_dir)
 
     async def run(
@@ -79,6 +82,10 @@ class UploadSourceCleanup:
             await self.session.commit()
 
         referenced_keys = await self.documents.list_active_storage_keys()
+        telegram_states_scrubbed = (
+            await self.chat_integrations.scrub_terminal_upload_state_payloads(now=current_time)
+        )
+        await self.session.commit()
         orphan_deleted, orphan_failures = await self._delete_orphans(
             referenced_keys,
             cutoff=cutoff,
@@ -89,6 +96,7 @@ class UploadSourceCleanup:
             source_deleted=deleted,
             missing_reconciled=missing,
             orphan_deleted=orphan_deleted,
+            telegram_states_scrubbed=telegram_states_scrubbed,
             failures=failures + orphan_failures,
         )
 
@@ -170,6 +178,7 @@ def main() -> None:
         f"source_deleted={result.source_deleted} "
         f"missing_reconciled={result.missing_reconciled} "
         f"orphan_deleted={result.orphan_deleted} "
+        f"telegram_states_scrubbed={result.telegram_states_scrubbed} "
         f"failures={result.failures}"
     )
     if result.failures:

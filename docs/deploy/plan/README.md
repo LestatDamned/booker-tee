@@ -557,7 +557,11 @@ PostgreSQL. Долгое хранение source file увеличивает у�
   `noexec,nosuid,nodev`, все Linux capabilities сброшены, повышение привилегий
   запрещено через `no-new-privileges`; upload volume остаётся единственным
   постоянным writable filesystem приложения;
-- пункты 9-11 ещё не реализованы.
+- пункты 9-10 выполнены: после успешного Telegram upload conversation state
+  очищается от file identifiers и metadata; consumed и expired upload states
+  согласуются почасовой cleanup-командой, а бот объясняет 48-часовую retention
+  policy и предлагает удалить исходное сообщение с файлом из Telegram;
+- пункт 11 ещё не реализован.
 
 Exit gate:
 

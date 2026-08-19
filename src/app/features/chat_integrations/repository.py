@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -367,6 +367,25 @@ class ChatIntegrationRepository:
     ) -> None:
         state.consumed_at = consumed_at
         await self.session.flush()
+
+    async def scrub_terminal_upload_state_payloads(self, *, now: datetime) -> int:
+        result = cast(
+            CursorResult,
+            await self.session.execute(
+                update(ChatConversationState)
+                .where(
+                    ChatConversationState.flow == ChatConversationFlow.UPLOAD_DOCUMENT,
+                    or_(
+                        ChatConversationState.consumed_at.is_not(None),
+                        ChatConversationState.expires_at <= now,
+                    ),
+                    ChatConversationState.state_payload["file_id"].as_string().is_not(None),
+                )
+                .values(state_payload={})
+            ),
+        )
+        await self.session.flush()
+        return result.rowcount
 
     async def try_consume_active_conversation_state(
         self,

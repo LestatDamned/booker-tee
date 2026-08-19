@@ -104,6 +104,11 @@ Chat code не может:
 - Tokens, raw updates, full documents и account numbers не логируются.
 - Downloaded file передаётся в тот же import application flow и сохраняется до
   parse.
+- Telegram file identifiers и filename/MIME metadata хранятся только в active
+  upload conversation state. После завершения или истечения state payload
+  очищается.
+- После загрузки бот напоминает удалить исходное сообщение с файлом из чата и
+  объясняет отдельную 48-часовую retention policy Booker Tee.
 
 ## UX
 

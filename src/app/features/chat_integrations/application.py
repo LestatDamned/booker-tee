@@ -172,6 +172,7 @@ class ChatDocumentUploadService:
             )
         except UploadValidationError as exc:
             raise ChatDocumentUploadError(str(exc)) from exc
+        state.state_payload = {}
         await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
         await self.session.commit()
         return upload
