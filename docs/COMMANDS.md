@@ -200,6 +200,13 @@ export BOOKER_TEE_ENV_FILE=/etc/booker-tee/booker-tee.env
 ./scripts/backup.sh /var/backups/booker-tee/2026-08-19T120000Z
 ```
 
+Только для локального rehearsal разрешён отдельный source project:
+
+```bash
+BOOKER_TEE_BACKUP_PROJECT=booker-tee-backup-source-check \
+  ./scripts/backup.sh /tmp/booker-tee-backup-check
+```
+
 Восстановить backup только в новый изолированный Compose project. Имя обязано
 начинаться с `booker-tee-restore-`; существующие volumes скрипт не изменяет:
 

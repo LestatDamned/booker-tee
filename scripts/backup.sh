@@ -22,13 +22,28 @@ if [ "$(stat -c '%a' -- "$env_file")" != "600" ]; then
   exit 1
 fi
 backup_dir=$1
+backup_project=${BOOKER_TEE_BACKUP_PROJECT:-booker-tee-production}
+case "$backup_project" in
+  booker-tee-production | booker-tee-backup-source-?*) ;;
+  *)
+    echo "Backup failed: unsupported Compose project name." >&2
+    exit 1
+    ;;
+esac
+case "$backup_project" in
+  *[!a-z0-9_-]*)
+    echo "Backup failed: Compose project name contains unsupported characters." >&2
+    exit 1
+    ;;
+esac
 if [ -e "$backup_dir" ]; then
   echo "Backup failed: destination already exists: $backup_dir" >&2
   exit 1
 fi
 
 compose() {
-  docker compose --env-file "$env_file" -f "$project_root/compose.production.yaml" "$@"
+  docker compose --project-name "$backup_project" --env-file "$env_file" \
+    -f "$project_root/compose.production.yaml" "$@"
 }
 
 app_container=$(compose ps --status running -q app)

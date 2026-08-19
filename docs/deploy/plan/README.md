@@ -711,7 +711,8 @@ Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
 
 ## 8. Реализовать и проверить backup/restore локально
 
-Статус: выполняется. Первый increment добавляет `scripts/backup.sh`: приложение
+Статус: завершено 19 августа 2026 года. Первый increment добавляет
+`scripts/backup.sh`: приложение
 останавливается на время согласованного `pg_dump -Fc` и гарантированно
 запускается обратно; новый приватный backup-каталог получает dump, manifest и
 SHA-256 checksums. Upload volume и временные originals не читаются и не
@@ -719,7 +720,22 @@ SHA-256 checksums. Upload volume и временные originals не читаю
 проверяет backup и восстанавливает его только в новый Compose project с
 префиксом `booker-tee-restore-`, сверяет Alembic revision и создаёт пустой
 uploads volume. Production project и существующие volumes недоступны этому
-пути восстановления.
+пути восстановления. Для локального rehearsal backup допускает только отдельный
+source project с префиксом `booker-tee-backup-source-`; production остаётся
+безопасным значением по умолчанию.
+
+Реальный локальный rehearsal выполнен на двух изолированных Compose projects:
+
+- source dataset содержал owner/workspace, document, raw transaction и
+  confirmed operation с одной проводкой `-125.50 RUB`;
+- backup содержал только PostgreSQL custom dump, manifest и SHA-256 checksums;
+- clean restore сохранил все пять контрольных записей и сумму `-125.50`;
+- пустой uploads volume дал `missing_reconciled=1` без failures, после чего
+  `storage_key` был очищен, а document/raw/ledger data сохранились;
+- login, session, document list/detail, import review, operations и reports на
+  восстановленном приложении вернули `HTTP 200`;
+- существующий development project и ранее созданные production volumes не
+  использовались и не изменялись.
 
 Один backup set должен включать:
 

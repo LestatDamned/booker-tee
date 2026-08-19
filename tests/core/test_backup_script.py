@@ -66,6 +66,7 @@ esac
         )
     assert not any(path.name.endswith((".pdf", ".xlsx")) for path in backup_dir.iterdir())
     commands = command_log.read_text(encoding="utf-8")
+    assert "--project-name booker-tee-production" in commands
     assert "stop app" in commands
     assert "start app" in commands
 
@@ -88,3 +89,19 @@ esac
     assert failed_result.returncode != 0
     assert (failed_backup_dir / "INCOMPLETE").exists()
     assert command_log.read_text(encoding="utf-8").count("start app") == 2
+
+    unsafe_result = run(
+        [str(PROJECT_ROOT / "scripts/backup.sh"), str(tmp_path / "unsafe")],
+        cwd=PROJECT_ROOT,
+        env={
+            "BOOKER_TEE_BACKUP_PROJECT": "booker-tee",
+            "BOOKER_TEE_ENV_FILE": str(env_file),
+            "DOCKER_LOG": str(command_log),
+            "PATH": f"{executable_dir}:/usr/bin",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert unsafe_result.returncode != 0
+    assert "unsupported Compose project name" in unsafe_result.stderr
