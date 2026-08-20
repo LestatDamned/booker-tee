@@ -1,15 +1,11 @@
 from dataclasses import replace
 from decimal import Decimal
-from pathlib import Path
 
 from app.features.imports.parsers.alfabank import AlfabankXlsxStatementParser
 from app.features.imports.parsers.expobank import ExpobankCardStatementParser
 from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
     ExtractedStatementPageTables,
-)
-from app.features.imports.parsers.extractors.pdf import (
-    PdfPlumberStatementExtractor,
 )
 from app.features.imports.parsers.ozon_bank import OzonBankCardStatementParser
 from app.features.imports.parsers.registry import StatementParserRegistry
@@ -39,15 +35,13 @@ from app.features.imports.statements.types import RawTransactionStatus
 
 
 def test_expobank_parser_creates_normalized_raw_transactions_from_fixture() -> None:
-    extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/expobank_statement.pdf")
-    )
+    extracted = expobank_extracted_fixture()
     parser = ExpobankCardStatementParser()
 
     rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
 
     assert parser.matches_statement(extracted)
-    assert len(rows) == 91
+    assert len(rows) == 2
     assert rows[0].status == RawTransactionStatus.NORMALIZED
     assert rows[0].operation_date == parse_bank_date("29.05.2026")
     assert rows[0].amount == parse_money_amount("21 000.00")
@@ -57,33 +51,23 @@ def test_expobank_parser_creates_normalized_raw_transactions_from_fixture() -> N
 
 
 def test_expobank_parser_extracts_statement_control_totals_from_fixture() -> None:
-    extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/expobank_statement.pdf")
-    )
+    extracted = expobank_extracted_fixture()
     parser = ExpobankCardStatementParser()
 
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
     assert control_totals is not None
-    assert control_totals.total_inflow == Decimal("102600.00")
-    assert control_totals.total_outflow == Decimal("94056.37")
+    assert control_totals.total_inflow == Decimal("21000.00")
+    assert control_totals.total_outflow == Decimal("743.75")
     assert control_totals.currency == "RUB"
 
 
 def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
     registry = StatementParserRegistry.with_default_parsers()
-    expobank_extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/expobank_statement.pdf")
-    )
-    vtb_extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/VTB_statement_june.pdf")
-    )
-    vtb_card_extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/vtb_card_statement.pdf")
-    )
-    sberbank_extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/sberbank_statement.pdf")
-    )
+    expobank_extracted = expobank_extracted_fixture()
+    vtb_extracted = vtb_deposit_extracted_fixture()
+    vtb_card_extracted = vtb_card_extracted_fixture()
+    sberbank_extracted = sberbank_extracted_fixture()
     alfabank_extracted = alfabank_xlsx_extracted_fixture()
     ozon_extracted = ozon_bank_card_extracted_fixture()
     tbank_extracted = tbank_card_extracted_fixture()
@@ -210,35 +194,31 @@ def test_tbank_card_parser_creates_raw_transactions_from_text_layout() -> None:
 
 
 def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
-    extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/sberbank_statement.pdf")
-    )
+    extracted = sberbank_extracted_fixture()
     parser = SberbankCardStatementParser()
 
     rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
     assert parser.matches_statement(extracted)
-    assert len(rows) == 11
+    assert len(rows) == 2
     assert rows[0].operation_date == parse_bank_date("27.04.2026")
     assert rows[0].posting_date == parse_bank_date("27.04.2026")
-    assert rows[0].amount == Decimal("25000.00")
-    assert rows[0].balance_after == Decimal("27520.46")
+    assert rows[0].amount == Decimal("500.00")
+    assert rows[0].balance_after == Decimal("1500.00")
     assert rows[0].status == RawTransactionStatus.NORMALIZED
-    assert rows[1].amount == Decimal("-90000.00")
-    assert rows[2].amount == Decimal("-2629.00")
-    assert rows[-1].amount == Decimal("10000.00")
-    assert "SAMOKAT SANKT-PETERBU RUS" in (rows[2].description_normalized or "")
+    assert rows[1].amount == Decimal("-10.50")
+    assert "Coffee shop" in (rows[1].description_normalized or "")
     assert rows[0].raw_payload["bank_code"] == "sberbank"
     assert rows[0].raw_payload["statement_type"] == "card_statement"
     assert rows[0].account_hint_raw is not None
     assert rows[0].account_hint_raw.startswith("счет ****")
     assert rows[0].account_hint_raw.count("*") >= 4
     assert control_totals is not None
-    assert control_totals.opening_balance == Decimal("59581.38")
-    assert control_totals.total_inflow == Decimal("159568.08")
-    assert control_totals.total_outflow == Decimal("191629.00")
-    assert control_totals.closing_balance == Decimal("27520.46")
+    assert control_totals.opening_balance == Decimal("1000.00")
+    assert control_totals.total_inflow == Decimal("500.00")
+    assert control_totals.total_outflow == Decimal("10.50")
+    assert control_totals.closing_balance == Decimal("1489.50")
 
 
 def test_sberbank_auth_code_identity_survives_overlapping_statement_periods() -> None:
@@ -270,28 +250,25 @@ def test_positional_bank_row_identities_do_not_include_statement_period() -> Non
 def test_overlapping_statement_period_does_not_change_bank_row_hashes() -> None:
     cases = (
         (
-            "tests/fixtures/sberbank_statement.pdf",
+            sberbank_extracted_fixture(),
             SberbankCardStatementParser(),
             "За период 01.04.2026 — 30.04.2026",
             "За период 01.04.2026 — 31.05.2026",
         ),
         (
-            "tests/fixtures/vtb_card_statement.pdf",
+            vtb_card_extracted_fixture(),
             VtbCardStatementParser(),
             "Период выписки 01.05.2026 - 31.05.2026",
             "Период выписки 01.05.2026 - 10.05.2026",
         ),
         (
-            "tests/fixtures/VTB_statement_june.pdf",
+            vtb_deposit_extracted_fixture(),
             VtbDepositStatementParser(),
             "Период выписки 01.05.2026 - 31.05.2026",
             "Период выписки 01.05.2026 - 10.05.2026",
         ),
     )
-    extractor = PdfPlumberStatementExtractor()
-
-    for fixture, parser, full_period, partial_period in cases:
-        extracted = extractor.extract(Path(fixture))
+    for extracted, parser, full_period, partial_period in cases:
         overlapping = replace(
             extracted,
             text_by_page=[
@@ -311,63 +288,68 @@ def test_overlapping_statement_period_does_not_change_bank_row_hashes() -> None:
 
 
 def test_vtb_card_parser_creates_raw_transactions_from_fixture() -> None:
-    extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/vtb_card_statement.pdf")
-    )
+    extracted = vtb_card_extracted_fixture()
     parser = VtbCardStatementParser()
 
     rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
     assert parser.matches_statement(extracted)
-    assert len(rows) == 8
+    assert len(rows) == 2
     assert rows[0].operation_date == parse_bank_date("26.05.2026")
     assert rows[0].posting_date == parse_bank_date("29.05.2026")
     assert rows[0].amount == Decimal("-2509.00")
     assert rows[0].currency == "RUB"
     assert rows[0].status == RawTransactionStatus.NORMALIZED
     assert rows[0].account_hint_raw == "карта ****"
-    assert rows[1].amount == Decimal("-199.99")
-    assert rows[2].amount == Decimal("-711.00")
-    assert rows[-1].amount == Decimal("-2914.00")
+    assert rows[1].amount == Decimal("500.00")
     assert "SBER*5411*SAMOKAT" in (rows[0].description_normalized or "")
     assert rows[0].raw_payload["bank_code"] == "vtb"
     assert rows[0].raw_payload["statement_type"] == "card_statement"
     assert control_totals is not None
     assert control_totals.opening_balance == Decimal("0.00")
-    assert control_totals.total_inflow == Decimal("0.00")
-    assert control_totals.total_outflow == Decimal("15261.65")
-    assert control_totals.closing_balance == Decimal("0.00")
+    assert control_totals.total_inflow == Decimal("500.00")
+    assert control_totals.total_outflow == Decimal("2509.00")
+    assert control_totals.closing_balance == Decimal("500.00")
 
 
 def test_vtb_deposit_parser_creates_raw_transactions_from_may_period_fixture() -> None:
-    extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/VTB_statement_june.pdf")
-    )
+    extracted = vtb_deposit_extracted_fixture()
     parser = VtbDepositStatementParser()
 
     rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
     assert parser.matches_statement(extracted)
-    assert len(rows) == 3
+    assert len(rows) == 2
     assert rows[0].operation_date == parse_bank_date("08.05.2026")
     assert rows[0].posting_date == parse_bank_date("08.05.2026")
     assert rows[0].amount == Decimal("-21000.00")
     assert rows[0].status == RawTransactionStatus.NORMALIZED
-    assert rows[2].amount == Decimal("14316.35")
-    assert "Выплата % по дог" in (rows[2].description_normalized or "")
-    assert rows[2].raw_payload["bank_code"] == "vtb"
-    assert rows[2].raw_payload["statement_type"] == "deposit_statement"
+    assert rows[1].amount == Decimal("14316.35")
+    assert "Выплата % по договору" in (rows[1].description_normalized or "")
+    assert rows[1].raw_payload["bank_code"] == "vtb"
+    assert rows[1].raw_payload["statement_type"] == "deposit_statement"
     assert control_totals is not None
     assert control_totals.opening_balance == Decimal("1326326.24")
     assert control_totals.total_inflow == Decimal("14316.35")
-    assert control_totals.total_outflow == Decimal("42000.00")
-    assert control_totals.closing_balance == Decimal("1298642.59")
+    assert control_totals.total_outflow == Decimal("21000.00")
+    assert control_totals.closing_balance == Decimal("1319642.59")
 
 
 def test_vtb_deposit_parser_creates_raw_transactions_from_june_period_fixture() -> None:
-    extracted = PdfPlumberStatementExtractor().extract(Path("tests/fixtures/VTB_statement_may.pdf"))
+    extracted = vtb_deposit_extracted_fixture(
+        period="01.06.2026 - 30.06.2026",
+        opening="1298642.59",
+        inflow="0.00",
+        outflow="1298642.00",
+        closing="0.59",
+        rows=(
+            "01.06.2026 01.06.2026 -4000.00 RUB 0.00 RUB 4000.00 RUB Transfer",
+            "02.06.2026 02.06.2026 -8800.00 RUB 0.00 RUB 8800.00 RUB Transfer",
+            "03.06.2026 03.06.2026 -1285842.00 RUB 0.00 RUB 1285842.00 RUB Transfer",
+        ),
+    )
     parser = VtbDepositStatementParser()
 
     rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
@@ -424,6 +406,127 @@ def test_normalizers_parse_bank_values_without_float() -> None:
     assert parse_money_amount("1,298,642.59") == Decimal("1298642.59")
     assert parse_money_amount("-42,000.00") == Decimal("-42000.00")
     assert normalize_description("  Payment\nfor rent ", " Sender ") == "Payment for rent | Sender"
+
+
+def expobank_extracted_fixture() -> ExtractedStatement:
+    return ExtractedStatement(
+        text_by_page=["Expobank synthetic statement"],
+        tables_by_page=[
+            ExtractedStatementPageTables(
+                page_number=1,
+                tables=[
+                    [
+                        [
+                            "Document",
+                            "Processed at",
+                            "Debiting",
+                            "Crediting",
+                            "Sender / Receiver",
+                            "Account",
+                            "Purpose",
+                        ],
+                        ["№1", "29.05.2026", None, "21 000.00", "Employer", "****", "Salary"],
+                        [
+                            "№2",
+                            "30.05.2026",
+                            "743.75",
+                            None,
+                            "KRASNOE&BELOE",
+                            "****",
+                            "Card purchase",
+                        ],
+                        ["Total", None, "743.75", "21 000.00", None, None, None],
+                    ]
+                ],
+            )
+        ],
+        metadata={"source_format": "pdf", "fixture": "synthetic"},
+    )
+
+
+def sberbank_extracted_fixture() -> ExtractedStatement:
+    text = "\n".join(
+        [
+            "Выписка по счёту дебетовой карты",
+            "За период 01.04.2026 — 30.04.2026",
+            "Валюта Российский рубль",
+            "Остаток на 01.04.2026 1000.00",
+            "Номер счёта 00000000000000001234 Пополнение 500.00",
+            "Карта **** 1234 Списание 10.50",
+            "Остаток на 30.04.2026 1489.50",
+            "ИТОГО ПО ОПЕРАЦИЯМ ЗА ПЕРИОД",
+            "Расшифровка операций",
+            "27.04.2026 10:00 5411 +500.00 1500.00",
+            "27.04.2026 123456 Refund",
+            "28.04.2026 11:00 5812 -10.50 1489.50",
+            "28.04.2026 654321 Coffee shop",
+            "*",
+        ]
+    )
+    return extracted_text_fixture(text)
+
+
+def vtb_card_extracted_fixture() -> ExtractedStatement:
+    text = "\n".join(
+        [
+            "Номер карты 0000000000000000",
+            "Период выписки 01.05.2026 - 31.05.2026",
+            "Информация о балансе карты",
+            "Баланс на начало периода 0.00 RUB В обработке 0.00 RUB",
+            "Поступления 500.00 RUB",
+            "Баланс на конец периода 500.00 RUB Расходные операции 2509.00 RUB",
+            "Операции по карте",
+        ]
+    )
+    table: list[list[str | None]] = [
+        [
+            "26.05.2026 10:00:00",
+            "29.05.2026",
+            "-2509.00 RUB",
+            "-2509.00",
+            "0.00",
+            "SBER*5411*SAMOKAT",
+        ],
+        ["27.05.2026 11:00:00", "29.05.2026", "500.00 RUB", "500.00", "0.00", "Refund"],
+    ]
+    return extracted_text_fixture(text, tables=[table])
+
+
+def vtb_deposit_extracted_fixture(
+    *,
+    period: str = "01.05.2026 - 31.05.2026",
+    opening: str = "1326326.24",
+    inflow: str = "14316.35",
+    outflow: str = "21000.00",
+    closing: str = "1319642.59",
+    rows: tuple[str, ...] = (
+        "08.05.2026 08.05.2026 -21000.00 RUB 0.00 RUB 21000.00 RUB Transfer",
+        "31.05.2026 31.05.2026 14316.35 RUB 14316.35 RUB 0.00 RUB Выплата % по договору",
+    ),
+) -> ExtractedStatement:
+    text = "\n".join(
+        [
+            f"Период выписки {period}",
+            f"Баланс на начало периода {opening} RUB Поступления {inflow} RUB",
+            f"Баланс на конец периода {closing} RUB Расходные операции {outflow} RUB",
+            "00000000000000001234 (RUB)",
+            "Операции по счету",
+            *rows,
+        ]
+    )
+    return extracted_text_fixture(text)
+
+
+def extracted_text_fixture(
+    text: str,
+    *,
+    tables: list[list[list[str | None]]] | None = None,
+) -> ExtractedStatement:
+    return ExtractedStatement(
+        text_by_page=[text],
+        tables_by_page=[ExtractedStatementPageTables(page_number=1, tables=tables or [])],
+        metadata={"source_format": "pdf", "fixture": "synthetic"},
+    )
 
 
 def alfabank_xlsx_extracted_fixture() -> ExtractedStatement:

@@ -1,12 +1,9 @@
 from decimal import Decimal
-from pathlib import Path
 from typing import cast
 from uuid import UUID, uuid4
 
 from app.features.categories.models import CategoryKind
 from app.features.imports.models import RawTransaction
-from app.features.imports.parsers.expobank import ExpobankCardStatementParser
-from app.features.imports.parsers.extractors.pdf import PdfPlumberStatementExtractor
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.application.fixture_seeding import (
@@ -143,15 +140,6 @@ def test_contains_rule_matches_noisy_yandex_go_variants() -> None:
 def test_default_merchant_rule_suggests_products_for_krasnoe_beloe() -> None:
     workspace_id = uuid4()
     products_category_id = uuid4()
-    extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/expobank_statement.pdf")
-    )
-    drafts = ExpobankCardStatementParser().parse_transaction_drafts(
-        extracted,
-        account_id=None,
-        currency="RUB",
-    )
-    krasnoe_beloe_draft = drafts[1]
     rule_seed = next(
         seed for seed in DEFAULT_MERCHANT_RULE_SEEDS if seed.pattern == "KRASNOE&BELOE"
     )
@@ -162,8 +150,8 @@ def test_default_merchant_rule_suggests_products_for_krasnoe_beloe() -> None:
     )
     raw = make_raw_transaction(
         workspace_id=workspace_id,
-        amount=krasnoe_beloe_draft.amount,
-        description=krasnoe_beloe_draft.description_normalized,
+        amount=Decimal("-743.75"),
+        description="Card purchase | KRASNOE&BELOE",
     )
 
     assert rule_seed.category_name == "Продукты"

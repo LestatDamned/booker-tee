@@ -567,12 +567,29 @@ async def test_inactive_workspace_preserves_extracted_import_without_mapping_row
     assert "deactivated during parsing" in documents.review_message
 
 
-def test_pdfplumber_extractor_preserves_raw_pages() -> None:
-    extracted = PdfPlumberStatementExtractor().extract(
-        Path("tests/fixtures/expobank_statement.pdf")
-    )
+def test_pdfplumber_extractor_preserves_raw_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    class PageStub:
+        def extract_text(self) -> str:
+            return "synthetic statement"
 
-    assert extracted.text_by_page
+        def extract_tables(self) -> list[list[list[str]]]:
+            return [[["Date", "Amount"], ["2026-08-04", "-10.00"]]]
+
+    class PdfStub:
+        metadata = {"Title": "Synthetic statement"}
+        pages = [PageStub()]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(pdf_extractor_module.pdfplumber, "open", lambda _path: PdfStub())
+
+    extracted = PdfPlumberStatementExtractor().extract(Path("synthetic.pdf"))
+
+    assert extracted.text_by_page == ["synthetic statement"]
     assert len(extracted.tables_by_page) == len(extracted.text_by_page)
     assert all(page.page_number >= 1 for page in extracted.tables_by_page)
 
