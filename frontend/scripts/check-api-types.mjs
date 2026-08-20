@@ -26,7 +26,15 @@ const openApiPath = join(temporaryRoot, "openapi.json");
 const temporaryTypesPath = join(temporaryRoot, "schema.ts");
 
 try {
-  await run("uv", ["run", "python", "scripts/export_openapi.py", openApiPath]);
+  await run("uv", [
+    "run",
+    "--isolated",
+    "--frozen",
+    "--no-dev",
+    "python",
+    "scripts/export_openapi.py",
+    openApiPath,
+  ]);
   await run(execPath, [generatorPath, openApiPath, "-o", temporaryTypesPath]);
 
   const [committedTypes, generatedTypes] = await Promise.all([

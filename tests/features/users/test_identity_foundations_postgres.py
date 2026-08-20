@@ -570,7 +570,9 @@ async def test_password_change_rotates_current_session_and_reset_revokes_every_s
                 network_key=f"network-{unique}",
             )
             assert request.email is not None
-            reset_token = parse_qs(urlparse(request.email.text.splitlines()[2]).fragment)["token"][0]
+            reset_token = parse_qs(urlparse(request.email.text.splitlines()[2]).fragment)["token"][
+                0
+            ]
 
         async with sessions() as session:
             await PasswordService(session, settings).reset_password(
