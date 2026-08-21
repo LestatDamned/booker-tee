@@ -88,6 +88,25 @@ def raw_tables_from_extracted_fixture(extracted: ExtractedStatement) -> list[dic
     ]
 
 
+def english_statement() -> ExtractedStatement:
+    return ExtractedStatement(
+        text_by_page=["Account statement"],
+        tables_by_page=[
+            ExtractedStatementPageTables(
+                page_number=1,
+                tables=[
+                    [
+                        ["Description", "Transaction Date", "Amount", "Currency"],
+                        ["Coffee shop", "2026-05-12", "-5.50", "USD"],
+                        ["Salary", "2026-05-13", "+2000.00", "USD"],
+                    ]
+                ],
+            )
+        ],
+        metadata={},
+    )
+
+
 def test_unknown_statement_hints_load_from_config_file() -> None:
     config = load_statement_hint_config(DEFAULT_HINT_CONFIG_PATH)
 
@@ -269,22 +288,7 @@ def test_unknown_statement_analysis_keeps_all_table_candidates() -> None:
 
 
 def test_unknown_statement_analysis_detects_english_table_with_date_not_first() -> None:
-    extracted = ExtractedStatement(
-        text_by_page=["Account statement"],
-        tables_by_page=[
-            ExtractedStatementPageTables(
-                page_number=1,
-                tables=[
-                    [
-                        ["Description", "Transaction Date", "Amount", "Currency"],
-                        ["Coffee shop", "2026-05-12", "-5.50", "USD"],
-                        ["Salary", "2026-05-13", "+2000.00", "USD"],
-                    ]
-                ],
-            )
-        ],
-        metadata={},
-    )
+    extracted = english_statement()
 
     report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
@@ -311,22 +315,7 @@ def test_unknown_statement_analysis_detects_english_table_with_date_not_first() 
 
 
 def test_unknown_statement_analysis_keeps_column_profiles_internal() -> None:
-    extracted = ExtractedStatement(
-        text_by_page=["Account statement"],
-        tables_by_page=[
-            ExtractedStatementPageTables(
-                page_number=1,
-                tables=[
-                    [
-                        ["Description", "Transaction Date", "Amount", "Currency"],
-                        ["Coffee shop", "2026-05-12", "-5.50", "USD"],
-                        ["Salary", "2026-05-13", "+2000.00", "USD"],
-                    ]
-                ],
-            )
-        ],
-        metadata={},
-    )
+    extracted = english_statement()
 
     analysis = StatementAnalyzer.analyze(extracted)
     profiles = analysis.table_previews[0].column_profiles
@@ -345,22 +334,7 @@ def test_unknown_statement_analysis_keeps_column_profiles_internal() -> None:
 
 
 def test_unknown_statement_analysis_includes_mapping_suggestions() -> None:
-    extracted = ExtractedStatement(
-        text_by_page=["Account statement"],
-        tables_by_page=[
-            ExtractedStatementPageTables(
-                page_number=1,
-                tables=[
-                    [
-                        ["Description", "Transaction Date", "Amount", "Currency"],
-                        ["Coffee shop", "2026-05-12", "-5.50", "USD"],
-                        ["Salary", "2026-05-13", "+2000.00", "USD"],
-                    ]
-                ],
-            )
-        ],
-        metadata={},
-    )
+    extracted = english_statement()
 
     report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])

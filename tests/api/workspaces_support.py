@@ -60,7 +60,6 @@ from app.features.workspaces.schemas import (
     WorkspaceSettingsDto,
     WorkspaceSettingsItemDto,
 )
-from app.main import create_app
 
 
 class WorkspaceDirectoryReaderStub:
@@ -275,7 +274,9 @@ class WorkspaceInvitationServiceStub:
         return self.invitations.model_copy(update={"items": []})
 
 
-def workspaces_app() -> tuple[
+def workspaces_app(
+    app: FastAPI,
+) -> tuple[
     FastAPI,
     WorkspaceDirectoryReaderStub,
     WorkspaceCreatorStub,
@@ -347,7 +348,6 @@ def workspaces_app() -> tuple[
         )
     )
     reader = WorkspaceDirectoryReaderStub(directory)
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_directory_reader] = lambda: reader
     app.dependency_overrides[get_workspace_creator] = lambda: creator
@@ -391,7 +391,9 @@ def workspace_item(
     )
 
 
-def workspace_settings_app() -> tuple[
+def workspace_settings_app(
+    app: FastAPI,
+) -> tuple[
     FastAPI,
     WorkspaceSettingsServiceStub,
     WorkspaceLifecycleServiceStub,
@@ -464,7 +466,6 @@ def workspace_settings_app() -> tuple[
             ),
         )
     )
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_settings_service] = lambda: service
     app.dependency_overrides[get_workspace_lifecycle_service] = lambda: lifecycle_service
@@ -472,6 +473,7 @@ def workspace_settings_app() -> tuple[
 
 
 def workspace_members_app(
+    app: FastAPI,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, WorkspaceMemberServiceStub, UUID, UUID]:
     context = api_context(role=role)
@@ -505,13 +507,13 @@ def workspace_members_app(
             capabilities=WorkspaceMembersCapabilitiesDto(can_manage_members=True),
         )
     )
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_member_service] = lambda: service
     return app, service, context.workspace.user.id, workspace_id
 
 
 def workspace_invitations_app(
+    app: FastAPI,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[
     FastAPI,
@@ -543,13 +545,14 @@ def workspace_invitations_app(
             ),
         )
     )
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_invitation_service] = lambda: service
     return app, service, context.workspace.user.id, workspace_id
 
 
-def workspace_ownership_app() -> tuple[FastAPI, WorkspaceOwnershipServiceStub, UUID, UUID, UUID]:
+def workspace_ownership_app(
+    app: FastAPI,
+) -> tuple[FastAPI, WorkspaceOwnershipServiceStub, UUID, UUID, UUID]:
     context = api_context(role=WorkspaceRole.OWNER)
     context = context.__class__(
         workspace=context.workspace,
@@ -597,7 +600,6 @@ def workspace_ownership_app() -> tuple[FastAPI, WorkspaceOwnershipServiceStub, U
             membership=fallback_membership,
         ),
     )
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_ownership_service] = lambda: service
     return app, service, context.workspace.user.id, workspace.id, recipient_id

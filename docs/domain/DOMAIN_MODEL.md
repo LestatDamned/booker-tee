@@ -63,7 +63,7 @@ transfer и interest income/expense. Principal всегда проводится
 Generic manual/import workflow не меняет principal. Исключение: расход по
 кредитной карте может использовать её debt account. Loan и mortgage accounts в
 общие формы не попадают. Полный контракт находится в
-[`docs/features/debts/DOMAIN_MODEL.md`](../features/debts/DOMAIN_MODEL.md).
+[`docs/features/debts/README.md`](../features/debts/README.md).
 
 ### Operation
 

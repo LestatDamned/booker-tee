@@ -22,7 +22,6 @@ from app.features.debts.schemas import (
 from app.features.debts.service import DebtService
 
 
-@pytest.mark.asyncio
 async def test_debt_service_records_one_event_per_committed_command() -> None:
     account_id = uuid4()
     payment_id = uuid4()
@@ -91,6 +90,8 @@ async def test_debt_service_records_one_event_per_committed_command() -> None:
     now = datetime(2026, 8, 10, tzinfo=UTC)
 
     await service.add_existing_debt(context=context, command=create_command())
+    assert_only_activity_recorded(activity, "debt_created")
+
     await service.record_payment(
         context=context,
         command=RecordDebtPaymentCommand(
@@ -105,6 +106,8 @@ async def test_debt_service_records_one_event_per_committed_command() -> None:
             idempotency_key=uuid4(),
         ),
     )
+    assert_only_activity_recorded(activity, "debt_payment_recorded")
+
     await service.undo_payment(
         context=context,
         command=UndoDebtPaymentCommand(
@@ -113,6 +116,8 @@ async def test_debt_service_records_one_event_per_committed_command() -> None:
             expected_interest_operation_version=None,
         ),
     )
+    assert_only_activity_recorded(activity, "debt_payment_undone")
+
     await service.archive(
         context=context,
         command=DebtLifecycleCommand(
@@ -121,6 +126,8 @@ async def test_debt_service_records_one_event_per_committed_command() -> None:
             expected_updated_at=now,
         ),
     )
+    assert_only_activity_recorded(activity, "debt_archived")
+
     await service.restore(
         context=context,
         command=DebtLifecycleCommand(
@@ -129,6 +136,8 @@ async def test_debt_service_records_one_event_per_committed_command() -> None:
             expected_updated_at=now,
         ),
     )
+    assert_only_activity_recorded(activity, "debt_restored")
+
     await service.update(
         context=context,
         command=UpdateDebtCommand(
@@ -141,20 +150,43 @@ async def test_debt_service_records_one_event_per_committed_command() -> None:
             expected_updated_at=now,
         ),
     )
+    assert_only_activity_recorded(activity, "debt_updated")
+
     await service.delete(
         context=context,
         command=DeleteDebtCommand(debt_account_id=account_id, expected_updated_at=now),
     )
+    assert_only_activity_recorded(activity, "debt_deleted")
 
-    for recorder in vars(activity).values():
-        recorder.assert_awaited_once()
     assert session.commit.await_count == 7
     session.rollback.assert_not_awaited()
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("replayed", [True, False])
-async def test_debt_creation_activity_is_idempotent_and_transactional(replayed: bool) -> None:
+async def test_replayed_debt_creation_does_not_duplicate_activity() -> None:
+    service, session, activity, context = creation_activity_service(replayed=True)
+
+    await service.add_existing_debt(context=context, command=create_command())
+
+    activity.assert_not_awaited()
+    session.commit.assert_awaited_once()
+    session.rollback.assert_not_awaited()
+
+
+async def test_debt_creation_rolls_back_when_activity_fails() -> None:
+    service, session, activity, context = creation_activity_service(replayed=False)
+
+    with pytest.raises(RuntimeError, match="activity failed"):
+        await service.add_existing_debt(context=context, command=create_command())
+
+    activity.assert_awaited_once()
+    session.commit.assert_not_awaited()
+    session.rollback.assert_awaited_once()
+
+
+def creation_activity_service(
+    *,
+    replayed: bool,
+) -> tuple[DebtService, SimpleNamespace, AsyncMock, Any]:
     debt = SimpleNamespace(account_id=uuid4(), kind=DebtKind.LOAN_PAYABLE)
     session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
     service = DebtService(cast(Any, session))
@@ -175,18 +207,15 @@ async def test_debt_creation_activity_is_idempotent_and_transactional(replayed: 
             user=SimpleNamespace(id=uuid4()),
         ),
     )
+    return service, session, activity, context
 
-    if replayed:
-        await service.add_existing_debt(context=context, command=create_command())
-        activity.assert_not_awaited()
-        session.commit.assert_awaited_once()
-        session.rollback.assert_not_awaited()
-    else:
-        with pytest.raises(RuntimeError, match="activity failed"):
-            await service.add_existing_debt(context=context, command=create_command())
-        activity.assert_awaited_once()
-        session.commit.assert_not_awaited()
-        session.rollback.assert_awaited_once()
+
+def assert_only_activity_recorded(activity: SimpleNamespace, expected: str) -> None:
+    recorders = tuple(vars(activity).values())
+    getattr(activity, expected).assert_awaited_once()
+    assert sum(recorder.await_count for recorder in recorders) == 1
+    for recorder in recorders:
+        recorder.reset_mock()
 
 
 def create_command() -> AddExistingDebtCommand:

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+from import_test_support import ImportTestSession
 
 from app.features.import_review.application.operation_candidates import (
     ExistingOperationCandidateReader,
@@ -19,7 +20,6 @@ from app.features.import_review.schemas.commands import (
 from app.features.imports.statements.types import RawTransactionStatus
 
 
-@pytest.mark.asyncio
 async def test_manual_operation_candidate_matches_account_amount_currency_and_date() -> None:
     account_id = uuid4()
     row = raw_row(account_id=account_id)
@@ -37,7 +37,6 @@ async def test_manual_operation_candidate_matches_account_amount_currency_and_da
     assert result[row.id][0].day_distance == 0
 
 
-@pytest.mark.asyncio
 async def test_manual_operation_candidate_rejects_a_different_amount() -> None:
     account_id = uuid4()
     row = raw_row(account_id=account_id)
@@ -54,14 +53,13 @@ async def test_manual_operation_candidate_rejects_a_different_amount() -> None:
     assert result == {}
 
 
-@pytest.mark.asyncio
 async def test_link_existing_operation_reuses_ledger_operation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     account_id = uuid4()
     row = raw_row(account_id=account_id)
     operation = manual_operation(account_id=account_id)
-    session = SessionStub()
+    session = ImportTestSession()
     service = ExistingOperationLinkService(cast(Any, session))
     review = LinkReviewStub(row, operation)
     service._review = cast(Any, review)
@@ -118,16 +116,6 @@ class CandidateSource:
         **_: object,
     ) -> list[object]:
         return self.operations
-
-
-class SessionStub:
-    commits = 0
-
-    async def commit(self) -> None:
-        self.commits += 1
-
-    async def rollback(self) -> None:
-        return None
 
 
 class LinkReviewStub:

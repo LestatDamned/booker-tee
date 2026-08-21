@@ -3,7 +3,6 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.debts.domain import (
@@ -80,7 +79,6 @@ class DebtReadSourceStub:
         )
 
 
-@pytest.mark.asyncio
 async def test_debt_reader_builds_balances_totals_and_readonly_capabilities() -> None:
     rows = [
         debt_row(
@@ -139,7 +137,6 @@ async def test_debt_reader_builds_balances_totals_and_readonly_capabilities() ->
     assert source.list_calls == 1
 
 
-@pytest.mark.asyncio
 async def test_debt_reader_builds_detail_and_bounded_payment_history() -> None:
     row = debt_row(
         kind=DebtKind.CREDIT_CARD,
@@ -196,7 +193,6 @@ async def test_debt_reader_builds_detail_and_bounded_payment_history() -> None:
     assert source.history_calls == [(0, 20)]
 
 
-@pytest.mark.asyncio
 async def test_debt_reader_hides_undo_capability_from_readonly_member() -> None:
     row = debt_row(
         kind=DebtKind.LOAN_PAYABLE,
@@ -227,7 +223,6 @@ async def test_debt_reader_hides_undo_capability_from_readonly_member() -> None:
     assert detail.payments.items[0].can_undo is False
 
 
-@pytest.mark.asyncio
 async def test_debt_reader_keeps_total_on_an_empty_out_of_range_page() -> None:
     row = debt_row(
         kind=DebtKind.LOAN_PAYABLE,
@@ -252,7 +247,6 @@ async def test_debt_reader_keeps_total_on_an_empty_out_of_range_page() -> None:
     assert detail.payments.has_next is False
 
 
-@pytest.mark.asyncio
 async def test_debt_reader_returns_none_without_querying_foreign_history() -> None:
     source = DebtReadSourceStub([])
 
@@ -287,7 +281,6 @@ class QuerySession:
         return EmptyQueryResult()
 
 
-@pytest.mark.asyncio
 async def test_debt_read_queries_are_workspace_scoped_and_confirmed_only() -> None:
     workspace_id = uuid4()
     session = QuerySession()

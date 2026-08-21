@@ -323,29 +323,7 @@ def test_mapping_default_resolver_prefers_analyzer_suggestion() -> None:
 
 
 def test_unknown_statement_mapping_preview_normalizes_selected_columns() -> None:
-    raw_tables: list[dict[str, object]] = [
-        {
-            "page_number": 1,
-            "tables": [
-                [
-                    [
-                        "Дата операции",
-                        "Документ",
-                        "Назначение платежа",
-                        "Сумма операции",
-                        "Валюта",
-                    ],
-                    [
-                        "12.05.2026 15:42:10",
-                        "1",
-                        "Оплата товаров по карте",
-                        "-842,00 ₽",
-                        "RUB",
-                    ],
-                ]
-            ],
-        }
-    ]
+    raw_tables = ozon_like_raw_tables()
     command = StatementMappingSpec(
         page_number=1,
         table_index=0,

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
@@ -30,7 +31,6 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
 @dataclass
@@ -57,12 +57,14 @@ class CategoryCreatorStub:
         return self.result
 
 
-def test_draft_evaluation_returns_server_owned_classification_and_capability() -> None:
+def test_draft_evaluation_returns_server_owned_classification_and_capability(
+    app: FastAPI,
+) -> None:
     document_id = uuid4()
     item_id = uuid4()
     category_id = uuid4()
     evaluator = DraftEvaluatorStub(evaluation(item_id=item_id, category_id=category_id))
-    app = mutation_app(evaluator=evaluator)
+    app = mutation_app(app, evaluator=evaluator)
 
     with TestClient(app) as client:
         response = client.post(
@@ -87,7 +89,9 @@ def test_draft_evaluation_returns_server_owned_classification_and_capability() -
     assert evaluator.kwargs["category_id"] == category_id
 
 
-def test_draft_evaluation_rejects_cross_workspace_reference_as_field_error() -> None:
+def test_draft_evaluation_rejects_cross_workspace_reference_as_field_error(
+    app: FastAPI,
+) -> None:
     evaluator = DraftEvaluatorStub(
         result=None,
         error=ImportReviewDraftValidationError(
@@ -95,7 +99,7 @@ def test_draft_evaluation_rejects_cross_workspace_reference_as_field_error() -> 
             message="Категория недоступна в этом workspace.",
         ),
     )
-    app = mutation_app(evaluator=evaluator)
+    app = mutation_app(app, evaluator=evaluator)
 
     with TestClient(app) as client:
         response = client.post(
@@ -110,20 +114,48 @@ def test_draft_evaluation_rejects_cross_workspace_reference_as_field_error() -> 
     }
 
 
-def test_viewer_cannot_evaluate_or_create_draft_references() -> None:
-    app = mutation_app(role=WorkspaceRole.VIEWER)
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        pytest.param(
+            "draft-evaluation",
+            {"operationType": "expense"},
+            id="evaluate-draft",
+        ),
+        pytest.param(
+            "categories",
+            {"name": "Комиссии", "kind": "expense"},
+            id="create-category",
+        ),
+    ],
+)
+def test_viewer_cannot_mutate_draft_references(
+    app: FastAPI,
+    path: str,
+    payload: dict[str, str],
+) -> None:
+    evaluator = DraftEvaluatorStub(None)
+    creator = CategoryCreatorStub(None)
+    app = mutation_app(
+        app,
+        evaluator=evaluator,
+        creator=creator,
+        role=WorkspaceRole.VIEWER,
+    )
 
     with TestClient(app) as client:
         response = client.post(
-            f"/api/v1/import-review/{uuid4()}/items/{uuid4()}/draft-evaluation",
-            json={},
+            f"/api/v1/import-review/{uuid4()}/items/{uuid4()}/{path}",
+            json=payload,
         )
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "import_review_write_forbidden"
+    assert not hasattr(evaluator, "kwargs")
+    assert not hasattr(creator, "kwargs")
 
 
-def test_create_category_returns_small_reference_contract() -> None:
+def test_create_category_returns_small_reference_contract(app: FastAPI) -> None:
     document_id = uuid4()
     item_id = uuid4()
     category = ImportReviewCategoryReferenceDto(
@@ -133,7 +165,7 @@ def test_create_category_returns_small_reference_contract() -> None:
         is_uncategorized=False,
     )
     creator = CategoryCreatorStub(category)
-    app = mutation_app(creator=creator)
+    app = mutation_app(app, creator=creator)
 
     with TestClient(app) as client:
         response = client.post(
@@ -152,9 +184,9 @@ def test_create_category_returns_small_reference_contract() -> None:
     assert creator.kwargs["item_id"] == item_id
 
 
-def test_create_category_keeps_name_error_in_typed_422() -> None:
+def test_create_category_keeps_name_error_in_typed_422(app: FastAPI) -> None:
     creator = CategoryCreatorStub(result=None, error=CategoryError("Category name is required."))
-    app = mutation_app(creator=creator)
+    app = mutation_app(app, creator=creator)
 
     with TestClient(app) as client:
         response = client.post(
@@ -167,12 +199,12 @@ def test_create_category_keeps_name_error_in_typed_422() -> None:
 
 
 def mutation_app(
+    app: FastAPI,
     *,
     evaluator: DraftEvaluatorStub | None = None,
     creator: CategoryCreatorStub | None = None,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> FastAPI:
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: api_context(role)
     app.dependency_overrides[get_import_review_draft_evaluator] = lambda: (
         evaluator or DraftEvaluatorStub(None)

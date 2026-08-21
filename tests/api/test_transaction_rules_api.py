@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+import pytest
+from fastapi import FastAPI
 from transaction_rules_support import transaction_rules_app, transaction_rules_mutation_app
 
 from api_client import ApiTestClient as TestClient
@@ -19,19 +21,20 @@ from app.features.transaction_rules.errors import (
 )
 from app.features.transaction_rules.schemas import TransactionRuleDirectoryStatus
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
-def test_transaction_rule_directory_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_transaction_rule_directory_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/transaction-rules")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_transaction_rule_directory_dispatches_normalized_workspace_filters() -> None:
-    app, reader, workspace_id = transaction_rules_app()
+def test_transaction_rule_directory_dispatches_normalized_workspace_filters(
+    app: FastAPI,
+) -> None:
+    app, reader, workspace_id = transaction_rules_app(app)
     category_id = uuid4()
     rule_id = uuid4()
 
@@ -68,8 +71,8 @@ def test_transaction_rule_directory_dispatches_normalized_workspace_filters() ->
     ]
 
 
-def test_transaction_rule_directory_is_readonly_for_viewer() -> None:
-    app, reader, _ = transaction_rules_app(role=WorkspaceRole.VIEWER)
+def test_transaction_rule_directory_is_readonly_for_viewer(app: FastAPI) -> None:
+    app, reader, _ = transaction_rules_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/transaction-rules")
@@ -91,32 +94,34 @@ def test_transaction_rule_directory_is_readonly_for_viewer() -> None:
     assert reader.calls[0]["can_write"] is False
 
 
-def test_transaction_rule_directory_rejects_invalid_filters_without_calling_reader() -> None:
-    app, reader, _ = transaction_rules_app()
+@pytest.mark.parametrize(
+    ("query", "expected_field"),
+    [
+        pytest.param({"status": "archived"}, "status", id="status"),
+        pytest.param({"page_size": "101"}, "page_size", id="page-size"),
+        pytest.param({"category_id": "foreign"}, "category_id", id="category-id"),
+    ],
+)
+def test_transaction_rule_directory_rejects_invalid_filter_without_calling_reader(
+    app: FastAPI,
+    query: dict[str, str],
+    expected_field: str,
+) -> None:
+    app, reader, _ = transaction_rules_app(app)
 
     with TestClient(app) as client:
-        invalid_status = client.get(
-            "/api/v1/transaction-rules",
-            params={"status": "archived"},
-        )
-        invalid_page_size = client.get(
-            "/api/v1/transaction-rules",
-            params={"page_size": "101"},
-        )
-        invalid_category = client.get(
-            "/api/v1/transaction-rules",
-            params={"category_id": "foreign"},
-        )
+        response = client.get("/api/v1/transaction-rules", params=query)
 
-    assert invalid_status.status_code == 400
-    assert invalid_page_size.status_code == 400
-    assert invalid_category.status_code == 400
-    assert invalid_status.json()["error"]["code"] == "invalid_transaction_rule_filter"
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_transaction_rule_filter"
+    assert expected_field in response.json()["error"]["message"]
     assert reader.calls == []
 
 
-def test_create_transaction_rule_maps_command_and_returns_committed_summary() -> None:
-    app, mutations = transaction_rules_mutation_app()
+def test_create_transaction_rule_maps_command_and_returns_committed_summary(
+    app: FastAPI,
+) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
     idempotency_key = uuid4()
     category_id = uuid4()
 
@@ -150,43 +155,94 @@ def test_create_transaction_rule_maps_command_and_returns_committed_summary() ->
     assert str(command.amount_min) == "100.00"
 
 
-def test_create_and_seed_require_writer_and_valid_payload() -> None:
-    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
-    owner_app, owner = transaction_rules_mutation_app()
-
-    with TestClient(viewer_app) as client:
-        forbidden = client.post(
+@pytest.mark.parametrize(
+    ("path", "headers", "payload"),
+    [
+        pytest.param(
+            "/api/v1/transaction-rules",
+            {"Idempotency-Key": str(uuid4())},
+            {
+                "pattern": "OZON",
+                "matchType": "contains",
+                "direction": "any",
+                "applicationMode": "suggest",
+            },
+            id="create",
+        ),
+        pytest.param(
             "/api/v1/transaction-rules/seed-defaults",
-        )
-    with TestClient(owner_app) as client:
-        invalid = client.post(
+            {},
+            None,
+            id="seed-defaults",
+        ),
+    ],
+)
+def test_transaction_rule_mutation_requires_writer(
+    app: FastAPI,
+    path: str,
+    headers: dict[str, str],
+    payload: dict[str, str] | None,
+) -> None:
+    app, mutations = transaction_rules_mutation_app(app, role=WorkspaceRole.VIEWER)
+
+    with TestClient(app) as client:
+        response = client.post(path, headers=headers, json=payload)
+
+    assert response.status_code == 403
+    assert mutations.calls == []
+
+
+def test_create_rejects_invalid_payload_before_mutation(app: FastAPI) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
+
+    with TestClient(app) as client:
+        response = client.post(
             "/api/v1/transaction-rules",
             headers={"Idempotency-Key": str(uuid4())},
             json={"pattern": "", "matchType": "contains"},
         )
-        seeded = client.post("/api/v1/transaction-rules/seed-defaults")
 
-    assert forbidden.status_code == 403
-    assert viewer.calls == []
-    assert invalid.status_code == 422
-    assert len(owner.calls) == 1
-    assert owner.calls[0][0] == "seed"
-    assert seeded.json() == {
+    assert response.status_code == 422
+    assert mutations.calls == []
+
+
+def test_seed_returns_created_and_existing_counts(app: FastAPI) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
+
+    with TestClient(app) as client:
+        response = client.post("/api/v1/transaction-rules/seed-defaults")
+
+    assert mutations.calls[0][0] == "seed"
+    assert response.json() == {
         "createdRules": 3,
         "existingRules": 50,
         "createdCategories": 1,
     }
 
 
-def test_edit_load_and_update_dispatch_workspace_scoped_version() -> None:
-    app, mutations = transaction_rules_mutation_app()
+def test_edit_load_returns_item_and_archived_references(app: FastAPI) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
+    rule = mutations.item
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/transaction-rules/{rule.id}/edit")
+
+    assert response.status_code == 200
+    assert response.json()["item"]["id"] == str(rule.id)
+    assert response.json()["references"]["properties"][0]["isActive"] is False
+    action, call = mutations.calls[0]
+    assert action == "edit"
+    assert call["rule_id"] == rule.id
+
+
+def test_update_dispatches_command_with_optimistic_version(app: FastAPI) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
     rule = mutations.item
     assert rule.outcome.category is not None
     assert rule.outcome.property is not None
 
     with TestClient(app) as client:
-        loaded = client.get(f"/api/v1/transaction-rules/{rule.id}/edit")
-        updated = client.put(
+        response = client.put(
             f"/api/v1/transaction-rules/{rule.id}",
             json={
                 "name": "Ozon updated",
@@ -203,11 +259,8 @@ def test_edit_load_and_update_dispatch_workspace_scoped_version() -> None:
             },
         )
 
-    assert loaded.status_code == 200
-    assert loaded.json()["item"]["id"] == str(rule.id)
-    assert loaded.json()["references"]["properties"][0]["isActive"] is False
-    assert updated.status_code == 200
-    action, call = mutations.calls[-1]
+    assert response.status_code == 200
+    action, call = mutations.calls[0]
     assert action == "update"
     command = call["command"]
     assert isinstance(command, UpdateTransactionRuleCommand)
@@ -215,25 +268,52 @@ def test_edit_load_and_update_dispatch_workspace_scoped_version() -> None:
     assert command.expected_updated_at == rule.updated_at
 
 
-def test_edit_requires_writer_and_maps_not_found_conflict_and_field_error() -> None:
-    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
-    app, mutations = transaction_rules_mutation_app()
-    rule_id = mutations.item.id
+def test_edit_requires_writer(app: FastAPI) -> None:
+    viewer_app, viewer = transaction_rules_mutation_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(viewer_app) as client:
         forbidden = client.get(f"/api/v1/transaction-rules/{viewer.item.id}/edit")
+
     assert forbidden.status_code == 403
     assert viewer.calls == []
 
-    cases = [
-        (TransactionRuleNotFoundError(), 404, "transaction_rule_not_found"),
-        (TransactionRuleUpdateConflictError(), 409, "transaction_rule_update_conflict"),
-        (
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_code", "expected_field_errors"),
+    [
+        pytest.param(
+            TransactionRuleNotFoundError(),
+            404,
+            "transaction_rule_not_found",
+            None,
+            id="not-found",
+        ),
+        pytest.param(
+            TransactionRuleUpdateConflictError(),
+            409,
+            "transaction_rule_update_conflict",
+            None,
+            id="stale-snapshot",
+        ),
+        pytest.param(
             TransactionRuleValidationError("Недоступная категория.", field="category_id"),
             422,
             "transaction_rule_validation_error",
+            {"category_id": ["Недоступная категория."]},
+            id="field-error",
         ),
-    ]
+    ],
+)
+def test_update_maps_application_errors(
+    app: FastAPI,
+    error: Exception,
+    expected_status: int,
+    expected_code: str,
+    expected_field_errors: dict[str, list[str]] | None,
+) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
+    rule_id = mutations.item.id
+    mutations.error = error
     payload = {
         "name": None,
         "pattern": "OZON",
@@ -247,76 +327,119 @@ def test_edit_requires_writer_and_maps_not_found_conflict_and_field_error() -> N
         "applicationMode": "suggest",
         "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
     }
+
     with TestClient(app) as client:
-        for error, expected_status, expected_code in cases:
-            mutations.error = error
-            response = client.put(f"/api/v1/transaction-rules/{rule_id}", json=payload)
-            assert response.status_code == expected_status
-            assert response.json()["error"]["code"] == expected_code
-    assert response.json()["error"]["fieldErrors"] == {"category_id": ["Недоступная категория."]}
+        response = client.put(f"/api/v1/transaction-rules/{rule_id}", json=payload)
+
+    assert response.status_code == expected_status
+    assert response.json()["error"]["code"] == expected_code
+    assert response.json()["error"].get("fieldErrors") == expected_field_errors
 
 
-def test_enable_and_disable_dispatch_expected_state_and_return_truthful_impact() -> None:
-    app, mutations = transaction_rules_mutation_app()
+@pytest.mark.parametrize(
+    ("action", "expected_active", "target_active"),
+    [
+        pytest.param("disable", True, False, id="disable"),
+        pytest.param("enable", False, True, id="enable"),
+    ],
+)
+def test_lifecycle_dispatches_expected_state_and_returns_truthful_impact(
+    app: FastAPI,
+    action: str,
+    expected_active: bool,
+    target_active: bool,
+) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
     rule = mutations.item
     payload = {
-        "expectedActive": rule.is_active,
+        "expectedActive": expected_active,
         "expectedUpdatedAt": rule.updated_at.isoformat(),
     }
 
     with TestClient(app) as client:
-        disabled = client.post(f"/api/v1/transaction-rules/{rule.id}/disable", json=payload)
-        enabled = client.post(
-            f"/api/v1/transaction-rules/{rule.id}/enable",
-            json={**payload, "expectedActive": False},
+        response = client.post(
+            f"/api/v1/transaction-rules/{rule.id}/{action}",
+            json=payload,
         )
 
-    assert disabled.status_code == 200
-    assert enabled.status_code == 200
-    assert disabled.json()["impact"] == {
+    assert response.status_code == 200
+    assert response.json()["impact"] == {
         "futureMatchingChanged": True,
         "existingSuggestionsChanged": False,
         "existingSuggestionCount": 4,
     }
     assert mutations.calls[0][0] == "lifecycle"
-    assert mutations.calls[0][1]["is_active"] is False
-    assert mutations.calls[0][1]["expected_active"] is True
-    assert mutations.calls[1][1]["is_active"] is True
-    assert mutations.calls[1][1]["expected_active"] is False
+    assert mutations.calls[0][1]["is_active"] is target_active
+    assert mutations.calls[0][1]["expected_active"] is expected_active
+    assert mutations.calls[0][1]["expected_updated_at"] == rule.updated_at
 
 
-def test_lifecycle_requires_writer_and_maps_conflict_and_activation_blocker() -> None:
-    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
-    app, mutations = transaction_rules_mutation_app()
+def test_lifecycle_requires_writer(app: FastAPI) -> None:
+    viewer_app, viewer = transaction_rules_mutation_app(app, role=WorkspaceRole.VIEWER)
+    payload = {
+        "expectedActive": False,
+        "expectedUpdatedAt": viewer.item.updated_at.isoformat(),
+    }
+
+    with TestClient(viewer_app) as client:
+        forbidden = client.post(
+            f"/api/v1/transaction-rules/{viewer.item.id}/disable",
+            json=payload,
+        )
+
+    assert forbidden.status_code == 403
+    assert viewer.calls == []
+
+
+def test_lifecycle_maps_optimistic_conflict(app: FastAPI) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
     payload = {
         "expectedActive": False,
         "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
     }
-
-    with TestClient(viewer_app) as client:
-        forbidden = client.post(f"/api/v1/transaction-rules/{viewer.item.id}/disable", json=payload)
-    assert forbidden.status_code == 403
-    assert viewer.calls == []
+    mutations.error = TransactionRuleLifecycleConflictError("Состояние правила уже изменилось.")
 
     with TestClient(app) as client:
-        mutations.error = TransactionRuleLifecycleConflictError("Состояние правила уже изменилось.")
         conflict = client.post(
             f"/api/v1/transaction-rules/{mutations.item.id}/enable", json=payload
         )
-        mutations.error = TransactionRuleActivationBlockedError(
-            "Category is not available for an active rule.", field="categoryId"
-        )
-        blocked = client.post(f"/api/v1/transaction-rules/{mutations.item.id}/enable", json=payload)
 
     assert conflict.status_code == 409
     assert conflict.json()["error"]["code"] == "transaction_rule_lifecycle_conflict"
+
+
+@pytest.mark.parametrize(
+    ("field", "expected_reason"),
+    [
+        pytest.param("categoryId", "category_inactive", id="category"),
+        pytest.param("propertyId", "property_archived", id="property"),
+        pytest.param("accountId", "account_unavailable", id="account"),
+    ],
+)
+def test_lifecycle_maps_each_activation_blocker(
+    app: FastAPI,
+    field: str,
+    expected_reason: str,
+) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
+    payload = {
+        "expectedActive": False,
+        "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
+    }
+    mutations.error = TransactionRuleActivationBlockedError(
+        "Target is not available for an active rule.", field=field
+    )
+
+    with TestClient(app) as client:
+        blocked = client.post(f"/api/v1/transaction-rules/{mutations.item.id}/enable", json=payload)
+
     assert blocked.status_code == 422
     assert blocked.json()["error"]["code"] == "transaction_rule_activation_blocked"
-    assert blocked.json()["error"]["details"] == {"blockedReasonCode": "category_inactive"}
+    assert blocked.json()["error"]["details"] == {"blockedReasonCode": expected_reason}
 
 
-def test_delete_dispatches_stale_guards_and_returns_deleted_identity() -> None:
-    app, mutations = transaction_rules_mutation_app()
+def test_delete_dispatches_stale_guards_and_returns_deleted_identity(app: FastAPI) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
     rule = mutations.item
 
     with TestClient(app) as client:
@@ -338,12 +461,11 @@ def test_delete_dispatches_stale_guards_and_returns_deleted_identity() -> None:
     assert call["expected_updated_at"] == rule.updated_at
 
 
-def test_delete_requires_writer_and_maps_conflict_and_reference_blocker() -> None:
-    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
-    app, mutations = transaction_rules_mutation_app()
+def test_delete_requires_writer(app: FastAPI) -> None:
+    viewer_app, viewer = transaction_rules_mutation_app(app, role=WorkspaceRole.VIEWER)
     payload = {
         "expectedActive": False,
-        "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
+        "expectedUpdatedAt": viewer.item.updated_at.isoformat(),
     }
 
     with TestClient(viewer_app) as client:
@@ -352,22 +474,21 @@ def test_delete_requires_writer_and_maps_conflict_and_reference_blocker() -> Non
             f"/api/v1/transaction-rules/{viewer.item.id}",
             json=payload,
         )
+
     assert forbidden.status_code == 403
     assert viewer.calls == []
 
+
+def test_delete_maps_optimistic_conflict(app: FastAPI) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
+    payload = {
+        "expectedActive": False,
+        "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
+    }
+    mutations.error = TransactionRuleDeleteConflictError("Правило уже изменилось в другом окне.")
+
     with TestClient(app) as client:
-        mutations.error = TransactionRuleDeleteConflictError(
-            "Правило уже изменилось в другом окне."
-        )
         conflict = client.request(
-            "DELETE",
-            f"/api/v1/transaction-rules/{mutations.item.id}",
-            json=payload,
-        )
-        mutations.error = TransactionRuleDeleteBlockedError(
-            TransactionRuleDeleteDependencies(raw_suggestion_count=4)
-        )
-        blocked = client.request(
             "DELETE",
             f"/api/v1/transaction-rules/{mutations.item.id}",
             json=payload,
@@ -375,9 +496,48 @@ def test_delete_requires_writer_and_maps_conflict_and_reference_blocker() -> Non
 
     assert conflict.status_code == 409
     assert conflict.json()["error"]["code"] == "transaction_rule_delete_conflict"
+
+
+@pytest.mark.parametrize(
+    ("dependencies", "expected_reason", "expected_count"),
+    [
+        pytest.param(
+            TransactionRuleDeleteDependencies(is_active=True),
+            "active_rule",
+            0,
+            id="active-rule",
+        ),
+        pytest.param(
+            TransactionRuleDeleteDependencies(raw_suggestion_count=4),
+            "raw_suggestions",
+            4,
+            id="import-history",
+        ),
+    ],
+)
+def test_delete_maps_each_dependency_blocker(
+    app: FastAPI,
+    dependencies: TransactionRuleDeleteDependencies,
+    expected_reason: str,
+    expected_count: int,
+) -> None:
+    app, mutations = transaction_rules_mutation_app(app)
+    payload = {
+        "expectedActive": False,
+        "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
+    }
+    mutations.error = TransactionRuleDeleteBlockedError(dependencies)
+
+    with TestClient(app) as client:
+        blocked = client.request(
+            "DELETE",
+            f"/api/v1/transaction-rules/{mutations.item.id}",
+            json=payload,
+        )
+
     assert blocked.status_code == 409
     assert blocked.json()["error"]["code"] == "transaction_rule_delete_blocked"
     assert blocked.json()["error"]["details"] == {
-        "blockedReasonCode": "raw_suggestions",
-        "directRawSuggestionCount": 4,
+        "blockedReasonCode": expected_reason,
+        "directRawSuggestionCount": expected_count,
     }

@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from workspace_test_support import WorkspaceTestSession
 
 from app.features.users.models import User
 from app.features.workspaces.application import ownership as ownership_application
@@ -106,23 +107,8 @@ async def test_owner_must_transfer_before_leaving(monkeypatch) -> None:
     assert fixture.owner.status == WorkspaceMemberStatus.ACTIVE
 
 
-class FakeSession:
-    def __init__(self) -> None:
-        self.commit_count = 0
-        self.rollback_count = 0
-
-    async def flush(self) -> None:
-        return None
-
-    async def commit(self) -> None:
-        self.commit_count += 1
-
-    async def rollback(self) -> None:
-        self.rollback_count += 1
-
-
 class FakeWorkspaceRepository:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: WorkspaceTestSession) -> None:
         self.workspace: Any = None
         self.members: list[Any] = []
         self.fallback: Any = None
@@ -156,7 +142,7 @@ class FakeWorkspaceRepository:
 
 
 class FakeUserRepository:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: WorkspaceTestSession) -> None:
         self.user_session: Any = None
         self.moves: list[tuple[UUID, UUID, UUID]] = []
 
@@ -170,7 +156,7 @@ class FakeUserRepository:
 
 
 class FakeChatRepository:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: WorkspaceTestSession) -> None:
         self.revocations: list[tuple[UUID, UUID]] = []
 
     async def revoke_workspace_access_for_user(self, *, workspace_id, user_id, revoked_at):
@@ -178,7 +164,7 @@ class FakeChatRepository:
 
 
 class FakeMemberService:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: WorkspaceTestSession) -> None:
         return None
 
     async def read(self, *, actor_user_id, workspace_id):
@@ -191,7 +177,7 @@ class FakeMemberService:
 
 class OwnershipFixture:
     service: WorkspaceOwnershipService
-    session: FakeSession
+    session: WorkspaceTestSession
     actor: User
     workspace: Any
     owner: Any
@@ -259,7 +245,7 @@ def ownership_fixture(monkeypatch, *, actor_is_owner: bool = True) -> OwnershipF
         role=WorkspaceRole.OWNER,
         status=WorkspaceMemberStatus.ACTIVE,
     )
-    fixture.session = FakeSession()
+    fixture.session = WorkspaceTestSession()
     fixture.service = WorkspaceOwnershipService(cast(AsyncSession, fixture.session))
     fixture.workspaces.workspace = fixture.workspace
     fixture.workspaces.members = [fixture.owner, fixture.recipient]

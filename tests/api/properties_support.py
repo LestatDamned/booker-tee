@@ -21,7 +21,6 @@ from app.features.properties.schemas import (
 )
 from app.features.properties.service import PropertyError
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
 class PropertyDirectoryServiceStub:
@@ -98,6 +97,7 @@ class PropertyDirectoryServiceStub:
 
 
 def properties_app(
+    app: FastAPI,
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, PropertyDirectoryServiceStub, UUID]:
@@ -108,7 +108,6 @@ def properties_app(
         WorkspaceRole.EDITOR,
     }
     service = PropertyDirectoryServiceStub(property_directory(can_write=can_write))
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_property_directory_service] = lambda: service
     return app, service, context.workspace.workspace.id

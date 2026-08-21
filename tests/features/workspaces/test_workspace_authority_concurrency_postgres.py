@@ -1,11 +1,12 @@
 import asyncio
 import os
 from datetime import timedelta
+from typing import Any
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.security import hash_session_token
 from app.core.settings import Settings
@@ -41,11 +42,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.asyncio
-async def test_postgres_concurrent_member_role_update_rejects_stale_writer() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_postgres_concurrent_member_role_update_rejects_stale_writer(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     owner_id, target_user_id, workspace_id, target_member_id = (
         uuid4(),
         uuid4(),
@@ -135,14 +135,12 @@ async def test_postgres_concurrent_member_role_update_rejects_stale_writer() -> 
             await session.execute(delete(Workspace).where(Workspace.id == workspace_id))
             await session.execute(delete(User).where(User.id.in_([owner_id, target_user_id])))
             await session.commit()
-        await engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_postgres_deactivate_and_invite_leave_no_pending_access() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_postgres_deactivate_and_invite_leave_no_pending_access(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     owner_id, workspace_id, fallback_id = uuid4(), uuid4(), uuid4()
     session_token = f"lifecycle-invite-race-{uuid4()}"
     email = f"lifecycle-invite-{uuid4()}@example.test"
@@ -259,4 +257,3 @@ async def test_postgres_deactivate_and_invite_leave_no_pending_access() -> None:
             )
             await session.execute(delete(User).where(User.id == owner_id))
             await session.commit()
-        await engine.dispose()

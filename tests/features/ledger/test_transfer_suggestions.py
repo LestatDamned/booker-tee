@@ -4,8 +4,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-import pytest
-
 from app.features.import_review.application.transfer_options import (
     TransferSuggestionUseCase,
 )
@@ -41,7 +39,6 @@ class ImportReviewRepositoryStub:
         return self.candidates
 
 
-@pytest.mark.asyncio
 async def test_transfer_suggestions_skip_linked_rows_and_preserve_day_distance() -> None:
     workspace_id = uuid4()
     source = raw_row(operation_date=date(2026, 7, 21), account_id=uuid4())
@@ -64,13 +61,12 @@ async def test_transfer_suggestions_skip_linked_rows_and_preserve_day_distance()
         raw_transactions=cast(Any, [source, linked]),
     )
 
-    assert list(suggestions) == [source.id]
+    assert set(suggestions) == {source.id}
     assert suggestions[source.id][0].raw_transaction is candidate
     assert suggestions[source.id][0].day_distance == 2
     assert imports.requests == [(workspace_id, [source, linked])]
 
 
-@pytest.mark.asyncio
 async def test_existing_manual_transfer_suggestion_selects_account_and_counterparty_entries() -> (
     None
 ):

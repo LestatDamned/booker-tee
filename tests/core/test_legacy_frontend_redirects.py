@@ -1,7 +1,7 @@
 import pytest
+from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
-from app.main import create_app
 
 DOCUMENT_ID = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
 ACCOUNT_ID = "11111111-1111-1111-1111-111111111111"
@@ -87,11 +87,10 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
     ],
 )
 def test_historical_frontend_get_redirects_to_react(
+    app: FastAPI,
     historical_url: str,
     react_url: str,
 ) -> None:
-    app = create_app()
-
     with TestClient(app) as client:
         response = client.get(historical_url, follow_redirects=False)
 
@@ -140,11 +139,10 @@ def test_historical_frontend_get_redirects_to_react(
     ],
 )
 def test_historical_frontend_mutations_are_not_redirected(
+    app: FastAPI,
     historical_url: str,
     expected_status: int,
 ) -> None:
-    app = create_app()
-
     with TestClient(app) as client:
         response = client.post(historical_url, follow_redirects=False)
 

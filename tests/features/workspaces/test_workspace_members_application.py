@@ -5,14 +5,19 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from workspace_test_support import WorkspaceTestSession
 
 from app.features.workspaces.application import members as member_application
 from app.features.workspaces.application.members import WorkspaceMemberService
-from app.features.workspaces.commands import TransitionWorkspaceMemberCommand
+from app.features.workspaces.commands import (
+    TransitionWorkspaceMemberCommand,
+    UpdateWorkspaceMemberRoleApiCommand,
+)
 from app.features.workspaces.domain.types import WorkspaceMemberStatus, WorkspaceRole
 from app.features.workspaces.errors import (
     WorkspaceMemberConflictError,
     WorkspaceMemberDirectoryForbiddenError,
+    WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
 )
 from app.features.workspaces.models import WorkspaceMember
@@ -46,6 +51,121 @@ async def test_member_directory_rejects_non_manager_before_loading_emails(monkey
         await service.read(actor_user_id=actor_id, workspace_id=workspace_id)
 
     assert repositories.workspaces.list_calls == []
+
+
+async def test_foreign_member_id_is_masked(monkeypatch) -> None:
+    actor_id = uuid4()
+    workspace_id = uuid4()
+    actor = member(workspace_id, actor_id, WorkspaceRole.OWNER, name="Owner")
+    workspace = SimpleNamespace(id=workspace_id, is_active=True, owner_id=actor_id)
+    actor.workspace = workspace
+    foreign_member = member(uuid4(), uuid4(), WorkspaceRole.EDITOR, name="Foreign")
+    session, service, _repositories = service_with_members(
+        monkeypatch,
+        actor=actor,
+        workspace=workspace,
+        members=[foreign_member],
+    )
+
+    with pytest.raises(WorkspaceNotFoundError, match="Участник не найден"):
+        await service.update_role(
+            actor_user_id=actor_id,
+            workspace_id=workspace_id,
+            command=UpdateWorkspaceMemberRoleApiCommand(
+                member_id=foreign_member.id,
+                role=WorkspaceRole.VIEWER,
+                expected_updated_at=foreign_member.updated_at,
+            ),
+        )
+
+    assert session.rollback_count == 1
+
+
+@pytest.mark.parametrize(
+    ("actor_role", "target_role", "new_role", "self_target", "reason"),
+    [
+        pytest.param(
+            WorkspaceRole.OWNER,
+            WorkspaceRole.OWNER,
+            WorkspaceRole.VIEWER,
+            True,
+            "member_self",
+            id="self-role-change",
+        ),
+        pytest.param(
+            WorkspaceRole.ADMIN,
+            WorkspaceRole.EDITOR,
+            WorkspaceRole.ADMIN,
+            False,
+            "member_management_forbidden",
+            id="admin-promotes-to-admin",
+        ),
+    ],
+)
+async def test_role_update_enforces_member_boundaries(
+    monkeypatch,
+    actor_role: WorkspaceRole,
+    target_role: WorkspaceRole,
+    new_role: WorkspaceRole,
+    self_target: bool,
+    reason: str,
+) -> None:
+    actor_id = uuid4()
+    workspace_id = uuid4()
+    actor = member(workspace_id, actor_id, actor_role, name="Actor")
+    target = actor if self_target else member(workspace_id, uuid4(), target_role, name="Target")
+    workspace = SimpleNamespace(id=workspace_id, is_active=True, owner_id=actor_id)
+    actor.workspace = workspace
+    session, service, _repositories = service_with_members(
+        monkeypatch,
+        actor=actor,
+        workspace=workspace,
+        members=[actor] if self_target else [actor, target],
+    )
+
+    with pytest.raises(WorkspaceMemberTransitionError) as error:
+        await service.update_role(
+            actor_user_id=actor_id,
+            workspace_id=workspace_id,
+            command=UpdateWorkspaceMemberRoleApiCommand(
+                member_id=target.id,
+                role=new_role,
+                expected_updated_at=target.updated_at,
+            ),
+        )
+
+    assert error.value.reason_codes == [reason]
+    assert target.role == target_role
+    assert session.rollback_count == 1
+
+
+async def test_owner_member_cannot_be_disabled(monkeypatch) -> None:
+    actor_id = uuid4()
+    workspace_id = uuid4()
+    actor = member(workspace_id, actor_id, WorkspaceRole.OWNER, name="Actor")
+    target = member(workspace_id, uuid4(), WorkspaceRole.OWNER, name="Owner")
+    workspace = SimpleNamespace(id=workspace_id, is_active=True, owner_id=actor_id)
+    actor.workspace = workspace
+    session, service, _repositories = service_with_members(
+        monkeypatch,
+        actor=actor,
+        workspace=workspace,
+        members=[actor, target],
+    )
+
+    with pytest.raises(WorkspaceMemberTransitionError) as error:
+        await service.disable(
+            actor_user_id=actor_id,
+            workspace_id=workspace_id,
+            command=TransitionWorkspaceMemberCommand(
+                member_id=target.id,
+                expected_updated_at=target.updated_at,
+            ),
+        )
+
+    assert error.value.reason_codes == ["member_owner"]
+    assert target.status == WorkspaceMemberStatus.ACTIVE
+    assert session.rollback_count == 1
 
 
 async def test_owner_receives_actions_but_owner_and_self_stay_protected(monkeypatch) -> None:
@@ -110,7 +230,7 @@ async def test_disable_moves_sessions_and_revokes_user_chat_state(monkeypatch) -
     workspace_id = uuid4()
     fallback_workspace_id = uuid4()
     actor = member(workspace_id, actor_id, WorkspaceRole.OWNER, name="Owner")
-    target = member(workspace_id, uuid4(), WorkspaceRole.EDITOR, name="Editor")
+    target = member(workspace_id, uuid4(), WorkspaceRole.ADMIN, name="Admin")
     workspace = SimpleNamespace(id=workspace_id, is_active=True, owner_id=actor_id)
     actor.workspace = workspace
     session, service, repositories = service_with_members(
@@ -137,23 +257,8 @@ async def test_disable_moves_sessions_and_revokes_user_chat_state(monkeypatch) -
     assert repositories.workspaces.audit_events[0]["target_user_id"] == target.user_id
 
 
-class FakeSession:
-    def __init__(self) -> None:
-        self.commit_count = 0
-        self.rollback_count = 0
-
-    async def flush(self) -> None:
-        return None
-
-    async def commit(self) -> None:
-        self.commit_count += 1
-
-    async def rollback(self) -> None:
-        self.rollback_count += 1
-
-
 class FakeWorkspaceRepository:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: WorkspaceTestSession) -> None:
         self.visible_actor: Any = None
         self.actor: Any = None
         self.workspace: Any = None
@@ -194,7 +299,7 @@ class FakeWorkspaceRepository:
 
 
 class FakeUserRepository:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: WorkspaceTestSession) -> None:
         self.moves: list[tuple[UUID, UUID, UUID | None]] = []
 
     async def move_active_workspace_sessions(
@@ -204,7 +309,7 @@ class FakeUserRepository:
 
 
 class FakeChatRepository:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: WorkspaceTestSession) -> None:
         self.revocations: list[tuple[UUID, UUID, datetime]] = []
 
     async def revoke_workspace_access_for_user(self, *, workspace_id, user_id, revoked_at) -> None:
@@ -245,7 +350,7 @@ def service_with_members(
     monkeypatch.setattr(member_application, "WorkspaceRepository", WorkspaceRepositoryFactory)
     monkeypatch.setattr(member_application, "UserRepository", UserRepositoryFactory)
     monkeypatch.setattr(member_application, "ChatIntegrationRepository", ChatRepositoryFactory)
-    session = FakeSession()
+    session = WorkspaceTestSession()
     service = WorkspaceMemberService(cast(AsyncSession, session))
     repositories.workspaces.visible_actor = actor
     repositories.workspaces.actor = actor

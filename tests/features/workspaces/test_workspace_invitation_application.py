@@ -161,7 +161,7 @@ async def test_viewer_cannot_read_invitation_directory() -> None:
     repository.list_pending_invitations.assert_not_awaited()
 
 
-async def test_admin_cannot_create_or_revoke_admin_invitation() -> None:
+async def test_admin_cannot_create_admin_invitation() -> None:
     service, session, repository, _users = service_with_repo()
     workspace, actor = actor_context(WorkspaceRole.ADMIN)
     repository.lock_for_update.return_value = workspace
@@ -176,22 +176,33 @@ async def test_admin_cannot_create_or_revoke_admin_invitation() -> None:
             idempotency_key=uuid4(),
         )
     assert create_error.value.reason_codes == ["invitation_role_forbidden"]
+    session.rollback.assert_awaited_once()
+
+
+async def test_admin_cannot_revoke_admin_invitation() -> None:
+    service, session, repository, _users = service_with_repo()
+    workspace, actor = actor_context(WorkspaceRole.ADMIN)
+    repository.lock_for_update.return_value = workspace
+    repository.get_membership_for_update.return_value = actor
 
     target = invitation(workspace.id, uuid4(), WorkspaceRole.ADMIN)
     repository.get_invitation_for_update.return_value = target
-    with pytest.raises(WorkspaceInvitationTransitionError):
+    with pytest.raises(WorkspaceInvitationTransitionError) as revoke_error:
         await service.revoke(
             actor_user_id=actor.user_id,
             workspace_id=workspace.id,
             invitation_id=target.id,
             expected_updated_at=target.updated_at,
         )
-    assert session.rollback.await_count == 2
+
+    assert revoke_error.value.reason_codes == ["invitation_role_forbidden"]
+    session.rollback.assert_awaited_once()
 
 
 async def test_foreign_invitation_id_is_masked() -> None:
-    service, _session, repository, _users = service_with_repo()
+    service, session, repository, _users = service_with_repo()
     workspace, actor = actor_context()
+    invitation_id = uuid4()
     repository.lock_for_update.return_value = workspace
     repository.get_membership_for_update.return_value = actor
     repository.get_invitation_for_update.return_value = None
@@ -200,54 +211,117 @@ async def test_foreign_invitation_id_is_masked() -> None:
         await service.revoke(
             actor_user_id=actor.user_id,
             workspace_id=workspace.id,
-            invitation_id=uuid4(),
+            invitation_id=invitation_id,
             expected_updated_at=utc_now(),
         )
 
+    repository.get_invitation_for_update.assert_awaited_once_with(
+        workspace_id=workspace.id,
+        invitation_id=invitation_id,
+    )
+    session.rollback.assert_awaited_once()
 
-async def test_public_preview_has_one_safe_unavailable_outcome() -> None:
+
+async def test_public_preview_returns_only_safe_invitation_details() -> None:
     service, _session, repository, _users = service_with_repo()
     target = invitation(uuid4(), uuid4())
-    repository.get_invitation_by_token_hash.side_effect = [target, None]
+    repository.get_invitation_by_token_hash.return_value = target
 
     preview = await service.preview(invitation_token="usable-token")
 
     assert preview.workspace_name == "Family"
     assert preview.role == WorkspaceRole.VIEWER
+
+
+async def test_public_preview_masks_invalid_token() -> None:
+    service, _session, repository, _users = service_with_repo()
+    repository.get_invitation_by_token_hash.return_value = None
+
     with pytest.raises(WorkspaceInvitationNotFoundError) as error:
         await service.preview(invitation_token="invalid-token")
+
     assert str(error.value) == PUBLIC_INVITATION_UNAVAILABLE
 
 
-async def test_invitation_permits_signup_only_for_matching_email() -> None:
+@pytest.mark.parametrize(
+    ("status", "email", "expected"),
+    [
+        pytest.param(
+            WorkspaceInvitationStatus.PENDING,
+            "invitee@example.test",
+            True,
+            id="matching-email",
+        ),
+        pytest.param(
+            WorkspaceInvitationStatus.PENDING,
+            "other@example.test",
+            False,
+            id="different-email",
+        ),
+        pytest.param(
+            WorkspaceInvitationStatus.REVOKED,
+            "invitee@example.test",
+            False,
+            id="revoked-invitation",
+        ),
+    ],
+)
+async def test_invitation_permits_signup_only_for_matching_email(
+    status: WorkspaceInvitationStatus,
+    email: str,
+    expected: bool,
+) -> None:
     service, _session, repository, _users = service_with_repo()
     target = invitation(uuid4(), uuid4())
+    target.status = status
     repository.get_invitation_by_token_hash.return_value = target
 
-    assert await service.permits_signup(
+    permitted = await service.permits_signup(
         invitation_token="usable-token",
-        email="invitee@example.test",
-    )
-    assert not await service.permits_signup(
-        invitation_token="usable-token",
-        email="other@example.test",
+        email=email,
     )
 
-    target.status = WorkspaceInvitationStatus.REVOKED
-    assert not await service.permits_signup(
-        invitation_token="usable-token",
-        email="invitee@example.test",
-    )
+    assert permitted is expected
 
 
 @pytest.mark.parametrize(
     ("status", "expires_in", "workspace_active", "role"),
     [
-        (WorkspaceInvitationStatus.ACCEPTED, timedelta(hours=1), True, WorkspaceRole.VIEWER),
-        (WorkspaceInvitationStatus.REVOKED, timedelta(hours=1), True, WorkspaceRole.VIEWER),
-        (WorkspaceInvitationStatus.PENDING, timedelta(seconds=-1), True, WorkspaceRole.VIEWER),
-        (WorkspaceInvitationStatus.PENDING, timedelta(hours=1), False, WorkspaceRole.VIEWER),
-        (WorkspaceInvitationStatus.PENDING, timedelta(hours=1), True, WorkspaceRole.OWNER),
+        pytest.param(
+            WorkspaceInvitationStatus.ACCEPTED,
+            timedelta(hours=1),
+            True,
+            WorkspaceRole.VIEWER,
+            id="accepted",
+        ),
+        pytest.param(
+            WorkspaceInvitationStatus.REVOKED,
+            timedelta(hours=1),
+            True,
+            WorkspaceRole.VIEWER,
+            id="revoked",
+        ),
+        pytest.param(
+            WorkspaceInvitationStatus.PENDING,
+            timedelta(seconds=-1),
+            True,
+            WorkspaceRole.VIEWER,
+            id="expired",
+        ),
+        pytest.param(
+            WorkspaceInvitationStatus.PENDING,
+            timedelta(hours=1),
+            False,
+            WorkspaceRole.VIEWER,
+            id="inactive-workspace",
+        ),
+        pytest.param(
+            WorkspaceInvitationStatus.PENDING,
+            timedelta(hours=1),
+            True,
+            WorkspaceRole.OWNER,
+            id="non-invitable-role",
+        ),
     ],
 )
 async def test_public_preview_masks_every_unusable_credential_state(
@@ -469,8 +543,13 @@ async def test_create_rejects_existing_pending_email() -> None:
 @pytest.mark.parametrize(
     ("supported_members", "pending_invitations", "reason"),
     [
-        (100, 0, "member_limit_reached"),
-        (99, 100, "pending_invitation_limit_reached"),
+        pytest.param(100, 0, "member_limit_reached", id="member-limit"),
+        pytest.param(
+            99,
+            100,
+            "pending_invitation_limit_reached",
+            id="pending-invitation-limit",
+        ),
     ],
 )
 async def test_create_rejects_invitation_101_with_stable_reason(

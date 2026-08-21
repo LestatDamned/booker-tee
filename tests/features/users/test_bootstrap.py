@@ -1,6 +1,6 @@
 from types import SimpleNamespace
-from typing import Any, cast
-from unittest.mock import AsyncMock, Mock
+from typing import cast
+from unittest.mock import AsyncMock, Mock, create_autospec
 from uuid import uuid4
 
 import pytest
@@ -12,10 +12,11 @@ from app.features.users import bootstrap as bootstrap_module
 from app.features.users.bootstrap import OwnerBootstrapService
 from app.features.users.errors import BootstrapOwnerError
 from app.features.users.models import User
+from app.features.users.repository import UserRepository
 from app.features.workspaces.domain.types import WorkspaceType
+from app.features.workspaces.repository import WorkspaceRepository
 
 
-@pytest.mark.asyncio
 async def test_owner_bootstrap_creates_verified_owner_workspace_atomically() -> None:
     user = cast(User, SimpleNamespace(id=uuid4(), email_verified_at=None))
     workspace = SimpleNamespace(
@@ -24,22 +25,19 @@ async def test_owner_bootstrap_creates_verified_owner_workspace_atomically() -> 
         type=WorkspaceType.PERSONAL,
         default_currency="RUB",
     )
-    create_user = AsyncMock(return_value=user)
-    users = SimpleNamespace(
-        lock_for_owner_bootstrap=AsyncMock(),
-        has_any=AsyncMock(return_value=False),
-        create=create_user,
-    )
-    workspaces = SimpleNamespace(
-        create_personal_workspace_with_owner_membership=AsyncMock(
-            return_value=(workspace, SimpleNamespace())
-        ),
-        create_audit_event=AsyncMock(),
+    users = create_autospec(UserRepository, instance=True)
+    users.has_any.return_value = False
+    users.create.return_value = user
+    create_user = users.create
+    workspaces = create_autospec(WorkspaceRepository, instance=True)
+    workspaces.create_personal_workspace_with_owner_membership.return_value = (
+        workspace,
+        SimpleNamespace(),
     )
     session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
     service = OwnerBootstrapService(cast(AsyncSession, session), Settings())
-    service.users = cast(Any, users)
-    service.workspaces = cast(Any, workspaces)
+    service.users = users
+    service.workspaces = workspaces
 
     result = await service.create_first_owner(
         email=" OWNER@Example.Test ",
@@ -61,19 +59,12 @@ async def test_owner_bootstrap_creates_verified_owner_workspace_atomically() -> 
     session.rollback.assert_not_awaited()
 
 
-@pytest.mark.asyncio
 async def test_owner_bootstrap_rejects_existing_installation() -> None:
-    create_user = AsyncMock()
+    users = create_autospec(UserRepository, instance=True)
+    users.has_any.return_value = True
     session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
     service = OwnerBootstrapService(cast(AsyncSession, session), Settings())
-    service.users = cast(
-        Any,
-        SimpleNamespace(
-            lock_for_owner_bootstrap=AsyncMock(),
-            has_any=AsyncMock(return_value=True),
-            create=create_user,
-        ),
-    )
+    service.users = users
 
     with pytest.raises(BootstrapOwnerError, match="already been completed"):
         await service.create_first_owner(
@@ -82,7 +73,7 @@ async def test_owner_bootstrap_rejects_existing_installation() -> None:
             password="correct horse battery staple",
         )
 
-    create_user.assert_not_awaited()
+    users.create.assert_not_awaited()
     session.commit.assert_not_awaited()
     session.rollback.assert_awaited_once_with()
 

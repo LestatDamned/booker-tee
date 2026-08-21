@@ -80,7 +80,6 @@ class DocumentListSourceStub:
         )
 
 
-@pytest.mark.asyncio
 async def test_document_list_preserves_source_order_and_workspace_scope() -> None:
     workspace_id = uuid4()
     newest = document_row(status=UploadedDocumentStatus.IMPORTED)
@@ -100,7 +99,6 @@ async def test_document_list_preserves_source_order_and_workspace_scope() -> Non
     assert result.summary.attention_document_count == 1
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("status", "attempt_status", "row_count", "next_step", "can_map", "can_review"),
     [
@@ -177,7 +175,6 @@ async def test_document_status_to_next_step_matrix(
     assert item.capabilities.can_review is can_review
 
 
-@pytest.mark.asyncio
 async def test_viewer_sees_mapping_document_as_readonly_detail() -> None:
     source = DocumentListSourceStub(
         [
@@ -203,7 +200,6 @@ async def test_viewer_sees_mapping_document_as_readonly_detail() -> None:
     assert result.items[0].next_step_kind is ImportDocumentNextStepKind.DETAIL
 
 
-@pytest.mark.asyncio
 async def test_empty_workspace_has_no_items() -> None:
     source = DocumentListSourceStub([])
 
@@ -217,7 +213,6 @@ async def test_empty_workspace_has_no_items() -> None:
     assert source.rows == []
 
 
-@pytest.mark.asyncio
 async def test_document_list_passes_filters_and_clamps_page_to_last_page() -> None:
     account_id = uuid4()
     filters = ImportDocumentListFilters(
@@ -247,7 +242,6 @@ async def test_document_list_passes_filters_and_clamps_page_to_last_page() -> No
     assert result.pagination.has_next is False
 
 
-@pytest.mark.asyncio
 async def test_document_projection_query_is_workspace_scoped_and_deterministic() -> None:
     workspace_id = uuid4()
 
@@ -284,7 +278,6 @@ async def test_document_projection_query_is_workspace_scoped_and_deterministic()
     assert "ORDER BY uploaded_documents.created_at DESC, uploaded_documents.id DESC" in sql
 
 
-@pytest.mark.asyncio
 async def test_document_projection_applies_registry_filters_sort_and_page() -> None:
     workspace_id = uuid4()
     account_id = uuid4()

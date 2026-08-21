@@ -16,10 +16,6 @@ from app.features.import_review.domain.posting import (
     raw_transaction_effective_account_id,
 )
 from app.features.imports.statements.types import RawTransactionStatus
-from app.features.ledger.application.imported_operations import (
-    ImportedOperationReviewUseCase,
-    UpdateImportedOperationReviewFieldsCommand,
-)
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.manual_idempotency import ManualOperationFingerprint
 from app.features.ledger.domain.money import (
@@ -32,6 +28,7 @@ from app.features.ledger.domain.money import (
 )
 from app.features.ledger.errors import (
     LedgerPostingError,
+    ManualOperationLifecycleConflictError,
     OperationIdempotencyConflictError,
     OperationVersionConflictError,
 )
@@ -103,12 +100,30 @@ def workspace_context_stub(
     )
 
 
-def test_operation_type_for_amount_maps_income_and_expense() -> None:
-    assert operation_type_for_amount(Decimal("100.00")) == OperationType.INCOME
-    assert operation_type_for_amount(Decimal("-100.00")) == OperationType.EXPENSE
-    assert affects_profit_for_operation_type(OperationType.INCOME) is True
-    assert affects_profit_for_operation_type(OperationType.EXPENSE) is True
-    assert affects_profit_for_operation_type(OperationType.TRANSFER) is False
+@pytest.mark.parametrize(
+    ("amount", "expected"),
+    [
+        pytest.param(Decimal("100.00"), OperationType.INCOME, id="positive-income"),
+        pytest.param(Decimal("-100.00"), OperationType.EXPENSE, id="negative-expense"),
+    ],
+)
+def test_operation_type_for_amount(amount: Decimal, expected: OperationType) -> None:
+    assert operation_type_for_amount(amount) is expected
+
+
+@pytest.mark.parametrize(
+    ("operation_type", "expected"),
+    [
+        pytest.param(OperationType.INCOME, True, id="income"),
+        pytest.param(OperationType.EXPENSE, True, id="expense"),
+        pytest.param(OperationType.TRANSFER, False, id="transfer"),
+    ],
+)
+def test_affects_profit_for_operation_type(
+    operation_type: OperationType,
+    expected: bool,
+) -> None:
+    assert affects_profit_for_operation_type(operation_type) is expected
 
 
 def test_operation_mapper_uses_integer_version_for_optimistic_concurrency() -> None:
@@ -120,9 +135,18 @@ def test_operation_type_for_amount_rejects_zero() -> None:
         operation_type_for_amount(Decimal("0.00"))
 
 
-def test_manual_income_expense_amount_normalizes_signs() -> None:
-    assert manual_income_expense_amount(OperationType.INCOME, Decimal("100")) == Decimal("100.00")
-    assert manual_income_expense_amount(OperationType.EXPENSE, Decimal("100")) == Decimal("-100.00")
+@pytest.mark.parametrize(
+    ("operation_type", "expected"),
+    [
+        pytest.param(OperationType.INCOME, Decimal("100.00"), id="income"),
+        pytest.param(OperationType.EXPENSE, Decimal("-100.00"), id="expense"),
+    ],
+)
+def test_manual_income_expense_amount_normalizes_sign(
+    operation_type: OperationType,
+    expected: Decimal,
+) -> None:
+    assert manual_income_expense_amount(operation_type, Decimal("100")) == expected
 
 
 def test_manual_transfer_amounts_create_balanced_entries() -> None:
@@ -141,25 +165,28 @@ def test_manual_transfer_amounts_create_balanced_entries() -> None:
     ensure_balanced_transfer(amounts.source_amount, amounts.destination_amount)
 
 
-def test_manual_transfer_amounts_reject_same_account_and_non_positive_amount() -> None:
-    account_id = uuid4()
+@pytest.mark.parametrize(
+    ("same_account", "amount", "message"),
+    [
+        pytest.param(True, Decimal("100.00"), "different", id="same-account"),
+        pytest.param(False, Decimal("0.00"), "positive", id="zero-amount"),
+    ],
+)
+def test_manual_transfer_amounts_reject_invalid_input(
+    same_account: bool,
+    amount: Decimal,
+    message: str,
+) -> None:
+    source_account_id = uuid4()
 
-    with pytest.raises(LedgerPostingError, match="different"):
+    with pytest.raises(LedgerPostingError, match=message):
         TransferAmounts.for_manual_transfer(
-            source_account_id=account_id,
-            destination_account_id=account_id,
-            amount=Decimal("100.00"),
+            source_account_id=source_account_id,
+            destination_account_id=(source_account_id if same_account else uuid4()),
+            amount=amount,
         )
 
-    with pytest.raises(LedgerPostingError, match="positive"):
-        TransferAmounts.for_manual_transfer(
-            source_account_id=uuid4(),
-            destination_account_id=uuid4(),
-            amount=Decimal("0.00"),
-        )
 
-
-@pytest.mark.asyncio
 async def test_manual_create_replays_matching_idempotency_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -203,7 +230,6 @@ async def test_manual_create_replays_matching_idempotency_key(
     assert result.replayed is True
 
 
-@pytest.mark.asyncio
 async def test_manual_create_marks_new_operation_as_not_replayed() -> None:
     workspace_id = uuid4()
     operation = SimpleNamespace(id=uuid4())
@@ -251,7 +277,6 @@ async def test_manual_create_marks_new_operation_as_not_replayed() -> None:
     assert result.replayed is False
 
 
-@pytest.mark.asyncio
 async def test_manual_create_rejects_idempotency_key_reuse_with_other_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -302,19 +327,40 @@ def test_ensure_balanced_transfer_rejects_unbalanced_entries() -> None:
         ensure_balanced_transfer(Decimal("-10.00"), Decimal("9.99"))
 
 
-def test_prepare_income_expense_posting_for_income_raw_row() -> None:
+@pytest.mark.parametrize(
+    ("status", "amount", "expected_type"),
+    [
+        pytest.param(
+            RawTransactionStatus.NORMALIZED,
+            Decimal("100.00"),
+            OperationType.INCOME,
+            id="income",
+        ),
+        pytest.param(
+            RawTransactionStatus.MATCHED,
+            Decimal("-25.50"),
+            OperationType.EXPENSE,
+            id="expense",
+        ),
+    ],
+)
+def test_prepare_income_expense_posting_builds_plan(
+    status: RawTransactionStatus,
+    amount: Decimal,
+    expected_type: OperationType,
+) -> None:
     account_id = uuid4()
     plan = prepare_income_expense_posting(
         RawTransactionStub(
-            status=RawTransactionStatus.NORMALIZED,
+            status=status,
             account_id=account_id,
-            amount=Decimal("100.00"),
+            amount=amount,
         ),
         AccountStub(id=account_id),
     )
 
-    assert plan.operation_type == OperationType.INCOME
-    assert plan.amount == Decimal("100.00")
+    assert plan.operation_type is expected_type
+    assert plan.amount == amount
     assert plan.description == "Rent"
 
 
@@ -345,21 +391,6 @@ def test_ensure_matched_transfer_account_accepts_document_account() -> None:
     ensure_matched_transfer_account(raw_transaction, account_id)
 
 
-def test_prepare_income_expense_posting_for_expense_raw_row() -> None:
-    account_id = uuid4()
-    plan = prepare_income_expense_posting(
-        RawTransactionStub(
-            status=RawTransactionStatus.MATCHED,
-            account_id=account_id,
-            amount=Decimal("-25.50"),
-        ),
-        AccountStub(id=account_id),
-    )
-
-    assert plan.operation_type == OperationType.EXPENSE
-    assert plan.amount == Decimal("-25.50")
-
-
 def test_prepare_income_expense_posting_blocks_already_linked_row() -> None:
     account_id = uuid4()
     with pytest.raises(LedgerPostingError, match="already linked"):
@@ -374,21 +405,41 @@ def test_prepare_income_expense_posting_blocks_already_linked_row() -> None:
         )
 
 
-def test_prepare_income_expense_posting_allows_user_reviewed_statuses() -> None:
+@pytest.mark.parametrize(
+    "status",
+    [
+        pytest.param(RawTransactionStatus.NEEDS_REVIEW, id="needs-review"),
+        pytest.param(RawTransactionStatus.IGNORED, id="ignored"),
+    ],
+)
+def test_prepare_income_expense_posting_allows_user_reviewed_status(
+    status: RawTransactionStatus,
+) -> None:
     account_id = uuid4()
-    for status in [RawTransactionStatus.NEEDS_REVIEW, RawTransactionStatus.IGNORED]:
-        plan = prepare_income_expense_posting(
-            RawTransactionStub(
-                status=status,
-                account_id=account_id,
-                amount=Decimal("100.00"),
-            ),
-            AccountStub(id=account_id),
-        )
-        assert plan.amount == Decimal("100.00")
+    plan = prepare_income_expense_posting(
+        RawTransactionStub(
+            status=status,
+            account_id=account_id,
+            amount=Decimal("100.00"),
+        ),
+        AccountStub(id=account_id),
+    )
+
+    assert plan.amount == Decimal("100.00")
 
 
-def test_ledger_posting_plan_blocks_currency_mismatch() -> None:
+@pytest.mark.parametrize(
+    ("plan_currency", "operation_type", "message"),
+    [
+        pytest.param("USD", OperationType.INCOME, "currency", id="currency"),
+        pytest.param("RUB", OperationType.EXPENSE, "amount sign", id="amount-sign"),
+    ],
+)
+def test_ledger_posting_plan_rejects_inconsistent_accounting_facts(
+    plan_currency: str,
+    operation_type: OperationType,
+    message: str,
+) -> None:
     account_id = uuid4()
     account = AccountStub(id=account_id, currency="RUB")
     plan = prepare_income_expense_posting(
@@ -396,47 +447,36 @@ def test_ledger_posting_plan_blocks_currency_mismatch() -> None:
             status=RawTransactionStatus.NORMALIZED,
             account_id=account_id,
             amount=Decimal("100.00"),
-            currency="USD",
+            currency=plan_currency,
         ),
         account,
     )
 
-    with pytest.raises(LedgerPostingError, match="currency"):
-        ensure_income_expense_posting(plan, account)
-
-
-def test_ledger_posting_plan_blocks_operation_type_amount_mismatch() -> None:
-    account_id = uuid4()
-    account = AccountStub(id=account_id)
-    plan = prepare_income_expense_posting(
-        RawTransactionStub(
-            status=RawTransactionStatus.NORMALIZED,
-            account_id=account_id,
-            amount=Decimal("100.00"),
-        ),
-        account,
-    )
-
-    with pytest.raises(LedgerPostingError, match="amount sign"):
+    with pytest.raises(LedgerPostingError, match=message):
         ensure_income_expense_posting(
-            replace(plan, operation_type=OperationType.EXPENSE),
+            replace(plan, operation_type=operation_type),
             account,
         )
 
 
-def test_transfer_source_allows_manual_reviewable_raw_rows() -> None:
-    for status in [
-        RawTransactionStatus.POSSIBLE_DUPLICATE,
-        RawTransactionStatus.NEEDS_REVIEW,
-        RawTransactionStatus.IGNORED,
-    ]:
-        ensure_raw_transaction_can_post_as_transfer(
-            RawTransactionStub(
-                status=status,
-                account_id=uuid4(),
-                amount=Decimal("-100.00"),
-            )
+@pytest.mark.parametrize(
+    "status",
+    [
+        pytest.param(RawTransactionStatus.POSSIBLE_DUPLICATE, id="possible-duplicate"),
+        pytest.param(RawTransactionStatus.NEEDS_REVIEW, id="needs-review"),
+        pytest.param(RawTransactionStatus.IGNORED, id="ignored"),
+    ],
+)
+def test_transfer_source_allows_manual_reviewable_raw_row(
+    status: RawTransactionStatus,
+) -> None:
+    ensure_raw_transaction_can_post_as_transfer(
+        RawTransactionStub(
+            status=status,
+            account_id=uuid4(),
+            amount=Decimal("-100.00"),
         )
+    )
 
 
 def test_transfer_source_blocks_already_linked_rows() -> None:
@@ -451,17 +491,8 @@ def test_transfer_source_blocks_already_linked_rows() -> None:
         )
 
 
-def test_matched_transfer_row_must_belong_to_selected_account() -> None:
+def test_matched_transfer_row_rejects_other_selected_account() -> None:
     matched_account_id = uuid4()
-
-    ensure_matched_transfer_account(
-        RawTransactionStub(
-            status=RawTransactionStatus.NORMALIZED,
-            account_id=matched_account_id,
-            amount=Decimal("100.00"),
-        ),
-        matched_account_id,
-    )
 
     with pytest.raises(LedgerPostingError, match="selected transfer account"):
         ensure_matched_transfer_account(
@@ -474,175 +505,6 @@ def test_matched_transfer_row_must_belong_to_selected_account() -> None:
         )
 
 
-@pytest.mark.asyncio
-async def test_imported_operation_review_update_changes_only_review_fields(monkeypatch) -> None:
-    workspace_id = uuid4()
-    user_id = uuid4()
-    operation_id = uuid4()
-    category_id = uuid4()
-    property_id = uuid4()
-    money_entry = SimpleNamespace(
-        account_id=uuid4(),
-        amount=Decimal("-120.00"),
-        currency="RUB",
-    )
-    raw_transaction = SimpleNamespace(id=uuid4(), linked_operation_id=operation_id)
-    operation = SimpleNamespace(
-        id=operation_id,
-        workspace_id=workspace_id,
-        source=OperationSource.BANK_PDF,
-        type=OperationType.EXPENSE,
-        status=OperationStatus.CONFIRMED,
-        version=3,
-        category_id=None,
-        property_id=None,
-        description="Old",
-        operation_date=date(2026, 6, 15),
-        money_entries=[money_entry],
-        raw_transactions=[raw_transaction],
-        updated_by_user_id=None,
-    )
-    session = SimpleNamespace(commits=0, flushes=0, rollbacks=0)
-
-    async def commit() -> None:
-        session.commits += 1
-
-    async def rollback() -> None:
-        session.rollbacks += 1
-
-    async def flush() -> None:
-        session.flushes += 1
-
-    session.commit = commit
-    session.flush = flush
-    session.rollback = rollback
-
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(self, workspace_id_arg, operation_id_arg):
-            assert workspace_id_arg == workspace_id
-            assert operation_id_arg == operation_id
-            return operation
-
-    class FakeReferences:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_category_or_uncategorized(self, workspace_id_arg, category_id_arg):
-            assert workspace_id_arg == workspace_id
-            assert category_id_arg == category_id
-            return SimpleNamespace(id=category_id)
-
-        async def get_property(self, workspace_id_arg, property_id_arg):
-            assert workspace_id_arg == workspace_id
-            assert property_id_arg == property_id
-            return SimpleNamespace(id=property_id)
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.imported_operations.LedgerRepository",
-        FakeRepository,
-    )
-    monkeypatch.setattr(
-        "app.features.ledger.application.imported_operations.LedgerReferenceResolver",
-        FakeReferences,
-    )
-
-    use_case = ImportedOperationReviewUseCase(cast(Any, session))
-    use_case.activity = cast(Any, SimpleNamespace(imported_operation_updated=AsyncMock()))
-    updated = await use_case.update_review_fields(
-        context=cast(
-            Any,
-            SimpleNamespace(
-                workspace=SimpleNamespace(id=workspace_id),
-                user=SimpleNamespace(id=user_id),
-            ),
-        ),
-        command=UpdateImportedOperationReviewFieldsCommand(
-            operation_id=operation_id,
-            expected_version=3,
-            category_id=category_id,
-            property_id=property_id,
-            description="  New   label  ",
-        ),
-    )
-
-    assert updated is operation
-    assert operation.category_id == category_id
-    assert operation.property_id == property_id
-    assert operation.description == "New label"
-    assert operation.status == OperationStatus.CONFIRMED
-    assert operation.updated_by_user_id == user_id
-    assert operation.type == OperationType.EXPENSE
-    assert operation.operation_date == date(2026, 6, 15)
-    assert operation.money_entries == [money_entry]
-    assert operation.raw_transactions == [raw_transaction]
-    assert money_entry.amount == Decimal("-120.00")
-    assert session.commits == 1
-    assert session.flushes == 1
-    assert session.rollbacks == 0
-    use_case.activity.imported_operation_updated.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_imported_operation_review_update_rejects_manual_source(monkeypatch) -> None:
-    workspace_id = uuid4()
-    operation_id = uuid4()
-    operation = SimpleNamespace(id=operation_id, source=OperationSource.MANUAL)
-    session = SimpleNamespace(commits=0, rollbacks=0)
-
-    async def commit() -> None:
-        session.commits += 1
-
-    async def rollback() -> None:
-        session.rollbacks += 1
-
-    session.commit = commit
-    session.rollback = rollback
-
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(self, _workspace_id, _operation_id):
-            return operation
-
-    class FakeReferences:
-        def __init__(self, _session: object) -> None:
-            pass
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.imported_operations.LedgerRepository",
-        FakeRepository,
-    )
-    monkeypatch.setattr(
-        "app.features.ledger.application.imported_operations.LedgerReferenceResolver",
-        FakeReferences,
-    )
-
-    with pytest.raises(LedgerPostingError, match="Only imported bank PDF"):
-        await ImportedOperationReviewUseCase(cast(Any, session)).update_review_fields(
-            context=cast(
-                Any,
-                SimpleNamespace(
-                    workspace=SimpleNamespace(id=workspace_id),
-                    user=SimpleNamespace(id=uuid4()),
-                ),
-            ),
-            command=UpdateImportedOperationReviewFieldsCommand(
-                operation_id=operation_id,
-                expected_version=1,
-                category_id=None,
-                property_id=None,
-                description="New",
-            ),
-        )
-    assert session.commits == 0
-    assert session.rollbacks == 1
-
-
-@pytest.mark.asyncio
 async def test_manual_update_rejects_imported_operation() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
@@ -663,7 +525,6 @@ async def test_manual_update_rejects_imported_operation() -> None:
     operation_lookup.assert_awaited_once_with(workspace_id, operation_id)
 
 
-@pytest.mark.asyncio
 async def test_manual_update_rejects_stale_expected_version_before_mutation() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
@@ -694,7 +555,6 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation() ->
     assert not hasattr(operation, "description")
 
 
-@pytest.mark.asyncio
 async def test_manual_update_rejects_ignored_operation_before_mutation() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
@@ -723,194 +583,170 @@ async def test_manual_update_rejects_ignored_operation_before_mutation() -> None
     assert not hasattr(operation, "description")
 
 
-@pytest.mark.asyncio
-async def test_manual_cancel_and_restore_change_only_lifecycle_state(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    workspace_id = uuid4()
-    user_id = uuid4()
-    money_entries = [SimpleNamespace(id=uuid4(), amount=Decimal("-10.00"))]
-    operation = SimpleNamespace(
-        id=uuid4(),
-        source=OperationSource.MANUAL,
-        status=OperationStatus.CONFIRMED,
-        version=3,
-        type=OperationType.EXPENSE,
-        description="Покупка",
-        money_entries=money_entries,
-        updated_by_user_id=None,
-    )
-    session = SimpleNamespace(flushes=0)
-
-    async def flush() -> None:
-        session.flushes += 1
-
-    session.flush = flush
-
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(
-            self,
-            workspace_id_arg: UUID,
-            operation_id_arg: UUID,
-        ) -> object:
-            assert workspace_id_arg == workspace_id
-            assert operation_id_arg == operation.id
-            return operation
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.manual_mutations.LedgerRepository",
-        FakeRepository,
-    )
-    use_case = ManualOperationWriter(cast(Any, session))
-    context = cast(
-        Any,
-        SimpleNamespace(
-            workspace=SimpleNamespace(id=workspace_id),
-            user=SimpleNamespace(id=user_id),
+@pytest.mark.parametrize(
+    ("action", "initial_status", "target_status"),
+    [
+        pytest.param(
+            "cancel",
+            OperationStatus.CONFIRMED,
+            OperationStatus.IGNORED,
+            id="cancel",
         ),
+        pytest.param(
+            "restore",
+            OperationStatus.IGNORED,
+            OperationStatus.CONFIRMED,
+            id="restore",
+        ),
+    ],
+)
+async def test_manual_lifecycle_changes_only_state(
+    action: str,
+    initial_status: OperationStatus,
+    target_status: OperationStatus,
+) -> None:
+    operation, use_case, session, context = manual_lifecycle_context(
+        status=initial_status,
+        version=3,
     )
+    money_entries = operation.money_entries
 
-    await use_case.cancel(
+    await getattr(use_case, action)(
         context=context,
         operation_id=operation.id,
         expected_version=3,
     )
-    assert operation.status is OperationStatus.IGNORED
-    assert operation.updated_by_user_id == user_id
+
+    assert operation.status is target_status
+    assert operation.updated_by_user_id == context.user.id
     assert operation.money_entries is money_entries
-
-    await use_case.restore(context=context, operation_id=operation.id)
-    assert operation.status is OperationStatus.CONFIRMED
-    assert operation.money_entries is money_entries
-    assert session.flushes == 2
+    session.flush.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_manual_cancel_rejects_stale_version_before_state_change(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    workspace_id = uuid4()
-    operation = SimpleNamespace(
-        id=uuid4(),
-        source=OperationSource.MANUAL,
+async def test_manual_cancel_rejects_stale_version_before_state_change() -> None:
+    operation, use_case, session, context = manual_lifecycle_context(
         status=OperationStatus.CONFIRMED,
         version=4,
     )
 
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(
-            self,
-            _workspace_id: UUID,
-            _operation_id: UUID,
-        ) -> object:
-            return operation
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.manual_mutations.LedgerRepository",
-        FakeRepository,
-    )
-
     with pytest.raises(OperationVersionConflictError):
-        await ManualOperationWriter(cast(Any, object())).cancel(
-            context=cast(
-                Any,
-                SimpleNamespace(
-                    workspace=SimpleNamespace(id=workspace_id),
-                    user=SimpleNamespace(id=uuid4()),
-                ),
-            ),
+        await use_case.cancel(
+            context=context,
             operation_id=operation.id,
             expected_version=3,
         )
 
     assert operation.status is OperationStatus.CONFIRMED
+    session.flush.assert_not_awaited()
 
 
-@pytest.mark.asyncio
-async def test_manual_delete_requires_deletable_state_and_expected_version(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def manual_lifecycle_context(
+    *,
+    status: OperationStatus,
+    version: int,
+) -> tuple[SimpleNamespace, ManualOperationWriter, Any, Any]:
     workspace_id = uuid4()
     operation = SimpleNamespace(
         id=uuid4(),
         source=OperationSource.MANUAL,
-        status=OperationStatus.CONFIRMED,
-        version=3,
-        type=OperationType.EXPENSE,
-        description="Покупка",
+        status=status,
+        version=version,
+        money_entries=[SimpleNamespace(id=uuid4(), amount=Decimal("-10.00"))],
+        updated_by_user_id=None,
     )
-    deleted: list[object] = []
-    session = SimpleNamespace(flushes=0)
-
-    async def flush() -> None:
-        session.flushes += 1
-
-    session.flush = flush
-
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(
-            self,
-            _workspace_id: UUID,
-            _operation_id: UUID,
-        ) -> object:
-            return operation
-
-        async def delete_operation(self, operation_to_delete: object) -> None:
-            deleted.append(operation_to_delete)
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.manual_mutations.LedgerRepository",
-        FakeRepository,
-    )
+    session = SimpleNamespace(flush=AsyncMock())
     use_case = ManualOperationWriter(cast(Any, session))
-    context = cast(
+    use_case.ledger = cast(
         Any,
-        SimpleNamespace(
-            workspace=SimpleNamespace(id=workspace_id),
-            user=SimpleNamespace(id=uuid4()),
+        SimpleNamespace(get_operation_for_workspace=AsyncMock(return_value=operation)),
+    )
+    return operation, use_case, session, workspace_context_stub(workspace_id)
+
+
+@pytest.mark.parametrize(
+    ("status", "version", "expected_version", "expected_error"),
+    [
+        pytest.param(
+            OperationStatus.CONFIRMED,
+            3,
+            3,
+            ManualOperationLifecycleConflictError,
+            id="not-deletable",
         ),
+        pytest.param(
+            OperationStatus.IGNORED,
+            4,
+            3,
+            OperationVersionConflictError,
+            id="stale-version",
+        ),
+    ],
+)
+async def test_manual_delete_rejects_invalid_state_or_version(
+    status: OperationStatus,
+    version: int,
+    expected_version: int,
+    expected_error: type[LedgerPostingError],
+) -> None:
+    operation, use_case, session, ledger, context = manual_delete_context(
+        status=status,
+        version=version,
     )
 
-    with pytest.raises(LedgerPostingError, match="Cancel a manual operation"):
+    with pytest.raises(expected_error):
         await use_case.delete(
             context=context,
             operation_id=operation.id,
-            expected_version=3,
+            expected_version=expected_version,
         )
-    assert deleted == []
 
-    operation.status = OperationStatus.IGNORED
-    operation.version = 4
-    with pytest.raises(OperationVersionConflictError):
-        await use_case.delete(
-            context=context,
-            operation_id=operation.id,
-            expected_version=3,
-        )
-    assert deleted == []
+    ledger.delete_operation.assert_not_awaited()
+    session.flush.assert_not_awaited()
+
+
+async def test_manual_delete_removes_deletable_operation_and_returns_identity() -> None:
+    operation, use_case, session, ledger, context = manual_delete_context(
+        status=OperationStatus.IGNORED,
+        version=4,
+    )
 
     outcome = await use_case.delete(
         context=context,
         operation_id=operation.id,
         expected_version=4,
     )
-    assert deleted == [operation]
-    assert session.flushes == 1
+
+    ledger.delete_operation.assert_awaited_once_with(operation)
+    session.flush.assert_awaited_once()
     assert outcome.operation_id == operation.id
     assert outcome.operation_type is OperationType.EXPENSE
     assert outcome.display_label == "Покупка"
 
 
-@pytest.mark.asyncio
+def manual_delete_context(
+    *,
+    status: OperationStatus,
+    version: int,
+) -> tuple[SimpleNamespace, ManualOperationWriter, Any, Any, Any]:
+    workspace_id = uuid4()
+    operation = SimpleNamespace(
+        id=uuid4(),
+        source=OperationSource.MANUAL,
+        status=status,
+        version=version,
+        type=OperationType.EXPENSE,
+        description="Покупка",
+    )
+    session = SimpleNamespace(flush=AsyncMock())
+    ledger = SimpleNamespace(
+        get_operation_for_workspace=AsyncMock(return_value=operation),
+        delete_operation=AsyncMock(),
+    )
+    use_case = ManualOperationWriter(cast(Any, session))
+    use_case.ledger = cast(Any, ledger)
+    return operation, use_case, session, ledger, workspace_context_stub(workspace_id)
+
+
 async def test_manual_update_replaces_existing_money_entry() -> None:
     workspace_id = uuid4()
     user_id = uuid4()

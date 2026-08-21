@@ -1,12 +1,13 @@
 import asyncio
 import os
 from datetime import date
+from typing import Any
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm.exc import StaleDataError
 
 from app.db.base import utc_now
@@ -26,11 +27,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.asyncio
-async def test_concurrent_operation_updates_allow_one_committed_version() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_concurrent_operation_updates_allow_one_committed_version(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     user_id, workspace_id, operation_id = uuid4(), uuid4(), uuid4()
     barrier = asyncio.Barrier(2)
 
@@ -95,14 +95,12 @@ async def test_concurrent_operation_updates_allow_one_committed_version() -> Non
             await session.execute(delete(Workspace).where(Workspace.id == workspace_id))
             await session.execute(delete(User).where(User.id == user_id))
             await session.commit()
-        await engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_concurrent_confirmed_dedupe_hash_allows_one_row() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_concurrent_confirmed_dedupe_hash_allows_one_row(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     user_id, workspace_id = uuid4(), uuid4()
     document_ids = (uuid4(), uuid4())
     attempt_ids = (uuid4(), uuid4())
@@ -189,4 +187,3 @@ async def test_concurrent_confirmed_dedupe_hash_allows_one_row() -> None:
             await session.execute(delete(Workspace).where(Workspace.id == workspace_id))
             await session.execute(delete(User).where(User.id == user_id))
             await session.commit()
-        await engine.dispose()

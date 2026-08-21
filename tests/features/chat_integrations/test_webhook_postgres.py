@@ -1,11 +1,12 @@
 import asyncio
 import os
 from datetime import timedelta
+from typing import Any
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.db.base import utc_now
 from app.features.chat_integrations.models import TelegramWebhookUpdate
@@ -22,11 +23,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.asyncio
-async def test_telegram_webhook_update_claim_is_persistent_and_concurrency_safe() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_telegram_webhook_update_claim_is_persistent_and_concurrency_safe(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     update_id = uuid4().int % (2**63 - 1)
     failed_update_id = uuid4().int % (2**63 - 1)
     now = utc_now()
@@ -80,4 +80,3 @@ async def test_telegram_webhook_update_claim_is_persistent_and_concurrency_safe(
                 )
             )
             await session.commit()
-        await engine.dispose()

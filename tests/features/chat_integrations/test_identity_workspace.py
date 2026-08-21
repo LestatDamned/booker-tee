@@ -20,7 +20,6 @@ from app.features.chat_integrations.use_cases import identity as chat_identity
 from app.features.chat_integrations.use_cases import workspace as chat_workspace
 
 
-@pytest.mark.asyncio
 async def test_chat_identity_binder_rejects_user_without_workspace_membership(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -59,7 +58,6 @@ async def test_chat_identity_binder_rejects_user_without_workspace_membership(
         )
 
 
-@pytest.mark.asyncio
 async def test_chat_identity_binder_creates_binding_for_active_workspace_member(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -119,7 +117,6 @@ async def test_chat_identity_binder_creates_binding_for_active_workspace_member(
     assert binding.external_user_id == "42"
 
 
-@pytest.mark.asyncio
 async def test_workspace_chat_resolver_rejects_unbound_chat_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -146,7 +143,6 @@ async def test_workspace_chat_resolver_rejects_unbound_chat_identity(
         await resolver.require_bound_workspace(event)
 
 
-@pytest.mark.asyncio
 async def test_workspace_chat_resolver_rechecks_membership_for_existing_binding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -199,7 +195,6 @@ async def test_workspace_chat_resolver_rechecks_membership_for_existing_binding(
         await resolver.require_bound_workspace(event)
 
 
-@pytest.mark.asyncio
 async def test_workspace_chat_resolver_returns_workspace_context_for_bound_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

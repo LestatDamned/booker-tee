@@ -4,7 +4,6 @@ from typing import cast
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.imports.documents.dto import (
@@ -68,7 +67,6 @@ class TemplateServiceStub:
         return []
 
 
-@pytest.mark.asyncio
 async def test_mapping_repository_skips_template_query_without_bank_or_type() -> None:
     session = AsyncMock()
     repository = MappingRepository(cast(AsyncSession, session))
@@ -83,7 +81,6 @@ async def test_mapping_repository_skips_template_query_without_bank_or_type() ->
     session.execute.assert_not_awaited()
 
 
-@pytest.mark.asyncio
 async def test_mapping_template_query_is_workspace_scoped() -> None:
     workspace_id = uuid4()
 
@@ -115,7 +112,6 @@ async def test_mapping_template_query_is_workspace_scoped() -> None:
     assert "import_mapping_templates.workspace_id" in str(statement)
 
 
-@pytest.mark.asyncio
 async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> None:
     workspace_id = uuid4()
     snapshot = mapping_document_snapshot()
@@ -142,7 +138,6 @@ async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> Non
     assert documents.calls == [(workspace_id, snapshot.id)]
 
 
-@pytest.mark.asyncio
 async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -> None:
     workspace_id = uuid4()
     snapshot = mapping_document_snapshot()
@@ -174,7 +169,6 @@ async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -
     assert snapshot.raw_transactions == []
 
 
-@pytest.mark.asyncio
 async def test_mapping_source_rows_reader_returns_requested_window() -> None:
     workspace_id = uuid4()
     snapshot = mapping_document_snapshot()

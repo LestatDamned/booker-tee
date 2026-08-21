@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.features.accounts.models import Account, AccountType
 from app.features.imports.documents.types import (
@@ -39,13 +39,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.asyncio
 async def test_concurrent_mapping_import_replays_one_execution(
     monkeypatch: pytest.MonkeyPatch,
+    postgres_sessions: async_sessionmaker[Any],
 ) -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    sessions = postgres_sessions
     ids = await _seed_mapping_document(sessions)
 
     async def imported_rows(
@@ -85,7 +83,6 @@ async def test_concurrent_mapping_import_replays_one_execution(
         assert execution_count == 1
     finally:
         await _delete_seed_data(sessions, ids)
-        await engine.dispose()
 
 
 class MappingPostgresIds:

@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import cast
 
+import pytest
+
 from app.features.imports.statements.dto import StatementControlTotals
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.imports.statements.validation import (
@@ -193,20 +195,31 @@ def test_statement_validation_report_detects_balance_chain_mismatch() -> None:
     assert mismatches[0]["actual_balance_after"] == "1060.00"
 
 
-def test_statement_validation_report_needs_review_for_uncertain_rows() -> None:
+@pytest.mark.parametrize(
+    ("row_status", "amount", "total_inflow"),
+    [
+        pytest.param(
+            RawTransactionStatus.NEEDS_REVIEW,
+            None,
+            Decimal("0.00"),
+            id="uncertain-row",
+        ),
+        pytest.param(
+            RawTransactionStatus.POSSIBLE_DUPLICATE,
+            Decimal("10.00"),
+            Decimal("10.00"),
+            id="possible-duplicate-row",
+        ),
+    ],
+)
+def test_statement_validation_report_needs_review_for_unresolved_rows(
+    row_status: RawTransactionStatus,
+    amount: Decimal | None,
+    total_inflow: Decimal,
+) -> None:
     report = validate_statement_totals(
-        rows=[RowStub(status=RawTransactionStatus.NEEDS_REVIEW, amount=None)],
-        control_totals=StatementControlTotals(currency="RUB", total_inflow=Decimal("0.00")),
-    )
-
-    assert report.status == StatementValidationStatus.NEEDS_REVIEW
-    assert report.model_dump(mode="json")["needs_review_count"] == 1
-
-
-def test_statement_validation_report_needs_review_for_possible_duplicate_rows() -> None:
-    report = validate_statement_totals(
-        rows=[RowStub(status=RawTransactionStatus.POSSIBLE_DUPLICATE, amount=Decimal("10.00"))],
-        control_totals=StatementControlTotals(currency="RUB", total_inflow=Decimal("10.00")),
+        rows=[RowStub(status=row_status, amount=amount)],
+        control_totals=StatementControlTotals(currency="RUB", total_inflow=total_inflow),
     )
 
     assert report.status == StatementValidationStatus.NEEDS_REVIEW

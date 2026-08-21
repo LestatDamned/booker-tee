@@ -44,7 +44,6 @@ from app.features.ledger.schemas.manual import (
 )
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
 class AccountDirectoryServiceStub:
@@ -186,6 +185,7 @@ class AccountReferenceReaderStub:
 
 
 def accounts_app(
+    app: FastAPI,
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, AccountDirectoryServiceStub, UUID]:
@@ -196,13 +196,13 @@ def accounts_app(
         WorkspaceRole.EDITOR,
     }
     service = AccountDirectoryServiceStub(account_directory(can_create=can_create))
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_account_directory_service] = lambda: service
     return app, service, context.workspace.workspace.id
 
 
 def account_detail_app(
+    app: FastAPI,
     *,
     found: bool = True,
     role: WorkspaceRole = WorkspaceRole.OWNER,
@@ -211,7 +211,6 @@ def account_detail_app(
     account_id = uuid4()
     ledger = AccountLedgerReaderStub(account_detail(account_id) if found else None)
     references = AccountReferenceReaderStub()
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_account_ledger_reader] = lambda: ledger
     app.dependency_overrides[get_manual_ledger_reference_reader] = lambda: references
@@ -219,6 +218,7 @@ def account_detail_app(
 
 
 def account_correction_app(
+    app: FastAPI,
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
     found: bool = True,
@@ -248,7 +248,6 @@ def account_correction_app(
         imported_operations=[before, committed] if found else [None],
     )
     use_case = ImportedOperationReviewUseCaseStub(error=error)
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_account_ledger_reader] = lambda: ledger
     app.dependency_overrides[get_imported_operation_review_use_case] = lambda: use_case

@@ -5,18 +5,16 @@ from typing import Any, cast
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-import pytest
-
 from app.features.accounts.models import AccountType
 from app.features.ledger.application.operations import OperationsReader
 from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.ledger.schemas.listing import LedgerPagination, OperationFilters
 
 
-@pytest.mark.asyncio
 async def test_list_projects_every_source_with_typed_provenance_and_capabilities() -> None:
     workspace_id = uuid4()
-    operations = [operation(source) for source in OperationSource]
+    operations_by_source = {source: operation(source) for source in OperationSource}
+    operations = list(operations_by_source.values())
     filters = OperationFilters(search="Аренда")
     pagination = LedgerPagination(page=2, per_page=25)
     repository = SimpleNamespace(
@@ -41,10 +39,18 @@ async def test_list_projects_every_source_with_typed_provenance_and_capabilities
     import_provenance = by_source[OperationSource.BANK_PDF].provenance
     assert import_provenance is not None
     assert import_provenance.kind == "import"
+    imported_operation = operations_by_source[OperationSource.BANK_PDF]
+    assert import_provenance.uploaded_document_id == (
+        imported_operation.raw_transactions[0].uploaded_document_id
+    )
+    assert import_provenance.raw_transaction_id == imported_operation.raw_transactions[0].id
     assert by_source[OperationSource.BANK_PDF].capabilities.edit_kind == "imported"
     debt_provenance = by_source[OperationSource.DEBT].provenance
     assert debt_provenance is not None
     assert debt_provenance.kind == "debt"
+    assert debt_provenance.debt_account_id == (
+        operations_by_source[OperationSource.DEBT].money_entries[0].account_id
+    )
     assert by_source[OperationSource.DEBT].capabilities.readonly_reason == (
         "source_workflow_required"
     )
@@ -66,7 +72,6 @@ async def test_list_projects_every_source_with_typed_provenance_and_capabilities
     )
 
 
-@pytest.mark.asyncio
 async def test_get_masks_an_operation_missing_from_the_workspace() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
@@ -87,7 +92,6 @@ async def test_get_masks_an_operation_missing_from_the_workspace() -> None:
     lookup.assert_awaited_once_with(workspace_id, operation_id)
 
 
-@pytest.mark.asyncio
 async def test_readonly_member_receives_no_operation_mutations() -> None:
     item = operation(OperationSource.MANUAL)
     reader = OperationsReader(cast(Any, object()))

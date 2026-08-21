@@ -21,31 +21,66 @@ from app.features.users.email_delivery import (
 )
 from app.features.users.email_verification import EmailVerificationService
 from app.features.users.errors import SignupsClosedError
+from app.features.users.service import safe_next_path
 
 
-def test_user_tokens_and_rate_limit_keys_do_not_expose_secrets() -> None:
-    settings = Settings(auth_secret_key="identity-foundations-test-secret")
+def test_user_token_hash_does_not_expose_secret() -> None:
     token = generate_user_token()
     token_hash = hash_user_token(token)
-    account_bucket = auth_rate_limit_bucket_hash(
-        scope="login-account",
-        key="max@example.test",
-        settings=settings,
-    )
-    network_bucket = auth_rate_limit_bucket_hash(
-        scope="login-network",
-        key="127.0.0.1",
-        settings=settings,
-    )
 
     assert len(token_hash) == 64
     assert token not in token_hash
-    assert account_bucket != network_bucket
-    assert "max@example.test" not in account_bucket
-    assert "127.0.0.1" not in network_bucket
 
 
-def test_verification_email_preserves_only_validated_site_relative_continuation() -> None:
+@pytest.mark.parametrize(
+    ("scope", "key"),
+    [
+        pytest.param("login-account", "max@example.test", id="account"),
+        pytest.param("login-network", "127.0.0.1", id="network"),
+    ],
+)
+def test_rate_limit_keys_hide_inputs(scope: str, key: str) -> None:
+    settings = Settings(auth_secret_key="identity-foundations-test-secret")
+    bucket = auth_rate_limit_bucket_hash(scope=scope, key=key, settings=settings)
+
+    assert key not in bucket
+
+
+def test_rate_limit_keys_separate_scopes() -> None:
+    settings = Settings(auth_secret_key="identity-foundations-test-secret")
+    key = "shared-key"
+
+    assert auth_rate_limit_bucket_hash(
+        scope="login-account",
+        key=key,
+        settings=settings,
+    ) != auth_rate_limit_bucket_hash(
+        scope="login-network",
+        key=key,
+        settings=settings,
+    )
+
+
+@pytest.mark.parametrize(
+    ("next_path", "expected"),
+    [
+        pytest.param(
+            "/workspaces/invitations/example",
+            "/workspaces/invitations/example",
+            id="relative",
+        ),
+        pytest.param("https://evil.example", "/app/workspaces", id="absolute"),
+        pytest.param("//evil.example", "/app/workspaces", id="protocol-relative"),
+    ],
+)
+def test_safe_next_path_allows_only_site_relative_paths(
+    next_path: str,
+    expected: str,
+) -> None:
+    assert safe_next_path(next_path) == expected
+
+
+def test_verification_email_encodes_site_relative_continuation_in_fragment() -> None:
     message = build_email_verification_message(
         recipient="max@example.test",
         token="secret-token",
@@ -92,7 +127,6 @@ def test_production_signups_require_identity_delivery_to_be_enabled() -> None:
         settings.validate_for_runtime()
 
 
-@pytest.mark.asyncio
 async def test_invite_only_signup_rejects_missing_invitation(monkeypatch) -> None:
     commit = AsyncMock()
     session = cast(AsyncSession, SimpleNamespace(commit=commit))
@@ -113,8 +147,18 @@ async def test_invite_only_signup_rejects_missing_invitation(monkeypatch) -> Non
     commit.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_smtp_delivery_uses_starttls_and_hides_sensitive_repr(monkeypatch) -> None:
+def test_identity_email_repr_hides_recipient_and_body() -> None:
+    message = IdentityEmail(
+        recipient="max@example.test",
+        subject="Подтвердите email",
+        text="https://booker.example/app/auth/verify-email#token=secret-token",
+    )
+
+    assert "max@example.test" not in repr(message)
+    assert "secret-token" not in repr(message)
+
+
+async def test_smtp_delivery_uses_starttls(monkeypatch) -> None:
     sent: list[EmailMessage] = []
     events: list[str] = []
 
@@ -163,11 +207,9 @@ async def test_smtp_delivery_uses_starttls_and_hides_sensitive_repr(monkeypatch)
     assert events == ["starttls", "login"]
     assert sent[0]["To"] == "max@example.test"
     assert "secret-token" in sent[0].get_content()
-    assert "max@example.test" not in repr(message)
-    assert "secret-token" not in repr(message)
 
 
-def test_production_identity_email_requires_https_sender_and_smtp() -> None:
+def test_production_identity_email_reports_every_missing_setting() -> None:
     missing = Settings(
         environment="production",
         auth_secret_key="production-secret-value-with-enough-entropy",
@@ -183,6 +225,8 @@ def test_production_identity_email_requires_https_sender_and_smtp() -> None:
     assert "BOOKER_TEE_IDENTITY_EMAIL_FROM" in str(error.value)
     assert "BOOKER_TEE_SMTP_HOST" in str(error.value)
 
+
+def test_production_identity_email_accepts_complete_configuration() -> None:
     configured = Settings(
         environment="production",
         auth_secret_key="production-secret-value-with-enough-entropy",

@@ -4,6 +4,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import get_authenticated_session_context
@@ -18,7 +19,6 @@ from app.features.workspaces.errors import (
     WorkspaceInvitationNotFoundError,
     WorkspaceInvitationTransitionError,
 )
-from app.main import create_app
 
 
 class InvitationServiceStub:
@@ -49,9 +49,7 @@ class InvitationServiceStub:
         return AcceptedWorkspaceInvitation(workspace_id=uuid4())
 
 
-def test_public_invitation_accept_requires_bearer_access_token() -> None:
-    app = create_app()
-
+def test_public_invitation_accept_requires_bearer_access_token(app: FastAPI) -> None:
     with TestClient(app) as client:
         response = client.post(
             "/api/v1/workspaces/invitations/accept",
@@ -65,9 +63,17 @@ def test_public_invitation_accept_requires_bearer_access_token() -> None:
     }
 
 
-@pytest.mark.parametrize("available", [True, False])
-def test_public_invitation_preview_is_private_and_masked(available: bool) -> None:
-    app = create_app()
+@pytest.mark.parametrize(
+    "available",
+    [
+        pytest.param(True, id="available"),
+        pytest.param(False, id="masked-not-found"),
+    ],
+)
+def test_public_invitation_preview_is_private_and_masked(
+    app: FastAPI,
+    available: bool,
+) -> None:
     service = InvitationServiceStub(available=available)
     app.dependency_overrides[get_workspace_invitation_service] = lambda: service
 
@@ -88,9 +94,17 @@ def test_public_invitation_preview_is_private_and_masked(available: bool) -> Non
         assert response.json()["error"]["code"] == "invitation_not_found"
 
 
-@pytest.mark.parametrize("available", [True, False])
-def test_invitation_accept_uses_actor_and_returns_safe_navigation(available: bool) -> None:
-    app = create_app()
+@pytest.mark.parametrize(
+    "available",
+    [
+        pytest.param(True, id="accepted"),
+        pytest.param(False, id="masked-not-found"),
+    ],
+)
+def test_invitation_accept_uses_actor_and_returns_safe_navigation(
+    app: FastAPI,
+    available: bool,
+) -> None:
     service = InvitationServiceStub(available=available)
     user_id = uuid4()
     session_id = uuid4()
@@ -129,8 +143,9 @@ def test_invitation_accept_uses_actor_and_returns_safe_navigation(available: boo
         assert response.json()["error"]["code"] == "invitation_not_found"
 
 
-def test_invitation_accept_rejects_wrong_account_without_leaking_email() -> None:
-    app = create_app()
+def test_invitation_accept_rejects_wrong_account_without_leaking_email(
+    app: FastAPI,
+) -> None:
     service = InvitationServiceStub()
     service.accept_error = WorkspaceInvitationTransitionError(
         "Приглашение предназначено для другого аккаунта.",

@@ -86,7 +86,6 @@ class RuleSourceStub:
         return len(self.rules), sum(rule.is_active for rule in self.rules)
 
 
-@pytest.mark.asyncio
 async def test_detail_is_currency_safe_excludes_transfer_and_bounds_pages() -> None:
     workspace_id = uuid4()
     category = category_row(workspace_id)
@@ -145,7 +144,6 @@ async def test_detail_is_currency_safe_excludes_transfer_and_bounds_pages() -> N
     assert [option.value for option in detail.kind_options] == list(CategoryKind)
 
 
-@pytest.mark.asyncio
 async def test_detail_defaults_currency_and_keeps_archived_category_readable() -> None:
     workspace_id = uuid4()
     row = category_row(workspace_id, is_active=False)
@@ -170,23 +168,44 @@ async def test_detail_defaults_currency_and_keeps_archived_category_readable() -
     assert detail.operations.total_pages == 1
 
 
-@pytest.mark.asyncio
-async def test_detail_rejects_invalid_filters_and_hides_cross_workspace_ids() -> None:
+async def test_detail_hides_category_outside_workspace() -> None:
     workspace_id = uuid4()
-    missing_reader = CategoryDetailReader(
+    reader = CategoryDetailReader(
         categories=CategorySourceStub(None),
         currencies=CurrencySourceStub(),
         operations=OperationSourceStub([]),
         rules=RuleSourceStub([]),
     )
+
     with pytest.raises(CategoryDetailNotFoundError):
-        await missing_reader.read(
+        await reader.read(
             workspace_id=workspace_id,
             category_id=uuid4(),
             default_currency="RUB",
             can_write=True,
         )
 
+
+@pytest.mark.parametrize(
+    ("date_from", "date_to", "currency", "message"),
+    [
+        pytest.param(
+            date(2026, 8, 2),
+            date(2026, 8, 1),
+            None,
+            "Начало периода",
+            id="reversed-period",
+        ),
+        pytest.param(None, None, "EUR", "валюта", id="unavailable-currency"),
+    ],
+)
+async def test_detail_rejects_invalid_filters(
+    date_from: date | None,
+    date_to: date | None,
+    currency: str | None,
+    message: str,
+) -> None:
+    workspace_id = uuid4()
     row = category_row(workspace_id)
     reader = CategoryDetailReader(
         categories=CategorySourceStub(row),
@@ -194,22 +213,16 @@ async def test_detail_rejects_invalid_filters_and_hides_cross_workspace_ids() ->
         operations=OperationSourceStub([]),
         rules=RuleSourceStub([]),
     )
-    with pytest.raises(CategoryDetailFilterError, match="Начало периода"):
+
+    with pytest.raises(CategoryDetailFilterError, match=message):
         await reader.read(
             workspace_id=workspace_id,
             category_id=row.category.id,
             default_currency="RUB",
             can_write=True,
-            date_from=date(2026, 8, 2),
-            date_to=date(2026, 8, 1),
-        )
-    with pytest.raises(CategoryDetailFilterError, match="валюта"):
-        await reader.read(
-            workspace_id=workspace_id,
-            category_id=row.category.id,
-            default_currency="RUB",
-            can_write=True,
-            currency="EUR",
+            date_from=date_from,
+            date_to=date_to,
+            currency=currency,
         )
 
 

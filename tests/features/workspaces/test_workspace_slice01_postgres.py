@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.security import hash_session_token
 from app.db.base import utc_now
@@ -31,10 +31,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-async def test_postgres_switch_lock_allows_one_expected_current_winner() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_postgres_switch_lock_allows_one_expected_current_winner(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     seed = await seed_switch(sessions)
 
     async def switch(target_workspace_id: UUID):
@@ -67,13 +67,12 @@ async def test_postgres_switch_lock_allows_one_expected_current_winner() -> None
         assert conflicts[0].current_workspace_id == persisted.current_workspace_id
     finally:
         await delete_seed(sessions, seed.user_id, seed.workspace_ids)
-        await engine.dispose()
 
 
-async def test_postgres_concurrent_create_replays_one_committed_workspace() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_postgres_concurrent_create_replays_one_committed_workspace(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     seed = await seed_switch(sessions, target_count=0)
     idempotency_key = uuid4()
     command = CreateWorkspaceCommand(
@@ -133,7 +132,6 @@ async def test_postgres_concurrent_create_replays_one_committed_workspace() -> N
             else seed.workspace_ids
         )
         await delete_seed(sessions, seed.user_id, workspace_ids)
-        await engine.dispose()
 
 
 class SliceSeed:

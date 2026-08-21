@@ -1,250 +1,68 @@
-# Booker Tee Design
+# Booker Tee design
 
-Статус: активный UI/UX contract.
+Статус: действующий UI/UX contract.
 
-Архитектура React/API находится в
-[`REACT_FRONTEND_DESIGN.md`](REACT_FRONTEND_DESIGN.md), формы — в
-[`FORM_DESIGN.md`](FORM_DESIGN.md), а выбор готовых компонентов и границы CSS —
-в [`UI_FOUNDATION.md`](UI_FOUNDATION.md). Этот файл отвечает за пользовательское
-и визуальное поведение.
+Booker Tee — тёмный, спокойный, плотный и точный financial workbench. Интерфейс
+должен помогать проверять деньги, а не выглядеть как marketing dashboard.
 
-## Направление
+## Иерархия
 
-```text
-modern financial workbench
-dark-first
-calm
-dense
-precise
-trustworthy
-with restrained rebellious creativity
-```
+1. Money и outcome.
+2. Description и business context.
+3. Account, category, property и source.
+4. Technical identifiers только по запросу.
 
-Интерфейс должен ощущаться рабочим инструментом, а не marketing dashboard.
-Выразительность создают типографика, ритм, ясные money/status signals и
-небольшие акценты, а не декоративный шум.
+Одна страница имеет одну основную задачу и одно primary action. Destructive и
+редкие действия отделяются. Progressive disclosure скрывает детали, но не
+последствия финансовой команды.
 
-## Основные принципы
+## Financial presentation
 
-1. Money и outcome заметнее технических деталей.
-2. Одна страница имеет одну главную задачу.
-3. Progressive disclosure скрывает сложность, но не последствия.
-4. Status передаётся текстом и структурой, не только цветом.
-5. Primary action один; destructive/rare actions отделены.
-6. Server uncertainty показывается честно.
-7. Dense не означает тесный или мелкий.
-8. Mobile сохраняет workflow, а не просто сжимает desktop.
+- Используйте server-formatted currency и `MoneyValue`.
+- Income/expense/transfer различаются текстом и структурой, не только цветом.
+- Transfer показывает обе стороны и не выглядит как income/expense.
+- Status всегда имеет текстовую метку.
+- Empty, loading, stale, error и retry states видимы и честны.
+- Raw/import uncertainty не маскируется декоративной уверенностью.
 
-## App shell
+## Page composition
 
-- Постоянная навигация к dashboard, accounts, imports, manual ledger, reports и
-  reference/admin sections.
-- Активный пункт различим без цвета.
-- Workspace context видим.
-- Keyboard user может пропустить повторяющуюся навигацию и перейти к main
-  content через focus-visible skip link.
-- При недостаточной высоте desktop sidebar прокручивается только список
-  навигации; workspace context и профиль остаются доступными.
-- Mobile navigation остаётся keyboard- и touch-доступной.
-- Canonical ссылки ведут в React только после replacement gate.
+Обычная рабочая страница состоит из `PageFrame`, `PageHeader`,
+workspace context, toolbar/filters, primary content surface и request state.
+Для плотных коллекций переиспользуйте workbench components; feature CSS владеет
+только уникальной раскладкой и финансовым смыслом.
 
-## Working page
+Filters имеют draft и explicit applied URL state. Selected record должен иметь
+deep link. После mutation сохраняйте понятный контекст, focus и возможность
+безопасного retry.
 
-Рекомендуемая иерархия:
+## Forms and actions
 
-```text
-PageHeader
-  title + context
-  status/summary
-  primary action
+Используйте native input/select/textarea/radio внутри shared `Field`/
+`Fieldset`. Общая композиция отвечает за label, hint, error, section/grid,
+summary и actions; feature владеет полями, draft, request mapping и business
+wording.
 
-working controls
-  filters/form/progress
+Validation показывается возле поля и в linked summary. Первая ошибка получает
+focus только после submit. Destructive action требует явного confirmation с
+названием объекта и последствием. Не создавайте schema-driven universal form.
 
-primary content
-  rows/cards/table
+## Responsive and accessibility
 
-secondary details
-  validation/history/debug
-```
+- Workflow должен работать на 1440, 920, 390 и 320 px без horizontal overflow.
+- Mobile сохраняет primary action, money, status и consequences.
+- Keyboard user может пройти navigation, filters, forms, dialogs и row actions.
+- Focus visible во всех themes; dialogs возвращают focus.
+- Icon-only control имеет accessible name.
+- Status/action не кодируются одним цветом.
+- Motion уважает `prefers-reduced-motion`.
 
-Primary action не должен теряться внутри длинного technical/debug content.
+## Visual system
 
-## Money
+Используйте semantic CSS variables, themes и CSS Modules. Не импортируйте legacy
+global CSS и не добавляйте Tailwind/shadcn или второй token system. Новые tokens
+появляются только для повторяющейся семантики.
 
-- Использовать tabular numerals.
-- Показывать currency рядом с amount или однозначно задавать её контекстом.
-- Знак и направление не заменяются цветом.
-- Income/expense/transfer tones семантические и theme-independent.
-- Transfer показывает source и destination; его нельзя визуально выдавать за
-  прибыль.
-- Formatting не меняет Decimal value и не выполняет конвертацию.
-
-## Repeated financial row
-
-Строка отвечает на четыре вопроса:
-
-1. Что произошло?
-2. Когда?
-3. Сколько и в каком направлении?
-4. Что можно сделать дальше?
-
-Desktop может использовать compact grid. Mobile перестраивает контент:
-
-```text
-identity/status
-description
-money/outcome
-metadata
-actions
-expandable editor/details
-```
-
-Row identity и anchors стабильны. Открытая panel привязана к конкретной
-entity/row; после mutation UI получает authoritative snapshot.
-
-## Status and feedback
-
-- `StatusLabel` — важный lifecycle state.
-- `Badge` — compact status/count.
-- `Tag` — secondary attribute/filter.
-- Успех явной mutation подтверждается единым viewport `Toast`: он не меняет
-  layout строки, не перехватывает focus, объявляется через `role=status` и
-  автоматически закрывается. Надпись `Сохранено` внутрь entity/row не
-  добавляется.
-- Toast используется после создания, сохранения, переноса состояния и удаления;
-  фактические данные строки при этом обновляются authoritative snapshot.
-- В плотных review workflow Toast подтверждает только завершение этапа или
-  переход строки между очередями. Промежуточный выбор classification, category
-  или property подтверждается обновлённым содержимым формы без отдельного Toast.
-- Ошибка конкретного control показывается через `FormError`, ошибки нескольких
-  полей — через `FormErrorSummary`, а сбой действия или локального request —
-  через `InlineNotice` с понятным следующим шагом.
-- Recoverable `InlineNotice` объединяет сообщение и действие `Повторить` или
-  `Обновить`; кнопка восстановления не отделяется от описываемого сбоя.
-- `RouteLoadingPage` используется для загрузки всего route, `RequestState` —
-  для локальной загрузки данных внутри уже открытого интерфейса, а pending
-  mutation показывается spinner внутри вызвавшей её кнопки.
-- Created/updated entity может кратко подсвечиваться, но animation уважает
-  `prefers-reduced-motion`.
-- Создание новой entity открывается в правом `WorkbenchPanel`; редактирование
-  существующей row раскрывается через `ExpansionPanel` непосредственно под ней.
-- Blocking state содержит причину и следующий шаг.
-
-## Actions
-
-Иерархия:
-
-```text
-primary       — основной безопасный следующий шаг
-secondary     — частое обратимое действие
-quiet         — раскрытие/навигация
-danger        — destructive или финансово значимое действие
-```
-
-- Не показывать ряд одинаково громких кнопок.
-- Icon-only action имеет accessible name и достаточную hit area.
-- Danger требует явного confirmation, если результат трудно восстановить.
-- Необратимые удаления используют общий `ConfirmationDialog`: отмена находится
-  слева, опасное подтверждение справа, начальный focus — на отмене. Inline
-  confirmation остаётся для контекстного решения внутри рабочей строки, если
-  действие не является отдельным необратимым удалением.
-- Disabled state объясняет причину; скрытие используется только при отсутствии
-  права даже знать о возможности.
-
-## Forms
-
-- Label всегда видим.
-- Required, help и error связаны с control.
-- Server errors сохраняют draft.
-- First invalid field получает focus после error summary.
-- Submit pending предотвращает случайный double-submit.
-- Money/date/account/category controls используют domain-specific labels.
-- Полная композиция описана в [`FORM_DESIGN.md`](FORM_DESIGN.md).
-
-## Technical details
-
-Raw payload, parse history, IDs и diagnostics:
-
-- secondary по иерархии;
-- раскрываются явно;
-- не включают secrets/storage paths;
-- большие данные загружаются lazy и ограничиваются;
-- чувствительные значения маскируются;
-- не вытесняют action, который решает пользовательскую проблему.
-
-## Responsive geometry
-
-Поддерживаемые audit widths:
-
-```text
-desktop 1440
-tablet   920
-mobile   390
-```
-
-Обязательные свойства:
-
-- нет horizontal page overflow;
-- form controls не обрезаются;
-- touch targets доступны;
-- tables получают card/scroll strategy на уровне компонента;
-- sticky/fixed элементы не закрывают focus и errors;
-- длинные filenames/descriptions безопасно переносятся.
-
-## Accessibility
-
-- Semantic headings, landmarks, lists и tables.
-- Keyboard доступ ко всем действиям.
-- Видимый focus.
-- Dialog возвращает focus trigger.
-- Disclosure сообщает expanded state.
-- Status/error не зависят только от цвета.
-- Loading сообщает busy state.
-- Contrast обеспечивается semantic tokens для каждой темы.
-
-## Tokens and themes
-
-Три уровня:
-
-```text
-primitive -> semantic -> component
-```
-
-Feature CSS использует semantic variables. Нельзя импортировать legacy global
-CSS в React или кодировать Catppuccin palette прямо в component module.
-
-Текущие темы:
-
-- Catppuccin Mocha;
-- Catppuccin Latte;
-- test theme для проверки semantic contract.
-
-Geometry не должна неожиданно меняться между темами.
-
-## Shared vs feature UI
-
-Актуальный каталог, правила выбора и композиционные рецепты находятся в
-[`UI_FOUNDATION.md`](UI_FOUNDATION.md). Фактический TypeScript API определяется
-кодом в `frontend/app/ui`, а визуальный каталог доступен на `/app/foundation`.
-
-Feature владеет финансовым смыслом композиции. Shared component не импортирует
-feature API и не знает, как подтвердить import row.
-
-`ResponsiveRecordCollection` владеет базовой геометрией desktop table,
-переключением на mobile list, оболочкой мобильной записи и оформлением основной
-identity-ссылки. Feature сохраняет собственные колонки, факты, значения,
-статусы и композицию действий.
-
-## UI verification
-
-Для изменённого workflow:
-
-- component/interaction tests;
-- keyboard/focus check;
-- realistic browser scenario;
-- desktop/tablet/mobile screenshots;
-- no console/page/request errors;
-- explicit review отличий от baseline.
-
-Temporary audit reports не становятся постоянными source-of-truth документами.
+Перед новой страницей откройте
+[`UI_FOUNDATION.md`](UI_FOUNDATION.md), существующий похожий workflow и
+`/app/foundation`. Props и фактическое поведение определяются кодом и tests.

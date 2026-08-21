@@ -156,7 +156,6 @@ def test_document_detail_viewer_gets_same_status_truth_without_mutations() -> No
     )
 
 
-@pytest.mark.asyncio
 async def test_document_management_rejects_stale_expected_status_before_mutation() -> None:
     class ImportsStub:
         async def get_document_for_workspace_for_update(

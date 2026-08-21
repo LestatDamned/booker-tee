@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from workspace_test_support import WorkspaceTestSession
 
 from app.features.workspaces.application import settings
 from app.features.workspaces.commands import UpdateWorkspaceSettingsCommand
@@ -38,7 +39,7 @@ async def test_settings_read_is_membership_scoped_and_hides_owner_impact_from_vi
     assert harness.chat.connection_count_calls == []
 
 
-async def test_settings_read_masks_missing_or_disabled_membership(monkeypatch) -> None:
+async def test_settings_read_masks_invisible_membership(monkeypatch) -> None:
     harness = settings_harness(monkeypatch)
     harness.workspaces.membership = None
 
@@ -78,23 +79,40 @@ async def test_owner_update_locks_validates_audits_and_returns_impact(monkeypatc
 
 
 @pytest.mark.parametrize(
-    ("role", "active", "expected_error"),
+    ("role", "active", "updated_at_delta", "expected_error"),
     [
-        (WorkspaceRole.VIEWER, True, WorkspaceSettingsForbiddenError),
-        (WorkspaceRole.OWNER, False, WorkspaceSettingsForbiddenError),
-        (WorkspaceRole.OWNER, True, WorkspaceUpdateConflictError),
+        pytest.param(
+            WorkspaceRole.VIEWER,
+            True,
+            timedelta(0),
+            WorkspaceSettingsForbiddenError,
+            id="viewer-forbidden",
+        ),
+        pytest.param(
+            WorkspaceRole.OWNER,
+            False,
+            timedelta(0),
+            WorkspaceSettingsForbiddenError,
+            id="inactive-workspace",
+        ),
+        pytest.param(
+            WorkspaceRole.OWNER,
+            True,
+            timedelta(seconds=-1),
+            WorkspaceUpdateConflictError,
+            id="stale-snapshot",
+        ),
     ],
 )
 async def test_settings_update_rejects_forbidden_inactive_and_stale(
     monkeypatch,
     role: WorkspaceRole,
     active: bool,
+    updated_at_delta: timedelta,
     expected_error: type[Exception],
 ) -> None:
     harness = settings_harness(monkeypatch, role=role, active=active)
-    expected_updated_at = harness.workspace.updated_at
-    if expected_error is WorkspaceUpdateConflictError:
-        expected_updated_at -= timedelta(seconds=1)
+    expected_updated_at = harness.workspace.updated_at + updated_at_delta
 
     with pytest.raises(expected_error):
         await settings.WorkspaceSettingsService(cast(AsyncSession, harness.session)).update(
@@ -111,22 +129,6 @@ async def test_settings_update_rejects_forbidden_inactive_and_stale(
     assert harness.session.commit_count == 0
     assert harness.session.rollback_count == 1
     assert harness.workspaces.audit_events == []
-
-
-class FakeSession:
-    def __init__(self) -> None:
-        self.commit_count = 0
-        self.flush_count = 0
-        self.rollback_count = 0
-
-    async def commit(self) -> None:
-        self.commit_count += 1
-
-    async def flush(self) -> None:
-        self.flush_count += 1
-
-    async def rollback(self) -> None:
-        self.rollback_count += 1
 
 
 def settings_harness(
@@ -211,7 +213,7 @@ def settings_harness(
         actor_id=actor_id,
         chat=chat,
         membership=membership,
-        session=FakeSession(),
+        session=WorkspaceTestSession(),
         users=users,
         workspace=workspace,
         workspaces=workspaces,

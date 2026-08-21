@@ -1,98 +1,41 @@
-# Booker Tee Roadmap
+# Booker Tee roadmap
 
-Статус: planning reference, не sprint backlog.
-
-Текущие исполняемые шаги находятся в
-[`frontend/plan/README.md`](../frontend/plan/README.md). Этот файл задаёт порядок
-продуктовых направлений после текущей работы.
+Статус: направления продукта, не sprint backlog.
 
 ## Сейчас
 
-### 1. Развивать единый React frontend
-
-Stage 7 завершён: browser workflows, public invitations и local Telegram
-dev-link используют один React SPA. При следующих изменениях:
-
-- backend остаётся владельцем financial/security rules;
-- historical GET может временно redirect в React до routing cutover;
-- второй browser presentation stack не возвращается;
-- browser flow проходит на desktop, tablet и mobile.
-
-Текущая позиция и следующий workflow зафиксированы во
-[`frontend plan`](../frontend/plan/README.md).
-
-### 2. Сохранить надёжность imports
-
-- расширять только sanitized parser fixtures;
-- улучшать неизвестные выписки через deterministic analysis и mapping;
-- ограничивать тяжёлые raw payloads в browser API;
-- делать upload/mapping mutations идемпотентными;
-- сохранять документ и parse attempt при ошибке.
-
-### 3. Завершить debts v1
-
-Модуль фактических долгов реализован: выданные и полученные займы, кредитные
-карты, ипотека, principal/interest, платежи, отмена и React workflow. Текущий
-завершающий gate — полные проверки и эксплуатационный smoke. Графики платежей,
-процентные ставки, просрочки и контрагенты остаются отдельными будущими slices
-после реального использования.
-
-### 4. Упростить эксплуатацию
-
-- production-shaped deployment и security checks;
-- понятные backup/restore для PostgreSQL и upload storage;
-- короткий alpha flow;
-- диагностика без утечки raw financial data.
+1. Сохранять надёжность import/review/ledger:
+   - raw source и parse attempts не теряются;
+   - retry и повторный импорт не удваивают деньги;
+   - большие payloads и review queues остаются ограниченными;
+   - новые parsers используют только sanitized fixtures.
+2. Подготовить и проверить production release:
+   - backup/restore;
+   - production preflight и image audit;
+   - TLS, secrets, invite-only registration и Telegram webhook;
+   - ограниченный smoke с вымышленными данными.
+3. Улучшать correction/audit UX подтверждённых операций по реальному
+   использованию, не ослабляя source-specific invariants.
 
 ## Следом
 
-После полного frontend cutover:
+- решить, нужен ли routing cutover без временного `/app` prefix;
+- измерить производительность больших imports и reports;
+- улучшить account/report flows по наблюдаемым сценариям;
+- подтвердить production email delivery и двухпользовательский collaboration
+  flow.
 
-- единый routing cutover без временного `/app` prefix;
-- улучшение account/report flows на основе реального использования;
-- измерение производительности больших imports и reports;
-- более ясная correction/audit UX для confirmed operations;
-- [укрепление workspace collaboration](../features/workspaces/README.md):
-  membership, invitations, role capabilities и activity.
+## Только при подтверждённой потребности
 
-## Потом, при подтверждённой потребности
+- новые bank parsers и более точные transaction rules;
+- debt schedules и reminders;
+- дополнительные property analytics;
+- узкие chat workflows поверх существующих use cases.
 
-- расширение parser coverage;
-- scheduled reminders и узкие chat workflows;
-- правила с более точными условиями;
-- график долговых платежей и напоминания после подтверждённой потребности;
-- связанные, но строго изолированные движения между workspaces;
-- дополнительные property analytics поверх подтверждённого ledger.
+Не планируются без отдельного product decision: внешняя AI-обработка финансовых
+данных, ERP/CRM/tax suite, microfrontends, permissive cross-origin API,
+background infrastructure без измеренной причины и cross-workspace accounting.
 
-Эти идеи не являются разрешением заранее расширять data model.
-
-## Не планируем без отдельного product decision
-
-- внешнюю AI-обработку выписок;
-- ERP/CRM/property-management platform;
-- tax/accounting suite;
-- инвестиционный терминал;
-- multi-frontend или microfrontend architecture;
-- background infrastructure без измеренной необходимости;
-- permissive cross-origin API.
-
-## Постоянные ограничения
-
-1. Raw imported data не теряется.
-2. Parser/mapping не создаёт confirmed ledger records.
-3. Transfer не влияет на profit.
-4. Money хранится как `Decimal`/`Numeric`.
-5. Workspace-owned queries всегда scoped.
-6. Duplicate/retry не удваивает деньги.
-7. Приватные данные не уходят во внешние сервисы без явного решения.
-
-## Текущие технические риски
-
-- upload пока выполняется синхронно;
-- upload и mapping import требуют явных retry/idempotency contracts;
-- временный `/app` prefix и historical redirects увеличивают routing surface;
-- большие raw tables и review queues требуют bounded rendering/payloads.
-
-Риск переносится в отдельную задачу только если подтверждён кодом или
-измерением. Completed investigations не хранятся отдельными вечными audit
-документами.
+Постоянные ограничения находятся в
+[`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md); конкретная задача должна жить в
+issue/task, а не превращать roadmap в журнал реализации.

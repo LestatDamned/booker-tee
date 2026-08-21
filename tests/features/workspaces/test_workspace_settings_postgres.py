@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.features.users.models import User
 from app.features.workspaces.application.settings import WorkspaceSettingsService
@@ -30,10 +30,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-async def test_postgres_settings_lock_allows_one_expected_snapshot_winner() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_postgres_settings_lock_allows_one_expected_snapshot_winner(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     seed = await seed_settings(sessions)
 
     async def update_name(name: str):
@@ -80,44 +80,44 @@ async def test_postgres_settings_lock_allows_one_expected_snapshot_winner() -> N
         assert audit_count == 1
     finally:
         await delete_settings_seed(sessions, seed)
-        await engine.dispose()
 
 
-async def test_postgres_settings_masks_foreign_and_missing_workspace() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_postgres_settings_masks_outsider_disabled_member_and_missing_workspace(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     seed = await seed_settings(sessions)
 
-    try:
-        async with sessions() as session:
-            service = WorkspaceSettingsService(session)
-            with pytest.raises(WorkspaceNotFoundError) as foreign:
-                await service.read(
-                    actor_user_id=seed.foreign_user_id,
-                    workspace_id=seed.workspace_id,
-                )
-            with pytest.raises(WorkspaceNotFoundError) as missing:
-                await service.read(
-                    actor_user_id=seed.foreign_user_id,
-                    workspace_id=uuid4(),
-                )
-        assert str(foreign.value) == str(missing.value)
-    finally:
-        await delete_settings_seed(sessions, seed)
-        await engine.dispose()
+    async with sessions() as session:
+        service = WorkspaceSettingsService(session)
+        with pytest.raises(WorkspaceNotFoundError) as outsider:
+            await service.read(
+                actor_user_id=uuid4(),
+                workspace_id=seed.workspace_id,
+            )
+        with pytest.raises(WorkspaceNotFoundError) as disabled:
+            await service.read(
+                actor_user_id=seed.disabled_user_id,
+                workspace_id=seed.workspace_id,
+            )
+        with pytest.raises(WorkspaceNotFoundError) as missing:
+            await service.read(
+                actor_user_id=seed.owner_id,
+                workspace_id=uuid4(),
+            )
+    assert str(outsider.value) == str(disabled.value) == str(missing.value)
 
 
 class SettingsSeed:
     def __init__(
         self,
         *,
-        foreign_user_id: UUID,
+        disabled_user_id: UUID,
         owner_id: UUID,
         updated_at,
         workspace_id: UUID,
     ) -> None:
-        self.foreign_user_id = foreign_user_id
+        self.disabled_user_id = disabled_user_id
         self.owner_id = owner_id
         self.updated_at = updated_at
         self.workspace_id = workspace_id
@@ -125,7 +125,7 @@ class SettingsSeed:
 
 async def seed_settings(sessions: async_sessionmaker[Any]) -> SettingsSeed:
     owner_id = uuid4()
-    foreign_user_id = uuid4()
+    disabled_user_id = uuid4()
     workspace_id = uuid4()
     async with sessions() as session:
         session.add_all(
@@ -137,10 +137,10 @@ async def seed_settings(sessions: async_sessionmaker[Any]) -> SettingsSeed:
                     name="Settings owner",
                 ),
                 User(
-                    id=foreign_user_id,
-                    email=f"workspace-settings-foreign-{foreign_user_id}@example.test",
+                    id=disabled_user_id,
+                    email=f"workspace-settings-disabled-{disabled_user_id}@example.test",
                     password_hash="hash",
-                    name="Foreign user",
+                    name="Disabled member",
                 ),
             ]
         )
@@ -160,10 +160,18 @@ async def seed_settings(sessions: async_sessionmaker[Any]) -> SettingsSeed:
                 status=WorkspaceMemberStatus.ACTIVE,
             )
         )
+        session.add(
+            WorkspaceMember(
+                workspace_id=workspace_id,
+                user_id=disabled_user_id,
+                role=WorkspaceRole.VIEWER,
+                status=WorkspaceMemberStatus.DISABLED,
+            )
+        )
         await session.commit()
         await session.refresh(workspace)
         return SettingsSeed(
-            foreign_user_id=foreign_user_id,
+            disabled_user_id=disabled_user_id,
             owner_id=owner_id,
             updated_at=workspace.updated_at,
             workspace_id=workspace_id,
@@ -177,6 +185,6 @@ async def delete_settings_seed(
     async with sessions() as session:
         await session.execute(delete(Workspace).where(Workspace.id == seed.workspace_id))
         await session.execute(
-            delete(User).where(User.id.in_([seed.owner_id, seed.foreign_user_id]))
+            delete(User).where(User.id.in_([seed.owner_id, seed.disabled_user_id]))
         )
         await session.commit()

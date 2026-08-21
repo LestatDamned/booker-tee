@@ -2,6 +2,8 @@ from decimal import Decimal
 from typing import cast
 from uuid import UUID, uuid4
 
+import pytest
+
 from app.features.categories.models import CategoryKind
 from app.features.imports.models import RawTransaction
 from app.features.imports.statements.types import RawTransactionStatus
@@ -10,7 +12,10 @@ from app.features.transaction_rules.application.fixture_seeding import (
     DEFAULT_MERCHANT_RULE_SEEDS,
 )
 from app.features.transaction_rules.application.rule_application import select_best_matching_rule
-from app.features.transaction_rules.domain.matching import rule_matches_raw_transaction
+from app.features.transaction_rules.domain.matching import (
+    can_suggest_raw_transaction,
+    rule_matches_raw_transaction,
+)
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
 from app.features.transaction_rules.domain.suggestions import (
     apply_rule_suggestion,
@@ -25,7 +30,17 @@ from app.features.transaction_rules.models import (
 )
 
 
-def test_contains_rule_matches_description_by_direction() -> None:
+@pytest.mark.parametrize(
+    ("amount", "expected"),
+    [
+        pytest.param(Decimal("-743.75"), True, id="outflow"),
+        pytest.param(Decimal("743.75"), False, id="inflow"),
+    ],
+)
+def test_contains_rule_matches_description_by_direction(
+    amount: Decimal,
+    expected: bool,
+) -> None:
     workspace_id = uuid4()
     category_id = uuid4()
     rule = transaction_rule(
@@ -35,14 +50,145 @@ def test_contains_rule_matches_description_by_direction() -> None:
     )
     raw = make_raw_transaction(
         workspace_id=workspace_id,
+        amount=amount,
+        description="Списание в KRASNOE&BELOE по карте",
+    )
+
+    assert rule_matches_raw_transaction(rule, raw) is expected
+
+
+def test_rule_does_not_match_transaction_from_another_workspace() -> None:
+    rule = transaction_rule(
+        workspace_id=uuid4(),
+        category_id=uuid4(),
+        pattern="KRASNOE&BELOE",
+    )
+    raw = make_raw_transaction(
+        workspace_id=uuid4(),
         amount=Decimal("-743.75"),
         description="Списание в KRASNOE&BELOE по карте",
     )
 
-    assert rule_matches_raw_transaction(rule, raw)
+    assert rule_matches_raw_transaction(rule, raw) is False
 
-    raw.amount = Decimal("743.75")
-    assert not rule_matches_raw_transaction(rule, raw)
+
+@pytest.mark.parametrize(
+    ("same_account", "expected"),
+    [
+        pytest.param(True, True, id="matching-account"),
+        pytest.param(False, False, id="different-account"),
+    ],
+)
+def test_account_rule_only_matches_its_account(
+    same_account: bool,
+    expected: bool,
+) -> None:
+    workspace_id = uuid4()
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=uuid4(),
+        pattern="KRASNOE&BELOE",
+    )
+    rule.account_id = uuid4()
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=Decimal("-743.75"),
+        description="Списание в KRASNOE&BELOE по карте",
+    )
+    raw.account_id = rule.account_id if same_account else uuid4()
+
+    assert rule_matches_raw_transaction(rule, raw) is expected
+
+
+@pytest.mark.parametrize(
+    ("amount", "expected"),
+    [
+        pytest.param(Decimal("-99.99"), False, id="below-minimum"),
+        pytest.param(Decimal("-100.00"), True, id="at-minimum"),
+        pytest.param(Decimal("-200.00"), True, id="at-maximum"),
+        pytest.param(Decimal("-200.01"), False, id="above-maximum"),
+    ],
+)
+def test_rule_amount_range_is_inclusive(amount: Decimal, expected: bool) -> None:
+    workspace_id = uuid4()
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=uuid4(),
+        pattern="KRASNOE&BELOE",
+    )
+    rule.amount_min = Decimal("100.00")
+    rule.amount_max = Decimal("200.00")
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=amount,
+        description="Списание в KRASNOE&BELOE по карте",
+    )
+
+    assert rule_matches_raw_transaction(rule, raw) is expected
+
+
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        pytest.param("YANDEX*GO", True, id="normalized-exact-match"),
+        pytest.param("Оплата YANDEX GO", False, id="contains-only"),
+    ],
+)
+def test_exact_rule_requires_complete_normalized_description(
+    description: str,
+    expected: bool,
+) -> None:
+    workspace_id = uuid4()
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=uuid4(),
+        pattern="YANDEX GO",
+        match_type=TransactionRuleMatchType.EXACT,
+    )
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=Decimal("-320.00"),
+        description=description,
+    )
+
+    assert rule_matches_raw_transaction(rule, raw) is expected
+
+
+@pytest.mark.parametrize(
+    ("status", "linked", "expected"),
+    [
+        pytest.param(RawTransactionStatus.EXTRACTED, False, False, id="extracted"),
+        pytest.param(RawTransactionStatus.NORMALIZED, False, True, id="normalized"),
+        pytest.param(RawTransactionStatus.SUGGESTED, False, True, id="suggested"),
+        pytest.param(RawTransactionStatus.NEEDS_REVIEW, False, True, id="needs-review"),
+        pytest.param(RawTransactionStatus.MATCHED, False, True, id="matched"),
+        pytest.param(RawTransactionStatus.IGNORED, False, False, id="ignored"),
+        pytest.param(RawTransactionStatus.DUPLICATE, False, False, id="duplicate"),
+        pytest.param(
+            RawTransactionStatus.POSSIBLE_DUPLICATE,
+            False,
+            True,
+            id="possible-duplicate",
+        ),
+        pytest.param(RawTransactionStatus.FAILED, False, False, id="failed"),
+        pytest.param(RawTransactionStatus.CONFIRMED, False, False, id="confirmed"),
+        pytest.param(RawTransactionStatus.NORMALIZED, True, False, id="linked"),
+    ],
+)
+def test_rule_suggestions_only_target_reviewable_unlinked_rows(
+    status: RawTransactionStatus,
+    linked: bool,
+    expected: bool,
+) -> None:
+    raw = make_raw_transaction(
+        workspace_id=uuid4(),
+        amount=Decimal("-320.00"),
+        description="YANDEX GO",
+    )
+    raw.status = status
+    raw.linked_operation_id = uuid4() if linked else None
+
+    assert can_suggest_raw_transaction(raw) is expected
 
 
 def test_apply_rule_suggestion_prefills_raw_transaction() -> None:
@@ -108,14 +254,31 @@ def test_infer_rule_pattern_extracts_expobank_merchant() -> None:
     assert infer_rule_pattern(raw) == "KRASNOE&BELOE"
 
 
-def test_normalized_text_simplifies_merchant_noise() -> None:
-    assert normalized_text("YANDEX*GO") == "yandex go"
-    assert normalized_text("YANDEX 4121 GO") == "yandex go"
-    assert normalized_text("SBER*5411*SAMOKA") == "sber samoka"
-    assert normalized_text("wildberries.ru") == "wildberries ru"
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("YANDEX*GO", "yandex go", id="separator"),
+        pytest.param("YANDEX 4121 GO", "yandex go", id="terminal-code"),
+        pytest.param("SBER*5411*SAMOKA", "sber samoka", id="mcc-code"),
+        pytest.param("wildberries.ru", "wildberries ru", id="domain-separator"),
+    ],
+)
+def test_normalized_text_simplifies_merchant_noise(value: str, expected: str) -> None:
+    assert normalized_text(value) == expected
 
 
-def test_contains_rule_matches_noisy_yandex_go_variants() -> None:
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        pytest.param("Оплата YANDEX*GO", True, id="separator"),
+        pytest.param("YANDEX 4121 GO", True, id="terminal-code"),
+        pytest.param("YANDEX PLUS", False, id="different-service"),
+    ],
+)
+def test_contains_rule_matches_noisy_yandex_go_variants(
+    description: str,
+    expected: bool,
+) -> None:
     workspace_id = uuid4()
     rule = transaction_rule(
         workspace_id=workspace_id,
@@ -125,16 +288,10 @@ def test_contains_rule_matches_noisy_yandex_go_variants() -> None:
     raw = make_raw_transaction(
         workspace_id=workspace_id,
         amount=Decimal("-320.00"),
-        description="Оплата YANDEX*GO",
+        description=description,
     )
 
-    assert rule_matches_raw_transaction(rule, raw)
-
-    raw.description_normalized = "YANDEX 4121 GO"
-    assert rule_matches_raw_transaction(rule, raw)
-
-    raw.description_normalized = "YANDEX PLUS"
-    assert not rule_matches_raw_transaction(rule, raw)
+    assert rule_matches_raw_transaction(rule, raw) is expected
 
 
 def test_default_merchant_rule_suggests_products_for_krasnoe_beloe() -> None:
@@ -185,17 +342,26 @@ def test_matching_prefers_categorized_rule_over_legacy_categoryless_rule() -> No
     assert selected_rule is products_rule
 
 
-def test_default_merchant_rules_include_collected_user_patterns() -> None:
+@pytest.mark.parametrize(
+    ("pattern", "expected_category"),
+    [
+        pytest.param("FASOL", "Продукты", id="fasol"),
+        pytest.param("T-Mobile", "Связь и интернет", id="t-mobile"),
+        pytest.param("YANDEX GO", "Такси", id="yandex-go"),
+        pytest.param("OZON", "Маркетплейсы", id="ozon"),
+        pytest.param("wildberries.ru", "Маркетплейсы", id="wildberries"),
+        pytest.param("YANDEX PLUS", "Подписки и сервисы", id="yandex-plus"),
+        pytest.param("TELECOMA", "Связь и интернет", id="telecoma"),
+        pytest.param("ЕКАТЕРИНБУРГ ЯБЛОКО", "Красота и здоровье", id="yabloko"),
+    ],
+)
+def test_default_merchant_rule_uses_expected_category(
+    pattern: str,
+    expected_category: str,
+) -> None:
     seeds_by_pattern = {seed.pattern: seed for seed in DEFAULT_MERCHANT_RULE_SEEDS}
 
-    assert seeds_by_pattern["FASOL"].category_name == "Продукты"
-    assert seeds_by_pattern["T-Mobile"].category_name == "Связь и интернет"
-    assert seeds_by_pattern["YANDEX GO"].category_name == "Такси"
-    assert seeds_by_pattern["OZON"].category_name == "Маркетплейсы"
-    assert seeds_by_pattern["wildberries.ru"].category_name == "Маркетплейсы"
-    assert seeds_by_pattern["YANDEX PLUS"].category_name == "Подписки и сервисы"
-    assert seeds_by_pattern["TELECOMA"].category_name == "Связь и интернет"
-    assert seeds_by_pattern["ЕКАТЕРИНБУРГ ЯБЛОКО"].category_name == "Красота и здоровье"
+    assert seeds_by_pattern[pattern].category_name == expected_category
 
 
 def test_default_merchant_rule_patterns_are_normalized_unique() -> None:
@@ -210,6 +376,7 @@ def transaction_rule(
     category_id: UUID | None,
     pattern: str,
     application_mode: TransactionRuleApplicationMode = TransactionRuleApplicationMode.SUGGEST,
+    match_type: TransactionRuleMatchType = TransactionRuleMatchType.CONTAINS,
 ) -> TransactionRule:
     return TransactionRule(
         id=uuid4(),
@@ -217,7 +384,7 @@ def transaction_rule(
         name=f"{pattern} -> category",
         is_active=True,
         priority=100,
-        match_type=TransactionRuleMatchType.CONTAINS,
+        match_type=match_type,
         pattern=pattern,
         application_mode=application_mode,
         direction=MoneyDirection.OUTFLOW,

@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from debt_test_support import DebtTestSession
 
 from app.features.accounts.models import Account, AccountType
 from app.features.categories.models import Category, CategoryKind
@@ -22,25 +23,6 @@ from app.features.ledger.models import Operation
 from app.features.users.models import User
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-
-
-class NestedTransactionStub:
-    async def __aenter__(self) -> None:
-        return None
-
-    async def __aexit__(self, *args: object) -> None:
-        return None
-
-
-class SessionStub:
-    def __init__(self) -> None:
-        self.flushes = 0
-
-    def begin_nested(self) -> NestedTransactionStub:
-        return NestedTransactionStub()
-
-    async def flush(self) -> None:
-        self.flushes += 1
 
 
 class AccountRepositoryStub:
@@ -159,14 +141,37 @@ class PostingServiceStub:
         return operation(values["context"].workspace.id, values["operation_type"])
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("kind", "principal_source", "interest_type", "interest_amount"),
     [
-        (DebtKind.LOAN_RECEIVABLE, "debt", OperationType.INCOME, Decimal("10.00")),
-        (DebtKind.LOAN_PAYABLE, "settlement", OperationType.EXPENSE, Decimal("-10.00")),
-        (DebtKind.MORTGAGE, "settlement", OperationType.EXPENSE, Decimal("-10.00")),
-        (DebtKind.CREDIT_CARD, "settlement", OperationType.EXPENSE, Decimal("-10.00")),
+        pytest.param(
+            DebtKind.LOAN_RECEIVABLE,
+            "debt",
+            OperationType.INCOME,
+            Decimal("10.00"),
+            id="receivable",
+        ),
+        pytest.param(
+            DebtKind.LOAN_PAYABLE,
+            "settlement",
+            OperationType.EXPENSE,
+            Decimal("-10.00"),
+            id="loan-payable",
+        ),
+        pytest.param(
+            DebtKind.MORTGAGE,
+            "settlement",
+            OperationType.EXPENSE,
+            Decimal("-10.00"),
+            id="mortgage",
+        ),
+        pytest.param(
+            DebtKind.CREDIT_CARD,
+            "settlement",
+            OperationType.EXPENSE,
+            Decimal("-10.00"),
+            id="credit-card",
+        ),
     ],
 )
 async def test_payment_records_principal_and_interest_with_debt_direction(
@@ -200,7 +205,6 @@ async def test_payment_records_principal_and_interest_with_debt_direction(
     assert payment.interest_operation_id is not None
 
 
-@pytest.mark.asyncio
 async def test_payment_supports_principal_only_without_interest_category() -> None:
     context = workspace_context()
     recorder, _, posting, debt_account, settlement, _ = payment_recorder(
@@ -226,7 +230,6 @@ async def test_payment_supports_principal_only_without_interest_category() -> No
     assert posting.interests == []
 
 
-@pytest.mark.asyncio
 async def test_payment_supports_interest_only() -> None:
     context = workspace_context()
     recorder, _, posting, debt_account, settlement, category = payment_recorder(
@@ -252,52 +255,62 @@ async def test_payment_supports_interest_only() -> None:
     assert posting.transfers == []
 
 
-@pytest.mark.asyncio
-async def test_payment_rejects_excessive_principal_and_archived_debt() -> None:
+@pytest.mark.parametrize(
+    ("balance", "is_active", "expected_error", "message"),
+    [
+        pytest.param(
+            Decimal("-20.00"),
+            True,
+            DebtValidationError,
+            "exceeds",
+            id="excessive-principal",
+        ),
+        pytest.param(
+            Decimal("0.00"),
+            True,
+            DebtValidationError,
+            "settled",
+            id="settled-debt",
+        ),
+        pytest.param(
+            Decimal("0.00"),
+            False,
+            DebtAccountUnavailableError,
+            "not active",
+            id="inactive-debt-account",
+        ),
+    ],
+)
+async def test_payment_rejects_unpayable_debt(
+    balance: Decimal,
+    is_active: bool,
+    expected_error: type[Exception],
+    message: str,
+) -> None:
     context = workspace_context()
-    recorder, _, _, debt_account, settlement, category = payment_recorder(
+    recorder, debts, posting, debt_account, settlement, category = payment_recorder(
         context,
         kind=DebtKind.LOAN_PAYABLE,
-        balance=Decimal("-20.00"),
+        balance=balance,
     )
-    with pytest.raises(DebtValidationError, match="exceeds"):
+    debt_account.is_active = is_active
+
+    with pytest.raises(expected_error, match=message):
         await recorder.record(
             context=context,
             command=payment_command(
                 debt_account.id,
                 settlement.id,
                 category.id,
-                principal_amount=Decimal("25.00"),
             ),
         )
 
-    debt_account.initial_balance = Decimal("0.00")
-    with pytest.raises(DebtValidationError, match="settled"):
-        await recorder.record(
-            context=context,
-            command=payment_command(
-                debt_account.id,
-                settlement.id,
-                category.id,
-                idempotency_key=uuid4(),
-            ),
-        )
-
-    debt_account.is_active = False
-    with pytest.raises(DebtAccountUnavailableError, match="not active"):
-        await recorder.record(
-            context=context,
-            command=payment_command(
-                debt_account.id,
-                settlement.id,
-                category.id,
-                idempotency_key=uuid4(),
-            ),
-        )
+    assert debts.created == []
+    assert posting.transfers == []
+    assert posting.interests == []
 
 
-@pytest.mark.asyncio
-async def test_payment_retry_reuses_payment_and_changed_payload_conflicts() -> None:
+async def test_payment_retry_reuses_payment_without_duplicate_operations() -> None:
     context = workspace_context()
     recorder, debts, posting, debt_account, settlement, category = payment_recorder(
         context,
@@ -314,15 +327,31 @@ async def test_payment_retry_reuses_payment_and_changed_payload_conflicts() -> N
     assert replay.replayed is True
     assert len(debts.created) == 1
     assert len(posting.transfers) == 1
+    assert len(posting.interests) == 1
+
+
+async def test_payment_key_with_changed_payload_conflicts_without_side_effects() -> None:
+    context = workspace_context()
+    recorder, debts, posting, debt_account, settlement, category = payment_recorder(
+        context,
+        kind=DebtKind.LOAN_PAYABLE,
+        balance=Decimal("-100.00"),
+    )
+    command = payment_command(debt_account.id, settlement.id, category.id)
+    await recorder.record(context=context, command=command)
+
     with pytest.raises(DebtIdempotencyConflictError):
         await recorder.record(
             context=context,
             command=command.model_copy(update={"principal_amount": Decimal("24.00")}),
         )
 
+    assert len(debts.created) == 1
+    assert len(posting.transfers) == 1
+    assert len(posting.interests) == 1
 
-@pytest.mark.asyncio
-async def test_undo_ignores_both_operations_and_replay_is_safe() -> None:
+
+async def test_undo_ignores_both_payment_operations() -> None:
     context = workspace_context()
     principal = operation(context.workspace.id, OperationType.TRANSFER)
     interest = operation(context.workspace.id, OperationType.EXPENSE)
@@ -335,12 +364,9 @@ async def test_undo_ignores_both_operations_and_replay_is_safe() -> None:
     )
 
     reversed_outcome = await reverser.reverse(context=context, command=command)
-    replay = await reverser.reverse(context=context, command=command)
 
     assert reversed_outcome.payment.reversed_at is not None
     assert reversed_outcome.replayed is False
-    assert replay.payment is payment
-    assert replay.replayed is True
     assert principal.status is OperationStatus.IGNORED
     assert interest.status is OperationStatus.IGNORED
     assert principal.updated_by_user_id == context.user.id
@@ -348,12 +374,37 @@ async def test_undo_ignores_both_operations_and_replay_is_safe() -> None:
     assert session.flushes == 1
 
 
-@pytest.mark.asyncio
-async def test_undo_rejects_stale_version_and_foreign_workspace() -> None:
+async def test_undo_replay_keeps_ignored_operations_without_flushing() -> None:
+    context = workspace_context()
+    principal = operation(context.workspace.id, OperationType.TRANSFER)
+    interest = operation(context.workspace.id, OperationType.EXPENSE)
+    principal.status = OperationStatus.IGNORED
+    interest.status = OperationStatus.IGNORED
+    payment = debt_payment(context.workspace.id, principal.id, interest.id)
+    payment.reversed_at = datetime(2026, 8, 9, tzinfo=UTC)
+    reverser, session = payment_reverser(payment, [principal, interest])
+
+    replay = await reverser.reverse(
+        context=context,
+        command=UndoDebtPaymentCommand(
+            payment_id=payment.id,
+            expected_principal_operation_version=1,
+            expected_interest_operation_version=1,
+        ),
+    )
+
+    assert replay.payment is payment
+    assert replay.replayed is True
+    assert principal.status is OperationStatus.IGNORED
+    assert interest.status is OperationStatus.IGNORED
+    assert session.flushes == 0
+
+
+async def test_undo_rejects_stale_operation_version() -> None:
     context = workspace_context()
     principal = operation(context.workspace.id, OperationType.TRANSFER)
     payment = debt_payment(context.workspace.id, principal.id, None)
-    reverser, _ = payment_reverser(payment, [principal])
+    reverser, session = payment_reverser(payment, [principal])
 
     with pytest.raises(DebtPaymentConflictError, match="changed"):
         await reverser.reverse(
@@ -365,7 +416,18 @@ async def test_undo_rejects_stale_version_and_foreign_workspace() -> None:
             ),
         )
 
+    assert payment.reversed_at is None
+    assert principal.status is OperationStatus.CONFIRMED
+    assert session.flushes == 0
+
+
+async def test_undo_hides_payment_from_foreign_workspace() -> None:
+    context = workspace_context()
+    principal = operation(context.workspace.id, OperationType.TRANSFER)
+    payment = debt_payment(context.workspace.id, principal.id, None)
+    reverser, session = payment_reverser(payment, [principal])
     foreign_context = workspace_context()
+
     with pytest.raises(DebtPaymentNotFoundError):
         await reverser.reverse(
             context=foreign_context,
@@ -375,6 +437,10 @@ async def test_undo_rejects_stale_version_and_foreign_workspace() -> None:
                 expected_interest_operation_version=None,
             ),
         )
+
+    assert payment.reversed_at is None
+    assert principal.status is OperationStatus.CONFIRMED
+    assert session.flushes == 0
 
 
 def payment_recorder(
@@ -411,7 +477,7 @@ def payment_recorder(
         name="Проценты",
         kind=(CategoryKind.INCOME if kind is DebtKind.LOAN_RECEIVABLE else CategoryKind.EXPENSE),
     )
-    session = SessionStub()
+    session = DebtTestSession()
     recorder = DebtPaymentRecorder(cast(Any, session))
     debts = DebtRepositoryStub(debt)
     posting = PostingServiceStub()
@@ -426,8 +492,8 @@ def payment_recorder(
 def payment_reverser(
     payment: DebtPayment,
     operations: list[Operation],
-) -> tuple[DebtPaymentReverser, SessionStub]:
-    session = SessionStub()
+) -> tuple[DebtPaymentReverser, DebtTestSession]:
+    session = DebtTestSession()
     reverser = DebtPaymentReverser(cast(Any, session))
     reverser.debts = cast(Any, DebtRepositoryStub(None, payment))
     ledger = LedgerRepositoryStub()

@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
+from fastapi import FastAPI
 from manual_ledger_support import manual_ledger_app, manual_operation, primary_account_id
 
 from api_client import ApiTestClient as TestClient
@@ -17,9 +18,9 @@ from app.features.ledger.schemas.manual import (
 from app.features.workspaces.domain.types import WorkspaceRole
 
 
-def test_manual_income_create_dispatches_workspace_scoped_command() -> None:
+def test_manual_income_create_dispatches_workspace_scoped_command(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME)
-    app, service, _, workspace_id = manual_ledger_app([operation])
+    app, service, _, workspace_id = manual_ledger_app(app, [operation])
     idempotency_key = uuid4()
 
     with TestClient(app) as client:
@@ -55,9 +56,9 @@ def test_manual_income_create_dispatches_workspace_scoped_command() -> None:
     ]
 
 
-def test_manual_expense_create_preserves_expense_semantics() -> None:
+def test_manual_expense_create_preserves_expense_semantics(app: FastAPI) -> None:
     operation = manual_operation(OperationType.EXPENSE)
-    app, service, _, workspace_id = manual_ledger_app([operation])
+    app, service, _, workspace_id = manual_ledger_app(app, [operation])
 
     with TestClient(app) as client:
         response = client.post(
@@ -80,9 +81,9 @@ def test_manual_expense_create_preserves_expense_semantics() -> None:
     assert service.income_commands[0].amount == Decimal("881.12")
 
 
-def test_manual_income_create_returns_field_errors_without_calling_service() -> None:
+def test_manual_income_create_returns_field_errors_without_calling_service(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME)
-    app, service, _, _ = manual_ledger_app([operation])
+    app, service, _, _ = manual_ledger_app(app, [operation])
 
     with TestClient(app) as client:
         response = client.post(
@@ -102,9 +103,9 @@ def test_manual_income_create_returns_field_errors_without_calling_service() -> 
     assert service.income_commands == []
 
 
-def test_manual_create_rejects_unknown_payload_fields() -> None:
+def test_manual_create_rejects_unknown_payload_fields(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME)
-    app, service, _, _ = manual_ledger_app([operation])
+    app, service, _, _ = manual_ledger_app(app, [operation])
 
     with TestClient(app) as client:
         response = client.post(
@@ -124,9 +125,9 @@ def test_manual_create_rejects_unknown_payload_fields() -> None:
     assert service.income_commands == []
 
 
-def test_manual_income_create_maps_workspace_reference_error() -> None:
+def test_manual_income_create_maps_workspace_reference_error(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME)
-    app, service, _, _ = manual_ledger_app([operation])
+    app, service, _, _ = manual_ledger_app(app, [operation])
     service.create_error = AccountUnavailableError()
 
     with TestClient(app) as client:
@@ -149,9 +150,9 @@ def test_manual_income_create_maps_workspace_reference_error() -> None:
     }
 
 
-def test_manual_create_maps_idempotency_payload_conflict_to_409() -> None:
+def test_manual_create_maps_idempotency_payload_conflict_to_409(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME)
-    app, service, _, _ = manual_ledger_app([operation])
+    app, service, _, _ = manual_ledger_app(app, [operation])
     service.create_error = OperationIdempotencyConflictError()
 
     with TestClient(app) as client:
@@ -170,9 +171,9 @@ def test_manual_create_maps_idempotency_payload_conflict_to_409() -> None:
     assert response.json()["error"]["code"] == "idempotency_conflict"
 
 
-def test_manual_income_create_requires_financial_write_permission() -> None:
+def test_manual_income_create_requires_financial_write_permission(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME)
-    app, service, _, _ = manual_ledger_app([operation], role=WorkspaceRole.VIEWER)
+    app, service, _, _ = manual_ledger_app(app, [operation], role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.post(
@@ -191,9 +192,9 @@ def test_manual_income_create_requires_financial_write_permission() -> None:
     assert service.income_commands == []
 
 
-def test_manual_transfer_create_dispatches_server_owned_transfer_command() -> None:
+def test_manual_transfer_create_dispatches_server_owned_transfer_command(app: FastAPI) -> None:
     operation = manual_operation(OperationType.TRANSFER)
-    app, service, _, workspace_id = manual_ledger_app([operation])
+    app, service, _, workspace_id = manual_ledger_app(app, [operation])
     idempotency_key = uuid4()
     assert operation.source_account is not None
     assert operation.destination_account is not None
@@ -230,9 +231,9 @@ def test_manual_transfer_create_dispatches_server_owned_transfer_command() -> No
     ]
 
 
-def test_manual_create_requires_idempotency_key() -> None:
+def test_manual_create_requires_idempotency_key(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME)
-    app, service, _, _ = manual_ledger_app([operation])
+    app, service, _, _ = manual_ledger_app(app, [operation])
 
     with TestClient(app) as client:
         response = client.post(

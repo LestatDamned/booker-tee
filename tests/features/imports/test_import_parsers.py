@@ -1,5 +1,8 @@
+from collections.abc import Callable
 from dataclasses import replace
 from decimal import Decimal
+
+import pytest
 
 from app.features.imports.parsers.alfabank import AlfabankXlsxStatementParser
 from app.features.imports.parsers.expobank import ExpobankCardStatementParser
@@ -8,6 +11,7 @@ from app.features.imports.parsers.extractors.dto import (
     ExtractedStatementPageTables,
 )
 from app.features.imports.parsers.ozon_bank import OzonBankCardStatementParser
+from app.features.imports.parsers.protocol import BankStatementParser
 from app.features.imports.parsers.registry import StatementParserRegistry
 from app.features.imports.parsers.sberbank import (
     SberbankCardStatementParser,
@@ -62,45 +66,64 @@ def test_expobank_parser_extracts_statement_control_totals_from_fixture() -> Non
     assert control_totals.currency == "RUB"
 
 
-def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
+@pytest.mark.parametrize(
+    ("extracted_factory", "expected_name", "expected_type"),
+    [
+        pytest.param(
+            lambda: expobank_extracted_fixture(),
+            "expobank_card_statement_v1",
+            "card_statement",
+            id="expobank-card",
+        ),
+        pytest.param(
+            lambda: vtb_deposit_extracted_fixture(),
+            "vtb_deposit_statement_v1",
+            "deposit_statement",
+            id="vtb-deposit",
+        ),
+        pytest.param(
+            lambda: vtb_card_extracted_fixture(),
+            "vtb_card_statement_v1",
+            "card_statement",
+            id="vtb-card",
+        ),
+        pytest.param(
+            lambda: sberbank_extracted_fixture(),
+            "sberbank_card_statement_v1",
+            "card_statement",
+            id="sberbank-card",
+        ),
+        pytest.param(
+            lambda: alfabank_xlsx_extracted_fixture(),
+            "alfabank_xlsx_statement_v1",
+            "card_statement",
+            id="alfabank-card",
+        ),
+        pytest.param(
+            lambda: ozon_bank_card_extracted_fixture(),
+            "ozon_bank_card_statement_v1",
+            "card_statement",
+            id="ozon-card",
+        ),
+        pytest.param(
+            lambda: tbank_card_extracted_fixture(),
+            "tbank_card_statement_v1",
+            "card_statement",
+            id="tbank-card",
+        ),
+    ],
+)
+def test_statement_parser_registry_detects_bank_and_statement_type(
+    extracted_factory: Callable[[], ExtractedStatement],
+    expected_name: str,
+    expected_type: str,
+) -> None:
     registry = StatementParserRegistry.with_default_parsers()
-    expobank_extracted = expobank_extracted_fixture()
-    vtb_extracted = vtb_deposit_extracted_fixture()
-    vtb_card_extracted = vtb_card_extracted_fixture()
-    sberbank_extracted = sberbank_extracted_fixture()
-    alfabank_extracted = alfabank_xlsx_extracted_fixture()
-    ozon_extracted = ozon_bank_card_extracted_fixture()
-    tbank_extracted = tbank_card_extracted_fixture()
+    parser = registry.find_matching_parser(extracted_factory())
 
-    expobank_parser = registry.find_matching_parser(expobank_extracted)
-    vtb_parser = registry.find_matching_parser(vtb_extracted)
-    vtb_card_parser = registry.find_matching_parser(vtb_card_extracted)
-    sberbank_parser = registry.find_matching_parser(sberbank_extracted)
-    alfabank_parser = registry.find_matching_parser(alfabank_extracted)
-    ozon_parser = registry.find_matching_parser(ozon_extracted)
-    tbank_parser = registry.find_matching_parser(tbank_extracted)
-
-    assert expobank_parser is not None
-    assert expobank_parser.parser_name == "expobank_card_statement_v1"
-    assert expobank_parser.statement_type == "card_statement"
-    assert vtb_parser is not None
-    assert vtb_parser.parser_name == "vtb_deposit_statement_v1"
-    assert vtb_parser.statement_type == "deposit_statement"
-    assert vtb_card_parser is not None
-    assert vtb_card_parser.parser_name == "vtb_card_statement_v1"
-    assert vtb_card_parser.statement_type == "card_statement"
-    assert sberbank_parser is not None
-    assert sberbank_parser.parser_name == "sberbank_card_statement_v1"
-    assert sberbank_parser.statement_type == "card_statement"
-    assert alfabank_parser is not None
-    assert alfabank_parser.parser_name == "alfabank_xlsx_statement_v1"
-    assert alfabank_parser.statement_type == "card_statement"
-    assert ozon_parser is not None
-    assert ozon_parser.parser_name == "ozon_bank_card_statement_v1"
-    assert ozon_parser.statement_type == "card_statement"
-    assert tbank_parser is not None
-    assert tbank_parser.parser_name == "tbank_card_statement_v1"
-    assert tbank_parser.statement_type == "card_statement"
+    assert parser is not None
+    assert parser.parser_name == expected_name
+    assert parser.statement_type == expected_type
 
 
 def test_alfabank_xlsx_parser_creates_raw_transactions_from_table_with_preamble() -> None:
@@ -247,44 +270,51 @@ def test_positional_bank_row_identities_do_not_include_statement_period() -> Non
     assert vtb_deposit_source_row_id(12) == "vtb-deposit:12"
 
 
-def test_overlapping_statement_period_does_not_change_bank_row_hashes() -> None:
-    cases = (
-        (
-            sberbank_extracted_fixture(),
+@pytest.mark.parametrize(
+    ("extracted_factory", "parser", "full_period", "partial_period"),
+    [
+        pytest.param(
+            lambda: sberbank_extracted_fixture(),
             SberbankCardStatementParser(),
             "За период 01.04.2026 — 30.04.2026",
             "За период 01.04.2026 — 31.05.2026",
+            id="sberbank-card",
         ),
-        (
-            vtb_card_extracted_fixture(),
+        pytest.param(
+            lambda: vtb_card_extracted_fixture(),
             VtbCardStatementParser(),
             "Период выписки 01.05.2026 - 31.05.2026",
             "Период выписки 01.05.2026 - 10.05.2026",
+            id="vtb-card",
         ),
-        (
-            vtb_deposit_extracted_fixture(),
+        pytest.param(
+            lambda: vtb_deposit_extracted_fixture(),
             VtbDepositStatementParser(),
             "Период выписки 01.05.2026 - 31.05.2026",
             "Период выписки 01.05.2026 - 10.05.2026",
+            id="vtb-deposit",
         ),
+    ],
+)
+def test_overlapping_statement_period_does_not_change_bank_row_hashes(
+    extracted_factory: Callable[[], ExtractedStatement],
+    parser: BankStatementParser,
+    full_period: str,
+    partial_period: str,
+) -> None:
+    extracted = extracted_factory()
+    overlapping = replace(
+        extracted,
+        text_by_page=[page.replace(full_period, partial_period) for page in extracted.text_by_page],
     )
-    for extracted, parser, full_period, partial_period in cases:
-        overlapping = replace(
-            extracted,
-            text_by_page=[
-                page.replace(full_period, partial_period) for page in extracted.text_by_page
-            ],
-        )
-        full_rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
-        overlapping_rows = parser.parse_transaction_drafts(
-            overlapping,
-            account_id=None,
-            currency="RUB",
-        )
+    full_rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
+    overlapping_rows = parser.parse_transaction_drafts(
+        overlapping,
+        account_id=None,
+        currency="RUB",
+    )
 
-        assert [row.dedupe_hash for row in full_rows] == [
-            row.dedupe_hash for row in overlapping_rows
-        ]
+    assert [row.dedupe_hash for row in full_rows] == [row.dedupe_hash for row in overlapping_rows]
 
 
 def test_vtb_card_parser_creates_raw_transactions_from_fixture() -> None:

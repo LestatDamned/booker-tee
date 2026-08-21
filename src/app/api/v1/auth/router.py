@@ -485,14 +485,3 @@ async def logout_all(
 ) -> None:
     await authentication.logout_all(context.user.id)
     forget_refresh_token(response, settings=settings)
-
-
-@router.delete("/session", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
-async def legacy_logout(
-    request: Request,
-    response: Response,
-    settings: Annotated[Settings, Depends(get_settings)],
-    authentication: Annotated[AuthenticationService, Depends(get_authentication_service)],
-) -> None:
-    await authentication.logout(refresh_token_from_request(request, settings))
-    forget_refresh_token(response, settings=settings)

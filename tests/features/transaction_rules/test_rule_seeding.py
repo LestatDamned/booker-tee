@@ -1,12 +1,12 @@
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 from uuid import uuid4
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.categories.models import Category, CategoryKind
+from app.features.categories.repository import CategoryRepository
 from app.features.transaction_rules.application import fixture_seeding
 from app.features.transaction_rules.application.fixture_seeding import (
     DefaultMerchantRuleSeed,
@@ -18,9 +18,10 @@ from app.features.transaction_rules.models import (
     TransactionRuleApplicationMode,
     TransactionRuleMatchType,
 )
+from app.features.transaction_rules.repository import TransactionRuleRepository
+from app.features.workspaces.repository import WorkspaceRepository
 
 
-@pytest.mark.asyncio
 async def test_seed_is_repeat_safe_and_never_mutates_existing_rule(monkeypatch) -> None:
     seed = DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "OZON")
     monkeypatch.setattr(fixture_seeding, "DEFAULT_MERCHANT_RULE_SEEDS", [seed])
@@ -64,7 +65,6 @@ async def test_seed_is_repeat_safe_and_never_mutates_existing_rule(monkeypatch) 
     session.commit.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_seed_creates_only_missing_category_and_rule(monkeypatch) -> None:
     seed = DefaultMerchantRuleSeed("Маркетплейсы", CategoryKind.EXPENSE, "OZON")
     monkeypatch.setattr(fixture_seeding, "DEFAULT_MERCHANT_RULE_SEEDS", [seed])
@@ -101,21 +101,16 @@ def seeder_with_mocks(
     categories: list[Category],
 ) -> tuple[DefaultMerchantRuleSeeder, Any, Any, Any, Any]:
     session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
-    rule_repository = SimpleNamespace(
-        list_for_workspace=AsyncMock(return_value=rules),
-        create=AsyncMock(),
-    )
-    category_repository = SimpleNamespace(
-        list_for_workspace=AsyncMock(return_value=categories),
-        create=AsyncMock(),
-    )
-    workspace_repository = SimpleNamespace(
-        lock_for_update=AsyncMock(return_value=SimpleNamespace(id=uuid4()))
-    )
+    rule_repository = create_autospec(TransactionRuleRepository, instance=True)
+    rule_repository.list_for_workspace.return_value = rules
+    category_repository = create_autospec(CategoryRepository, instance=True)
+    category_repository.list_for_workspace.return_value = categories
+    workspace_repository = create_autospec(WorkspaceRepository, instance=True)
+    workspace_repository.lock_for_update.return_value = SimpleNamespace(id=uuid4())
     seeder = DefaultMerchantRuleSeeder(cast(AsyncSession, session))
-    seeder.rules = cast(Any, rule_repository)
-    seeder.categories = cast(Any, category_repository)
-    seeder.workspaces = cast(Any, workspace_repository)
+    seeder.rules = rule_repository
+    seeder.categories = category_repository
+    seeder.workspaces = workspace_repository
     return seeder, session, rule_repository, category_repository, workspace_repository
 
 

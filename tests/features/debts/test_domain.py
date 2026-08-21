@@ -21,10 +21,10 @@ from app.features.ledger.domain.types import OperationType
 @pytest.mark.parametrize(
     ("kind", "balance"),
     [
-        (DebtKind.LOAN_RECEIVABLE, Decimal("70000.00")),
-        (DebtKind.LOAN_PAYABLE, Decimal("-70000.00")),
-        (DebtKind.CREDIT_CARD, Decimal("-25000.00")),
-        (DebtKind.MORTGAGE, Decimal("-4200000.00")),
+        pytest.param(DebtKind.LOAN_RECEIVABLE, Decimal("70000.00"), id="receivable"),
+        pytest.param(DebtKind.LOAN_PAYABLE, Decimal("-70000.00"), id="loan-payable"),
+        pytest.param(DebtKind.CREDIT_CARD, Decimal("-25000.00"), id="credit-card"),
+        pytest.param(DebtKind.MORTGAGE, Decimal("-4200000.00"), id="mortgage"),
     ],
 )
 def test_debt_kinds_use_expected_balance_direction(
@@ -37,10 +37,10 @@ def test_debt_kinds_use_expected_balance_direction(
 @pytest.mark.parametrize(
     ("kind", "balance"),
     [
-        (DebtKind.LOAN_RECEIVABLE, Decimal("-1.00")),
-        (DebtKind.LOAN_PAYABLE, Decimal("1.00")),
-        (DebtKind.CREDIT_CARD, Decimal("1.00")),
-        (DebtKind.MORTGAGE, Decimal("1.00")),
+        pytest.param(DebtKind.LOAN_RECEIVABLE, Decimal("-1.00"), id="receivable"),
+        pytest.param(DebtKind.LOAN_PAYABLE, Decimal("1.00"), id="loan-payable"),
+        pytest.param(DebtKind.CREDIT_CARD, Decimal("1.00"), id="credit-card"),
+        pytest.param(DebtKind.MORTGAGE, Decimal("1.00"), id="mortgage"),
     ],
 )
 def test_debt_balance_cannot_cross_to_the_other_direction(
@@ -54,11 +54,41 @@ def test_debt_balance_cannot_cross_to_the_other_direction(
 @pytest.mark.parametrize(
     ("kind", "balance", "is_active", "expected"),
     [
-        (DebtKind.LOAN_RECEIVABLE, Decimal("1.00"), True, DebtStatus.ACTIVE),
-        (DebtKind.LOAN_PAYABLE, Decimal("0.00"), True, DebtStatus.SETTLED),
-        (DebtKind.MORTGAGE, Decimal("0.00"), True, DebtStatus.SETTLED),
-        (DebtKind.CREDIT_CARD, Decimal("0.00"), True, DebtStatus.NO_DEBT),
-        (DebtKind.CREDIT_CARD, Decimal("-1.00"), False, DebtStatus.ARCHIVED),
+        pytest.param(
+            DebtKind.LOAN_RECEIVABLE,
+            Decimal("1.00"),
+            True,
+            DebtStatus.ACTIVE,
+            id="active-receivable",
+        ),
+        pytest.param(
+            DebtKind.LOAN_PAYABLE,
+            Decimal("0.00"),
+            True,
+            DebtStatus.SETTLED,
+            id="settled-payable",
+        ),
+        pytest.param(
+            DebtKind.MORTGAGE,
+            Decimal("0.00"),
+            True,
+            DebtStatus.SETTLED,
+            id="settled-mortgage",
+        ),
+        pytest.param(
+            DebtKind.CREDIT_CARD,
+            Decimal("0.00"),
+            True,
+            DebtStatus.NO_DEBT,
+            id="credit-card-without-debt",
+        ),
+        pytest.param(
+            DebtKind.CREDIT_CARD,
+            Decimal("-1.00"),
+            False,
+            DebtStatus.ARCHIVED,
+            id="archived-credit-card",
+        ),
     ],
 )
 def test_debt_status_comes_from_lifecycle_kind_and_balance(
@@ -173,8 +203,8 @@ def test_payment_may_contain_only_interest() -> None:
 @pytest.mark.parametrize(
     ("principal", "interest"),
     [
-        (Decimal("101.00"), Decimal("0.00")),
-        (Decimal("0.00"), Decimal("0.00")),
+        pytest.param(Decimal("101.00"), Decimal("0.00"), id="principal-exceeds-debt"),
+        pytest.param(Decimal("0.00"), Decimal("0.00"), id="zero-total"),
     ],
 )
 def test_invalid_payment_is_rejected(principal: Decimal, interest: Decimal) -> None:
@@ -198,38 +228,66 @@ def test_terms_accept_credit_card_without_original_principal() -> None:
     )
 
 
-def test_terms_reject_invalid_dates_limits_and_missing_principal() -> None:
+@pytest.mark.parametrize(
+    (
+        "kind",
+        "opening_balance",
+        "opened_on",
+        "maturity_date",
+        "original_principal",
+        "credit_limit",
+    ),
+    [
+        pytest.param(
+            DebtKind.MORTGAGE,
+            Decimal("-100.00"),
+            date(2026, 1, 2),
+            date(2026, 1, 1),
+            Decimal("100.00"),
+            None,
+            id="maturity-before-opening",
+        ),
+        pytest.param(
+            DebtKind.CREDIT_CARD,
+            Decimal("-101.00"),
+            None,
+            None,
+            None,
+            Decimal("100.00"),
+            id="opening-debt-exceeds-credit-limit",
+        ),
+        pytest.param(
+            DebtKind.LOAN_PAYABLE,
+            Decimal("-100.00"),
+            None,
+            None,
+            None,
+            None,
+            id="loan-without-original-principal",
+        ),
+    ],
+)
+def test_terms_reject_invalid_configuration(
+    kind: DebtKind,
+    opening_balance: Decimal,
+    opened_on: date | None,
+    maturity_date: date | None,
+    original_principal: Decimal | None,
+    credit_limit: Decimal | None,
+) -> None:
     with pytest.raises(DebtValidationError):
         DebtPolicy.validate_terms(
-            kind=DebtKind.MORTGAGE,
-            opening_balance=Decimal("-100.00"),
-            opened_on=date(2026, 1, 2),
-            maturity_date=date(2026, 1, 1),
-            original_principal=Decimal("100.00"),
-            credit_limit=None,
-        )
-    with pytest.raises(DebtValidationError):
-        DebtPolicy.validate_terms(
-            kind=DebtKind.CREDIT_CARD,
-            opening_balance=Decimal("-101.00"),
-            opened_on=None,
-            maturity_date=None,
-            original_principal=None,
-            credit_limit=Decimal("100.00"),
-        )
-    with pytest.raises(DebtValidationError):
-        DebtPolicy.validate_terms(
-            kind=DebtKind.LOAN_PAYABLE,
-            opening_balance=Decimal("-100.00"),
-            opened_on=None,
-            maturity_date=None,
-            original_principal=None,
-            credit_limit=None,
+            kind=kind,
+            opening_balance=opening_balance,
+            opened_on=opened_on,
+            maturity_date=maturity_date,
+            original_principal=original_principal,
+            credit_limit=credit_limit,
         )
 
 
-def test_capabilities_keep_financial_write_policy_on_server() -> None:
-    readonly = DebtPolicy.resolve_capabilities(
+def test_readonly_capabilities_block_financial_mutations() -> None:
+    capabilities = DebtPolicy.resolve_capabilities(
         kind=DebtKind.LOAN_PAYABLE,
         balance=Decimal("-100.00"),
         can_write=False,
@@ -237,7 +295,15 @@ def test_capabilities_keep_financial_write_policy_on_server() -> None:
         has_payment_account=True,
         has_delete_blockers=True,
     )
-    settled = DebtPolicy.resolve_capabilities(
+
+    assert capabilities.can_record_payment is False
+    assert capabilities.payment_blocked_reason is DebtPaymentBlockedReason.FINANCIAL_WRITE_FORBIDDEN
+    assert capabilities.can_update is False
+    assert capabilities.can_delete is False
+
+
+def test_settled_debt_capabilities_allow_safe_maintenance() -> None:
+    capabilities = DebtPolicy.resolve_capabilities(
         kind=DebtKind.LOAN_PAYABLE,
         balance=Decimal("0.00"),
         can_write=True,
@@ -246,11 +312,7 @@ def test_capabilities_keep_financial_write_policy_on_server() -> None:
         has_delete_blockers=False,
     )
 
-    assert readonly.can_record_payment is False
-    assert readonly.payment_blocked_reason is DebtPaymentBlockedReason.FINANCIAL_WRITE_FORBIDDEN
-    assert readonly.can_update is False
-    assert readonly.can_delete is False
-    assert settled.can_archive is True
-    assert settled.can_update is True
-    assert settled.can_delete is True
-    assert settled.payment_blocked_reason is DebtPaymentBlockedReason.DEBT_SETTLED
+    assert capabilities.can_archive is True
+    assert capabilities.can_update is True
+    assert capabilities.can_delete is True
+    assert capabilities.payment_blocked_reason is DebtPaymentBlockedReason.DEBT_SETTLED

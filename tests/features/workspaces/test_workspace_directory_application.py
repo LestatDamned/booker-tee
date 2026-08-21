@@ -69,12 +69,12 @@ async def test_directory_lists_only_source_memberships_without_writes() -> None:
 @pytest.mark.parametrize(
     ("role", "manage", "leave"),
     [
-        (WorkspaceRole.OWNER, True, False),
-        (WorkspaceRole.ADMIN, True, True),
-        (WorkspaceRole.EDITOR, False, True),
-        (WorkspaceRole.UPLOADER, False, True),
-        (WorkspaceRole.ANALYST, False, True),
-        (WorkspaceRole.VIEWER, False, True),
+        pytest.param(WorkspaceRole.OWNER, True, False, id="owner"),
+        pytest.param(WorkspaceRole.ADMIN, True, True, id="admin"),
+        pytest.param(WorkspaceRole.EDITOR, False, True, id="editor"),
+        pytest.param(WorkspaceRole.UPLOADER, False, True, id="uploader"),
+        pytest.param(WorkspaceRole.ANALYST, False, True, id="analyst"),
+        pytest.param(WorkspaceRole.VIEWER, False, True, id="viewer"),
     ],
 )
 async def test_directory_capabilities_are_server_owned(

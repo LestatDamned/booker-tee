@@ -1,9 +1,11 @@
 from datetime import date
 from decimal import Decimal
+from typing import Any
 from uuid import uuid4
 
 import pytest
 from debts_support import NOW, debts_app
+from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
 from app.features.debts.errors import (
@@ -14,24 +16,26 @@ from app.features.debts.errors import (
 )
 from app.features.debts.schemas import (
     AddExistingDebtCommand,
+    DeleteDebtCommand,
     GiveLoanCommand,
     OpenCreditCardCommand,
+    RecordDebtPaymentCommand,
     TakeLoanCommand,
+    UpdateDebtCommand,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
-def test_debts_require_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_debts_require_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/debts")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_debt_list_serializes_money_and_viewer_capabilities() -> None:
-    app, reader, _, context = debts_app(role=WorkspaceRole.VIEWER)
+def test_debt_list_serializes_money_and_viewer_capabilities(app: FastAPI) -> None:
+    app, reader, _, context = debts_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/debts")
@@ -54,8 +58,8 @@ def test_debt_list_serializes_money_and_viewer_capabilities() -> None:
     assert reader.list_calls == [(context.workspace.workspace.id, False)]
 
 
-def test_debt_detail_forwards_bounded_pagination_and_versions() -> None:
-    app, reader, _, context = debts_app()
+def test_debt_detail_forwards_bounded_pagination_and_versions(app: FastAPI) -> None:
+    app, reader, _, context = debts_app(app)
     debt_id = reader.detail.debt.account_id
 
     with TestClient(app) as client:
@@ -74,8 +78,8 @@ def test_debt_detail_forwards_bounded_pagination_and_versions() -> None:
     assert reader.detail_calls == [(context.workspace.workspace.id, debt_id, True, 2, 10)]
 
 
-def test_foreign_debt_uses_the_same_not_found_contract() -> None:
-    app, _, _, _ = debts_app()
+def test_foreign_debt_uses_the_same_not_found_contract(app: FastAPI) -> None:
+    app, _, _, _ = debts_app(app)
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/debts/{uuid4()}")
@@ -134,10 +138,11 @@ def test_foreign_debt_uses_the_same_not_found_contract() -> None:
     ],
 )
 def test_create_dispatches_all_supported_commands(
+    app: FastAPI,
     payload: dict[str, str],
     command_type: type,
 ) -> None:
-    app, reader, service, context = debts_app()
+    app, reader, service, context = debts_app(app)
     idempotency_key = uuid4()
 
     with TestClient(app) as client:
@@ -156,8 +161,8 @@ def test_create_dispatches_all_supported_commands(
     assert command.idempotency_key == idempotency_key
 
 
-def test_payment_dispatches_decimal_command_and_requires_write_permission() -> None:
-    app, reader, service, context = debts_app()
+def test_payment_dispatches_decimal_command(app: FastAPI) -> None:
+    app, reader, service, context = debts_app(app)
     debt_id = reader.detail.debt.account_id
     settlement_id = uuid4()
     category_id = uuid4()
@@ -179,69 +184,124 @@ def test_payment_dispatches_decimal_command_and_requires_write_permission() -> N
         )
 
     assert response.status_code == 201
-    workspace, command = service.payment_calls[0]
-    assert workspace.workspace.id == context.workspace.workspace.id
-    assert command.debt_account_id == debt_id
-    assert command.settlement_account_id == settlement_id
-    assert command.principal_amount == Decimal("25.50")
-    assert command.interest_amount == Decimal("10.25")
-    assert command.operation_date == date(2026, 8, 9)
-    assert command.idempotency_key == idempotency_key
-
-    viewer_app, _, viewer_service, _ = debts_app(role=WorkspaceRole.VIEWER)
-    with TestClient(viewer_app) as client:
-        forbidden = client.post(
-            f"/api/v1/debts/{debt_id}/payments",
-            headers={"Idempotency-Key": str(uuid4())},
-            json=payload,
+    assert service.payment_calls == [
+        (
+            context.workspace,
+            RecordDebtPaymentCommand(
+                debt_account_id=debt_id,
+                settlement_account_id=settlement_id,
+                principal_amount=Decimal("25.50"),
+                interest_amount=Decimal("10.25"),
+                operation_date=date(2026, 8, 9),
+                interest_category_id=category_id,
+                description="Платёж",
+                notes=None,
+                idempotency_key=idempotency_key,
+            ),
         )
-    assert forbidden.status_code == 403
-    assert forbidden.json()["error"]["code"] == "financial_write_forbidden"
-    assert viewer_service.payment_calls == []
+    ]
+    assert len(reader.detail_calls) == 1
 
 
-def test_payment_rejects_zero_amounts_and_missing_idempotency_key() -> None:
-    app, reader, service, _ = debts_app()
+def test_payment_requires_financial_write_permission(app: FastAPI) -> None:
+    app, reader, service, _ = debts_app(app, role=WorkspaceRole.VIEWER)
     debt_id = reader.detail.debt.account_id
-    payload = {
-        "settlementAccountId": str(uuid4()),
-        "principalAmount": "0",
-        "interestAmount": "0",
-        "operationDate": "2026-08-09",
-    }
 
     with TestClient(app) as client:
-        zero = client.post(
+        response = client.post(
             f"/api/v1/debts/{debt_id}/payments",
             headers={"Idempotency-Key": str(uuid4())},
-            json=payload,
-        )
-        missing_key = client.post(
-            f"/api/v1/debts/{debt_id}/payments",
-            json={**payload, "principalAmount": "1.00"},
+            json={
+                "settlementAccountId": str(uuid4()),
+                "principalAmount": "25.50",
+                "interestAmount": "10.25",
+                "operationDate": "2026-08-09",
+                "interestCategoryId": str(uuid4()),
+                "description": "Платёж",
+            },
         )
 
-    assert zero.status_code == 422
-    assert missing_key.status_code == 422
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "financial_write_forbidden"
     assert service.payment_calls == []
+    assert reader.detail_calls == []
 
 
-def test_lifecycle_and_undo_dispatch_expected_snapshots() -> None:
-    app, reader, service, context = debts_app()
+@pytest.mark.parametrize(
+    ("principal_amount", "include_idempotency_key"),
+    [
+        pytest.param("0", True, id="zero-total"),
+        pytest.param("1.00", False, id="missing-idempotency-key"),
+    ],
+)
+def test_payment_rejects_invalid_request_before_dispatch(
+    app: FastAPI,
+    principal_amount: str,
+    include_idempotency_key: bool,
+) -> None:
+    app, reader, service, _ = debts_app(app)
     debt_id = reader.detail.debt.account_id
+    headers = {"Idempotency-Key": str(uuid4())} if include_idempotency_key else {}
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/debts/{debt_id}/payments",
+            headers=headers,
+            json={
+                "settlementAccountId": str(uuid4()),
+                "principalAmount": principal_amount,
+                "interestAmount": "0",
+                "operationDate": "2026-08-09",
+            },
+        )
+
+    assert response.status_code == 422
+    assert service.payment_calls == []
+    assert reader.detail_calls == []
+
+
+@pytest.mark.parametrize(
+    ("action", "expected_active"),
+    [
+        pytest.param("archive", True, id="archive"),
+        pytest.param("restore", False, id="restore"),
+    ],
+)
+def test_lifecycle_dispatches_expected_snapshot(
+    app: FastAPI,
+    action: str,
+    expected_active: bool,
+) -> None:
+    app, reader, service, context = debts_app(app)
+    debt_id = reader.detail.debt.account_id
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/debts/{debt_id}/{action}",
+            json={
+                "expectedActive": expected_active,
+                "expectedUpdatedAt": NOW.isoformat(),
+            },
+        )
+
+    assert response.status_code == 200
+    recorded_action, workspace, lifecycle = service.lifecycle_calls[0]
+    assert recorded_action == action
+    assert workspace.workspace.id == context.workspace.workspace.id
+    assert lifecycle.debt_account_id == debt_id
+    assert lifecycle.expected_active is expected_active
+    assert lifecycle.expected_updated_at == NOW
+    assert len(reader.detail_calls) == 1
+
+
+def test_undo_dispatches_expected_operation_versions(app: FastAPI) -> None:
+    app, reader, service, context = debts_app(app)
     payment = reader.detail.payments.items[0]
     assert payment.principal is not None
     assert payment.interest is not None
 
     with TestClient(app) as client:
-        archived = client.post(
-            f"/api/v1/debts/{debt_id}/archive",
-            json={
-                "expectedActive": True,
-                "expectedUpdatedAt": NOW.isoformat(),
-            },
-        )
-        undone = client.post(
+        response = client.post(
             f"/api/v1/debt-payments/{payment.payment_id}/undo",
             json={
                 "expectedPrincipalOperationVersion": payment.principal.version,
@@ -249,26 +309,21 @@ def test_lifecycle_and_undo_dispatch_expected_snapshots() -> None:
             },
         )
 
-    assert archived.status_code == 200
-    action, workspace, lifecycle = service.lifecycle_calls[0]
-    assert action == "archive"
+    assert response.status_code == 200
+    workspace, undo = service.undo_calls[0]
     assert workspace.workspace.id == context.workspace.workspace.id
-    assert lifecycle.debt_account_id == debt_id
-    assert lifecycle.expected_active is True
-    assert lifecycle.expected_updated_at == NOW
-    assert undone.status_code == 200
-    _, undo = service.undo_calls[0]
     assert undo.payment_id == payment.payment_id
     assert undo.expected_principal_operation_version == 1
     assert undo.expected_interest_operation_version == 1
+    assert len(reader.detail_calls) == 1
 
 
-def test_update_and_delete_dispatch_safe_maintenance_commands() -> None:
-    app, reader, service, context = debts_app()
+def test_update_dispatches_safe_maintenance_command(app: FastAPI) -> None:
+    app, reader, service, context = debts_app(app)
     debt_id = reader.detail.debt.account_id
 
     with TestClient(app) as client:
-        updated = client.put(
+        response = client.put(
             f"/api/v1/debts/{debt_id}",
             json={
                 "name": " Кредит на ремонт ",
@@ -279,48 +334,87 @@ def test_update_and_delete_dispatch_safe_maintenance_commands() -> None:
                 "expectedUpdatedAt": NOW.isoformat(),
             },
         )
-        deleted = client.request(
-            "DELETE",
-            f"/api/v1/debts/{debt_id}",
-            json={"expectedUpdatedAt": NOW.isoformat()},
+
+    assert response.status_code == 200
+    assert service.update_calls == [
+        (
+            context.workspace,
+            UpdateDebtCommand(
+                debt_account_id=debt_id,
+                name=" Кредит на ремонт ",
+                opened_on=date(2026, 1, 1),
+                maturity_date=date(2028, 1, 1),
+                credit_limit=None,
+                notes="Условия уточнены",
+                expected_updated_at=NOW,
+            ),
         )
-
-    assert updated.status_code == 200
-    workspace, update = service.update_calls[0]
-    assert workspace.workspace.id == context.workspace.workspace.id
-    assert update.name == " Кредит на ремонт "
-    assert update.expected_updated_at == NOW
-    assert deleted.status_code == 200
-    assert deleted.json() == {"deletedId": str(debt_id), "name": "Кредит"}
-    _, delete = service.delete_calls[0]
-    assert delete.debt_account_id == debt_id
-    assert delete.expected_updated_at == NOW
+    ]
+    assert len(reader.detail_calls) == 1
 
 
-def test_update_and_delete_require_financial_write_permission() -> None:
-    app, reader, service, _ = debts_app(role=WorkspaceRole.VIEWER)
+def test_delete_dispatches_snapshot_and_returns_identity(app: FastAPI) -> None:
+    app, reader, service, context = debts_app(app)
     debt_id = reader.detail.debt.account_id
-    update_payload = {
-        "name": "Кредит",
-        "openedOn": None,
-        "maturityDate": None,
-        "creditLimit": None,
-        "notes": None,
-        "expectedUpdatedAt": NOW.isoformat(),
-    }
 
     with TestClient(app) as client:
-        updated = client.put(f"/api/v1/debts/{debt_id}", json=update_payload)
-        deleted = client.request(
+        response = client.request(
             "DELETE",
             f"/api/v1/debts/{debt_id}",
             json={"expectedUpdatedAt": NOW.isoformat()},
         )
 
-    assert updated.status_code == 403
-    assert deleted.status_code == 403
+    assert response.status_code == 200
+    assert response.json() == {"deletedId": str(debt_id), "name": "Кредит"}
+    assert service.delete_calls == [
+        (
+            context.workspace,
+            DeleteDebtCommand(
+                debt_account_id=debt_id,
+                expected_updated_at=NOW,
+            ),
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("method", "payload"),
+    [
+        pytest.param(
+            "PUT",
+            {
+                "name": "Кредит",
+                "openedOn": None,
+                "maturityDate": None,
+                "creditLimit": None,
+                "notes": None,
+                "expectedUpdatedAt": NOW.isoformat(),
+            },
+            id="update",
+        ),
+        pytest.param(
+            "DELETE",
+            {"expectedUpdatedAt": NOW.isoformat()},
+            id="delete",
+        ),
+    ],
+)
+def test_debt_maintenance_requires_financial_write_permission(
+    app: FastAPI,
+    method: str,
+    payload: dict[str, object],
+) -> None:
+    app, reader, service, _ = debts_app(app, role=WorkspaceRole.VIEWER)
+    debt_id = reader.detail.debt.account_id
+
+    with TestClient(app) as client:
+        response = client.request(method, f"/api/v1/debts/{debt_id}", json=payload)
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "financial_write_forbidden"
     assert service.update_calls == []
     assert service.delete_calls == []
+    assert reader.detail_calls == []
 
 
 @pytest.mark.parametrize(
@@ -333,11 +427,12 @@ def test_update_and_delete_require_financial_write_permission() -> None:
     ],
 )
 def test_mutations_return_stable_error_contracts(
+    app: FastAPI,
     error: Exception,
     status_code: int,
     code: str,
 ) -> None:
-    app, reader, service, _ = debts_app()
+    app, reader, service, _ = debts_app(app)
     service.error = error
 
     with TestClient(app) as client:
@@ -355,8 +450,10 @@ def test_mutations_return_stable_error_contracts(
     assert response.json()["error"]["code"] == code
 
 
-def test_openapi_contains_debt_contracts() -> None:
-    paths = create_app().openapi()["paths"]
+def test_openapi_contains_debt_contracts(
+    canonical_openapi_schema: dict[str, Any],
+) -> None:
+    paths = canonical_openapi_schema["paths"]
 
     assert "/api/v1/debts" in paths
     assert "/api/v1/debts/{debt_id}" in paths

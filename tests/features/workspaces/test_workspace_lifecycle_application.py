@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from workspace_test_support import WorkspaceTestSession
 
 from app.features.chat_integrations.repository import WorkspaceRuntimeDeactivationCounts
 from app.features.workspaces.application import lifecycle
@@ -71,7 +72,7 @@ async def test_deactivate_requires_fallback_before_any_runtime_change(monkeypatc
     assert harness.chat.deactivated == []
 
 
-async def test_restore_only_reactivates_workspace_and_rejects_stale_snapshot(monkeypatch) -> None:
+async def test_restore_rejects_stale_snapshot_before_reactivating(monkeypatch) -> None:
     harness = lifecycle_harness(monkeypatch, active=False, actor_current_target=False)
     service = lifecycle.WorkspaceLifecycleService(cast(AsyncSession, harness.session))
 
@@ -85,6 +86,17 @@ async def test_restore_only_reactivates_workspace_and_rejects_stale_snapshot(mon
                 expected_current_workspace_id=harness.actor_session.current_workspace_id,
             ),
         )
+
+    assert harness.workspace.is_active is False
+    assert harness.workspace.archived_at is not None
+    assert harness.session.flush_count == 0
+    assert harness.session.commit_count == 0
+    assert harness.session.rollback_count == 1
+
+
+async def test_restore_only_reactivates_workspace(monkeypatch) -> None:
+    harness = lifecycle_harness(monkeypatch, active=False, actor_current_target=False)
+    service = lifecycle.WorkspaceLifecycleService(cast(AsyncSession, harness.session))
 
     result = await service.restore(
         actor=harness.actor,
@@ -100,7 +112,7 @@ async def test_restore_only_reactivates_workspace_and_rejects_stale_snapshot(mon
     assert harness.workspaces.revoked == []
     assert harness.chat.deactivated == []
     assert harness.session.commit_count == 1
-    assert harness.session.rollback_count == 1
+    assert harness.session.rollback_count == 0
 
 
 def command(harness) -> TransitionWorkspaceLifecycleCommand:
@@ -108,22 +120,6 @@ def command(harness) -> TransitionWorkspaceLifecycleCommand:
         expected_workspace_updated_at=harness.workspace.updated_at,
         expected_current_workspace_id=harness.actor_session.current_workspace_id,
     )
-
-
-class FakeSession:
-    def __init__(self) -> None:
-        self.commit_count = 0
-        self.flush_count = 0
-        self.rollback_count = 0
-
-    async def commit(self) -> None:
-        self.commit_count += 1
-
-    async def flush(self) -> None:
-        self.flush_count += 1
-
-    async def rollback(self) -> None:
-        self.rollback_count += 1
 
 
 def lifecycle_harness(
@@ -216,7 +212,7 @@ def lifecycle_harness(
             self.deactivated.append(workspace_id)
             return WorkspaceRuntimeDeactivationCounts(4, 5, 6, 7, 8)
 
-    session = FakeSession()
+    session = WorkspaceTestSession()
     workspaces = Workspaces(session)
     users = Users(session)
     chat = Chat(session)

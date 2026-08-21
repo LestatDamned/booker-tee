@@ -33,7 +33,7 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
     )
     category = SimpleNamespace(id=uuid4())
     property_ = SimpleNamespace(id=uuid4())
-    raw_transaction = raw_transaction_stub()
+    raw_transaction_id = uuid4()
 
     operations = [
         LedgerRecordFactory.build_manual_income_expense_operation(
@@ -66,7 +66,7 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
         LedgerRecordFactory.build_imported_income_expense_operation(
             context=context,
             document_id=uuid4(),
-            raw_transaction_id=raw_transaction.id,
+            raw_transaction_id=raw_transaction_id,
             plan=LedgerPostingPlan(
                 operation_type=OperationType.INCOME,
                 amount=Decimal("100.00"),
@@ -81,13 +81,13 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
         ),
         LedgerRecordFactory.build_imported_transfer_operation(
             context=context,
-            description=raw_transaction.description_normalized,
-            operation_date=raw_transaction.operation_date,
-            posting_date=raw_transaction.posting_date,
+            description="Перевод",
+            operation_date=date(2026, 7, 21),
+            posting_date=None,
             transfer_category=cast(Any, category),
             extra_metadata={
                 "source": "raw_transfer",
-                "raw_transaction_id": str(raw_transaction.id),
+                "raw_transaction_id": str(raw_transaction_id),
             },
         ),
     ]
@@ -105,13 +105,3 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
         assert operation.created_by_user_id == user_id
         assert operation.updated_by_user_id == user_id
         assert operation.confirmed_at is not None
-
-
-def raw_transaction_stub() -> SimpleNamespace:
-    return SimpleNamespace(
-        id=uuid4(),
-        description_normalized="Перевод",
-        description_raw=None,
-        operation_date=date(2026, 7, 21),
-        posting_date=None,
-    )

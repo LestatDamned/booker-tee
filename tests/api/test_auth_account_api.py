@@ -2,6 +2,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+import pytest
+from fastapi import FastAPI
+
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import (
     AuthenticatedSessionContext,
@@ -38,7 +41,6 @@ from app.features.users.errors import (
 from app.features.users.models import User, UserSession
 from app.features.users.passwords import PasswordResetRequest
 from app.features.users.sessions import UserSessionSnapshot
-from app.main import create_app
 
 SAME_ORIGIN_HEADERS = {"Origin": "http://testserver"}
 
@@ -208,8 +210,7 @@ class AccountDeactivationStub:
         self.deactivated_password = current_password
 
 
-def test_auth_config_exposes_registration_mode() -> None:
-    app = create_app()
+def test_auth_config_exposes_registration_mode(app: FastAPI) -> None:
     app.dependency_overrides[get_settings] = lambda: Settings(
         environment="test",
         registration_mode="invite_only",
@@ -226,8 +227,7 @@ def test_auth_config_exposes_registration_mode() -> None:
     }
 
 
-def test_login_sets_http_only_cookie_and_preserves_safe_next() -> None:
-    app = create_app()
+def test_login_sets_http_only_cookie_and_preserves_safe_next(app: FastAPI) -> None:
     authentication = AuthenticationStub()
     app.dependency_overrides[get_authentication_service] = lambda: authentication
 
@@ -251,8 +251,7 @@ def test_login_sets_http_only_cookie_and_preserves_safe_next() -> None:
     assert "SameSite=lax" in cookie
 
 
-def test_login_rejects_external_next_and_invalid_credentials() -> None:
-    app = create_app()
+def test_login_maps_invalid_credentials(app: FastAPI) -> None:
     authentication = AuthenticationStub(error=InvalidCredentialsError("Неверный email или пароль."))
     app.dependency_overrides[get_authentication_service] = lambda: authentication
 
@@ -263,7 +262,6 @@ def test_login_rejects_external_next_and_invalid_credentials() -> None:
             json={
                 "email": "max@example.test",
                 "password": "wrong-password",
-                "nextPath": "https://evil.example",
             },
         )
 
@@ -276,8 +274,7 @@ def test_login_rejects_external_next_and_invalid_credentials() -> None:
     }
 
 
-def test_signup_reports_closed_registration() -> None:
-    app = create_app()
+def test_signup_reports_closed_registration(app: FastAPI) -> None:
     verification = EmailVerificationStub(error=SignupsClosedError("closed"))
     app.dependency_overrides[get_email_verification_service] = lambda: verification
 
@@ -292,8 +289,9 @@ def test_signup_reports_closed_registration() -> None:
     assert response.json()["error"]["code"] == "signups_closed"
 
 
-def test_signup_returns_generic_accepted_response_without_session_cookie() -> None:
-    app = create_app()
+def test_signup_returns_generic_accepted_response_without_session_cookie(
+    app: FastAPI,
+) -> None:
     sent: list[IdentityEmail] = []
     message = IdentityEmail(
         recipient="max@example.test",
@@ -329,8 +327,9 @@ def test_signup_returns_generic_accepted_response_without_session_cookie() -> No
     assert verification.signup_values["invitation_token"] == "private-token"
 
 
-def test_email_verification_sets_session_cookie_and_safe_continuation() -> None:
-    app = create_app()
+def test_email_verification_sets_session_cookie_and_safe_continuation(
+    app: FastAPI,
+) -> None:
     app.dependency_overrides[get_email_verification_service] = lambda: EmailVerificationStub()
 
     with TestClient(app) as client:
@@ -345,8 +344,9 @@ def test_email_verification_sets_session_cookie_and_safe_continuation() -> None:
     assert "booker_refresh=verified-session-token-refresh" in response.headers["set-cookie"]
 
 
-def test_password_reset_request_is_generic_and_sends_email_in_background() -> None:
-    app = create_app()
+def test_password_reset_request_is_generic_and_sends_email_in_background(
+    app: FastAPI,
+) -> None:
     sent: list[IdentityEmail] = []
     message = IdentityEmail(
         recipient="max@example.test",
@@ -371,8 +371,7 @@ def test_password_reset_request_is_generic_and_sends_email_in_background() -> No
     assert sent == [message]
 
 
-def test_password_reset_clears_session_cookie() -> None:
-    app = create_app()
+def test_password_reset_clears_session_cookie(app: FastAPI) -> None:
     app.dependency_overrides[get_password_service] = lambda: PasswordStub()
     with TestClient(app) as client:
         response = client.post(
@@ -386,8 +385,7 @@ def test_password_reset_clears_session_cookie() -> None:
     assert "Max-Age=0" in response.headers["set-cookie"]
 
 
-def test_successful_login_rejects_external_next() -> None:
-    app = create_app()
+def test_successful_login_rejects_external_next(app: FastAPI) -> None:
     app.dependency_overrides[get_authentication_service] = lambda: AuthenticationStub()
 
     with TestClient(app) as client:
@@ -404,30 +402,34 @@ def test_successful_login_rejects_external_next() -> None:
     assert response.json()["nextPath"] == "/app/workspaces"
 
 
-def test_public_auth_mutations_reject_missing_and_cross_site_origin() -> None:
-    app = create_app()
+@pytest.mark.parametrize(
+    "headers",
+    [
+        pytest.param({}, id="missing-origin"),
+        pytest.param(
+            {
+                "Origin": "https://evil.example",
+                "Sec-Fetch-Site": "cross-site",
+            },
+            id="cross-site-origin",
+        ),
+    ],
+)
+def test_public_auth_mutation_rejects_untrusted_origin(
+    app: FastAPI,
+    headers: dict[str, str],
+) -> None:
     app.dependency_overrides[get_authentication_service] = lambda: AuthenticationStub()
     payload = {"email": "max@example.test", "password": "long-enough"}
 
     with TestClient(app) as client:
-        missing = client.post("/api/v1/auth/login", json=payload)
-        cross_site = client.post(
-            "/api/v1/auth/login",
-            headers={
-                "Origin": "https://evil.example",
-                "Sec-Fetch-Site": "cross-site",
-            },
-            json=payload,
-        )
+        response = client.post("/api/v1/auth/login", headers=headers, json=payload)
 
-    assert missing.status_code == 403
-    assert missing.json()["error"]["code"] == "invalid_origin"
-    assert cross_site.status_code == 403
-    assert cross_site.json()["error"]["code"] == "invalid_origin"
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "invalid_origin"
 
 
-def test_public_auth_mutation_accepts_same_origin_fetch_metadata() -> None:
-    app = create_app()
+def test_public_auth_mutation_accepts_same_origin_fetch_metadata(app: FastAPI) -> None:
     app.dependency_overrides[get_authentication_service] = lambda: AuthenticationStub()
 
     with TestClient(app) as client:
@@ -440,27 +442,33 @@ def test_public_auth_mutation_accepts_same_origin_fetch_metadata() -> None:
     assert response.status_code == 200
 
 
-def test_account_reads_and_updates_without_workspace_context() -> None:
-    app = create_app()
+def test_account_reads_without_workspace_context(app: FastAPI) -> None:
+    context = _account_context()
+    app.dependency_overrides[get_authenticated_session_context] = lambda: context
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/account")
+
+    assert response.status_code == 200
+    assert response.json()["email"] == "max@example.test"
+
+
+def test_account_updates_without_workspace_context(app: FastAPI) -> None:
     context = _account_context()
     app.dependency_overrides[get_authenticated_session_context] = lambda: context
     app.dependency_overrides[get_user_service] = lambda: UserServiceStub()
 
     with TestClient(app) as client:
-        read_response = client.get("/api/v1/account")
-        update_response = client.patch(
+        response = client.patch(
             "/api/v1/account",
             json={"name": "  Maxim  "},
         )
 
-    assert read_response.status_code == 200
-    assert read_response.json()["email"] == "max@example.test"
-    assert update_response.status_code == 200
-    assert update_response.json()["name"] == "Maxim"
+    assert response.status_code == 200
+    assert response.json()["name"] == "Maxim"
 
 
-def test_change_password_rotates_current_session_cookie() -> None:
-    app = create_app()
+def test_change_password_rotates_current_session_cookie(app: FastAPI) -> None:
     passwords = PasswordStub()
     app.dependency_overrides[get_authenticated_session_context] = _account_context
     app.dependency_overrides[get_password_service] = lambda: passwords
@@ -479,8 +487,7 @@ def test_change_password_rotates_current_session_cookie() -> None:
     assert "booker_refresh=rotated-session-token-refresh" in response.headers["set-cookie"]
 
 
-def test_account_lists_sessions_without_secrets() -> None:
-    app = create_app()
+def test_account_lists_sessions_without_secrets(app: FastAPI) -> None:
     context = _account_context()
     app.dependency_overrides[get_authenticated_session_context] = lambda: context
     app.dependency_overrides[get_user_session_service] = lambda: UserSessionServiceStub()
@@ -495,35 +502,49 @@ def test_account_lists_sessions_without_secrets() -> None:
     assert "workspace" not in response.text.lower()
 
 
-def test_account_revokes_other_sessions_and_rejects_current_session() -> None:
-    app = create_app()
+def test_account_revokes_other_sessions(app: FastAPI) -> None:
     context = _account_context()
     sessions = UserSessionServiceStub()
     app.dependency_overrides[get_authenticated_session_context] = lambda: context
     app.dependency_overrides[get_user_session_service] = lambda: sessions
 
     with TestClient(app) as client:
-        others = client.delete("/api/v1/account/sessions/others")
-        session_id = uuid4()
-        single = client.delete(f"/api/v1/account/sessions/{session_id}")
+        response = client.delete("/api/v1/account/sessions/others")
 
-    assert others.status_code == 200
-    assert others.json() == {"revokedCount": 2}
+    assert response.status_code == 200
+    assert response.json() == {"revokedCount": 2}
     assert sessions.revoked_others == (context.user.id, context.session.id)
-    assert single.status_code == 204
+
+
+def test_account_revokes_owned_session(app: FastAPI) -> None:
+    context = _account_context()
+    sessions = UserSessionServiceStub()
+    session_id = uuid4()
+    app.dependency_overrides[get_authenticated_session_context] = lambda: context
+    app.dependency_overrides[get_user_session_service] = lambda: sessions
+
+    with TestClient(app) as client:
+        response = client.delete(f"/api/v1/account/sessions/{session_id}")
+
+    assert response.status_code == 204
     assert sessions.revoked == [(context.user.id, context.session.id, session_id)]
 
+
+def test_account_rejects_revoking_current_session(app: FastAPI) -> None:
+    context = _account_context()
+    app.dependency_overrides[get_authenticated_session_context] = lambda: context
     app.dependency_overrides[get_user_session_service] = lambda: UserSessionServiceStub(
         error=CurrentSessionCannotBeRevokedError("use logout")
     )
+
     with TestClient(app) as client:
-        current = client.delete(f"/api/v1/account/sessions/{context.session.id}")
-    assert current.status_code == 409
-    assert current.json()["error"]["code"] == "current_session_requires_logout"
+        response = client.delete(f"/api/v1/account/sessions/{context.session.id}")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "current_session_requires_logout"
 
 
-def test_account_masks_foreign_session_as_not_found() -> None:
-    app = create_app()
+def test_account_masks_foreign_session_as_not_found(app: FastAPI) -> None:
     app.dependency_overrides[get_authenticated_session_context] = _account_context
     app.dependency_overrides[get_user_session_service] = lambda: UserSessionServiceStub(
         error=UserSessionNotFoundError("not found")
@@ -536,16 +557,17 @@ def test_account_masks_foreign_session_as_not_found() -> None:
     assert response.json()["error"]["code"] == "session_not_found"
 
 
-def test_account_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_account_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/account")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_email_change_request_notifies_both_addresses_and_confirmation_rotates_cookie() -> None:
-    app = create_app()
+def test_email_change_request_notifies_both_addresses_and_confirmation_rotates_cookie(
+    app: FastAPI,
+) -> None:
     old_notice = IdentityEmail("max@example.test", "Запрос", "Без ссылки")
     new_confirmation = IdentityEmail("new@example.test", "Подтверждение", "secret link")
     changes = EmailChangeStub((old_notice, new_confirmation))
@@ -574,8 +596,7 @@ def test_email_change_request_notifies_both_addresses_and_confirmation_rotates_c
     assert "booker_refresh=rotated-email-session-refresh" in confirmed.headers["set-cookie"]
 
 
-def test_account_deactivation_exposes_safe_blockers_and_requires_exact_confirmation() -> None:
-    app = create_app()
+def test_account_deactivation_impact_exposes_safe_blockers(app: FastAPI) -> None:
     workspace_id = uuid4()
     deactivation = AccountDeactivationStub(
         AccountDeactivationImpact(
@@ -586,14 +607,10 @@ def test_account_deactivation_exposes_safe_blockers_and_requires_exact_confirmat
     app.dependency_overrides[get_authenticated_session_context] = _account_context
     app.dependency_overrides[get_account_deactivation_service] = lambda: deactivation
     with TestClient(app) as client:
-        impact = client.get("/api/v1/account/deactivation-impact")
-        rejected = client.post(
-            "/api/v1/account/deactivation",
-            json={"currentPassword": "current password", "confirmation": "да"},
-        )
+        response = client.get("/api/v1/account/deactivation-impact")
 
-    assert impact.status_code == 200
-    assert impact.json() == {
+    assert response.status_code == 200
+    assert response.json() == {
         "canDeactivate": False,
         "blockers": [
             {
@@ -604,19 +621,36 @@ def test_account_deactivation_exposes_safe_blockers_and_requires_exact_confirmat
         ],
         "autoDeactivatedWorkspaceCount": 1,
     }
-    assert "финанс" not in impact.text.lower()
-    assert rejected.status_code == 422
+    assert "финанс" not in response.text.lower()
+
+
+def test_account_deactivation_requires_exact_confirmation(app: FastAPI) -> None:
+    deactivation = AccountDeactivationStub(
+        AccountDeactivationImpact(blockers=[], auto_deactivated_workspace_count=0)
+    )
+    app.dependency_overrides[get_authenticated_session_context] = _account_context
+    app.dependency_overrides[get_account_deactivation_service] = lambda: deactivation
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/account/deactivation",
+            json={"currentPassword": "current password", "confirmation": "да"},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["fieldErrors"] == {
+        "confirmation": ["Введите ДЕАКТИВИРОВАТЬ без изменений."]
+    }
     assert deactivation.deactivated_password is None
 
 
-def test_logout_revokes_server_session_and_clears_cookie() -> None:
-    app = create_app()
+def test_logout_revokes_server_session_and_clears_cookie(app: FastAPI) -> None:
     authentication = AuthenticationStub()
     app.dependency_overrides[get_authenticated_session_context] = _account_context
     app.dependency_overrides[get_authentication_service] = lambda: authentication
 
     with TestClient(app) as client:
-        response = client.delete("/api/v1/auth/session")
+        response = client.post("/api/v1/auth/logout", headers=SAME_ORIGIN_HEADERS)
 
     assert response.status_code == 204
     assert authentication.logged_out_token is None
@@ -624,8 +658,7 @@ def test_logout_revokes_server_session_and_clears_cookie() -> None:
     assert "Max-Age=0" in response.headers["set-cookie"]
 
 
-def test_refresh_rotates_cookie_and_returns_access_token() -> None:
-    app = create_app()
+def test_refresh_rotates_cookie_and_returns_access_token(app: FastAPI) -> None:
     authentication = AuthenticationStub()
     app.dependency_overrides[get_authentication_service] = lambda: authentication
 
@@ -643,8 +676,7 @@ def test_refresh_rotates_cookie_and_returns_access_token() -> None:
     assert response.headers["cache-control"] == "no-store"
 
 
-def test_logout_all_revokes_every_session() -> None:
-    app = create_app()
+def test_logout_all_revokes_every_session(app: FastAPI) -> None:
     authentication = AuthenticationStub()
     context = _account_context()
     app.dependency_overrides[get_authenticated_session_context] = lambda: context

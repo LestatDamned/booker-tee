@@ -132,14 +132,20 @@ def test_resolve_document_review_status(
     assert resolve_document_review_status(row_statuses) is expected_status
 
 
-def test_has_linked_operations_detects_linked_row() -> None:
-    rows = [LinkedOperationStub()]
+@pytest.mark.parametrize(
+    ("linked_operation_id", "expected"),
+    [
+        pytest.param(None, False, id="unlinked"),
+        pytest.param(uuid4(), True, id="linked"),
+    ],
+)
+def test_has_linked_operations_detects_linked_row(
+    linked_operation_id: UUID | None,
+    expected: bool,
+) -> None:
+    rows = [LinkedOperationStub(linked_operation_id)]
 
-    assert has_linked_operations(rows) is False
-
-    rows[0].linked_operation_id = uuid4()
-
-    assert has_linked_operations(rows) is True
+    assert has_linked_operations(rows) is expected
 
 
 @dataclass

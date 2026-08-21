@@ -4,6 +4,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from debt_test_support import DebtTestSession
 
 from app.features.accounts.models import Account, AccountType
 from app.features.debts.domain import DebtKind
@@ -16,14 +17,6 @@ from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
 
 NOW = datetime(2026, 8, 9, 8, 30, tzinfo=UTC)
-
-
-class SessionStub:
-    def __init__(self) -> None:
-        self.flushes = 0
-
-    async def flush(self) -> None:
-        self.flushes += 1
 
 
 class DebtRepositoryStub:
@@ -62,8 +55,7 @@ class LedgerRepositoryStub:
         return self.total
 
 
-@pytest.mark.asyncio
-async def test_lifecycle_archives_only_settled_debt_and_restores_it() -> None:
+async def test_lifecycle_archives_settled_debt() -> None:
     context = workspace_context()
     manager, session, debt, account = lifecycle_manager(context, balance=Decimal("0.00"))
 
@@ -76,48 +68,59 @@ async def test_lifecycle_archives_only_settled_debt_and_restores_it() -> None:
     assert account.is_active is False
     assert account.archived_at is not None
     assert debt.updated_at != NOW
+    assert session.flushes == 1
+
+
+async def test_lifecycle_restores_archived_debt() -> None:
+    context = workspace_context()
+    manager, session, debt, account = lifecycle_manager(context, balance=Decimal("0.00"))
+    account.is_active = False
+    account.archived_at = NOW
 
     restored = await manager.restore(
         context=context,
-        command=DebtLifecycleCommand(
-            debt_account_id=debt.account_id,
-            expected_active=False,
-            expected_updated_at=debt.updated_at,
-        ),
+        command=lifecycle_command(debt, expected_active=False),
     )
 
     assert restored is debt
     assert account.is_active is True
     assert account.archived_at is None
-    assert session.flushes == 2
+    assert debt.updated_at != NOW
+    assert session.flushes == 1
 
 
-@pytest.mark.asyncio
-async def test_lifecycle_rejects_outstanding_and_stale_debt() -> None:
+@pytest.mark.parametrize(
+    ("expected_updated_at", "message"),
+    [
+        pytest.param(NOW, "settled", id="outstanding-balance"),
+        pytest.param(
+            datetime(2026, 8, 8, tzinfo=UTC),
+            "changed",
+            id="stale-snapshot",
+        ),
+    ],
+)
+async def test_lifecycle_rejects_invalid_archive(
+    expected_updated_at: datetime,
+    message: str,
+) -> None:
     context = workspace_context()
     manager, _, debt, _ = lifecycle_manager(context, balance=Decimal("-10.00"))
 
-    with pytest.raises(DebtLifecycleConflictError, match="settled"):
-        await manager.archive(
-            context=context,
-            command=lifecycle_command(debt, expected_active=True),
-        )
-
-    with pytest.raises(DebtLifecycleConflictError, match="changed"):
+    with pytest.raises(DebtLifecycleConflictError, match=message):
         await manager.archive(
             context=context,
             command=DebtLifecycleCommand(
                 debt_account_id=debt.account_id,
                 expected_active=True,
-                expected_updated_at=datetime(2026, 8, 8, tzinfo=UTC),
+                expected_updated_at=expected_updated_at,
             ),
         )
 
 
-@pytest.mark.asyncio
 async def test_lifecycle_hides_foreign_debt() -> None:
     context = workspace_context()
-    manager, _, debt, _ = lifecycle_manager(context, balance=Decimal("0.00"))
+    manager, session, debt, account = lifecycle_manager(context, balance=Decimal("0.00"))
 
     with pytest.raises(DebtNotFoundError):
         await manager.archive(
@@ -125,12 +128,15 @@ async def test_lifecycle_hides_foreign_debt() -> None:
             command=lifecycle_command(debt, expected_active=True),
         )
 
+    assert account.is_active is True
+    assert session.flushes == 0
+
 
 def lifecycle_manager(
     context: WorkspaceContext,
     *,
     balance: Decimal,
-) -> tuple[DebtLifecycleManager, SessionStub, Debt, Account]:
+) -> tuple[DebtLifecycleManager, DebtTestSession, Debt, Account]:
     account = Account(
         id=uuid4(),
         workspace_id=context.workspace.id,
@@ -149,7 +155,7 @@ def lifecycle_manager(
         creation_fingerprint="a" * 64,
         updated_at=NOW,
     )
-    session = SessionStub()
+    session = DebtTestSession()
     manager = DebtLifecycleManager(cast(Any, session))
     manager.accounts = cast(Any, AccountRepositoryStub(account))
     manager.debts = cast(Any, DebtRepositoryStub(debt))

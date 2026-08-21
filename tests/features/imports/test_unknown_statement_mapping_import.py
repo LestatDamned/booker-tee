@@ -74,7 +74,6 @@ class SessionStub:
         self.commit_count += 1
 
 
-@pytest.mark.asyncio
 async def test_mapping_import_replays_rows_and_template_once() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
@@ -115,7 +114,6 @@ async def test_mapping_import_replays_rows_and_template_once() -> None:
     assert session.commit_count == 1
 
 
-@pytest.mark.asyncio
 async def test_mapping_import_rejects_same_key_with_changed_payload() -> None:
     workspace_id = uuid4()
     document_id = uuid4()

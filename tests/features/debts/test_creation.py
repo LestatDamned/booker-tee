@@ -4,6 +4,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from debt_test_support import DebtTestSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account, AccountType
@@ -33,29 +34,6 @@ from app.features.ledger.repository import LedgerRepository
 from app.features.users.models import User
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-
-
-class NestedTransactionStub:
-    async def __aenter__(self) -> None:
-        return None
-
-    async def __aexit__(self, *args: object) -> None:
-        return None
-
-
-class SessionStub:
-    def __init__(self) -> None:
-        self.commits = 0
-        self.rollbacks = 0
-
-    def begin_nested(self) -> NestedTransactionStub:
-        return NestedTransactionStub()
-
-    async def commit(self) -> None:
-        self.commits += 1
-
-    async def rollback(self) -> None:
-        self.rollbacks += 1
 
 
 class AccountRepositoryStub:
@@ -109,13 +87,12 @@ class PostingServiceStub:
         return Operation(id=uuid4())
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("kind", "expected_balance"),
     [
-        (DebtKind.LOAN_RECEIVABLE, Decimal("100.00")),
-        (DebtKind.LOAN_PAYABLE, Decimal("-100.00")),
-        (DebtKind.MORTGAGE, Decimal("-100.00")),
+        pytest.param(DebtKind.LOAN_RECEIVABLE, Decimal("100.00"), id="receivable"),
+        pytest.param(DebtKind.LOAN_PAYABLE, Decimal("-100.00"), id="loan-payable"),
+        pytest.param(DebtKind.MORTGAGE, Decimal("-100.00"), id="mortgage"),
     ],
 )
 async def test_add_existing_debt_uses_signed_opening_balance_without_operation(
@@ -147,7 +124,6 @@ async def test_add_existing_debt_uses_signed_opening_balance_without_operation(
     assert posting.transfers == []
 
 
-@pytest.mark.asyncio
 async def test_give_loan_creates_receivable_transfer() -> None:
     context = workspace_context()
     funding = regular_account(context.workspace.id, currency="RUB")
@@ -168,7 +144,6 @@ async def test_give_loan_creates_receivable_transfer() -> None:
     assert posting.transfers[0]["amount"] == Decimal("100.00")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("kind", [DebtKind.LOAN_PAYABLE, DebtKind.MORTGAGE])
 async def test_take_loan_creates_payable_transfer(kind: DebtKind) -> None:
     context = workspace_context()
@@ -201,7 +176,6 @@ async def test_take_loan_creates_payable_transfer(kind: DebtKind) -> None:
     assert posting.transfers[0]["destination_account"] is receiving
 
 
-@pytest.mark.asyncio
 async def test_open_credit_card_uses_opening_balance_without_fake_operation() -> None:
     context = workspace_context()
     creator, accounts, _, posting = debt_creator()
@@ -227,8 +201,7 @@ async def test_open_credit_card_uses_opening_balance_without_fake_operation() ->
     assert posting.transfers == []
 
 
-@pytest.mark.asyncio
-async def test_same_creation_retry_replays_and_other_payload_conflicts() -> None:
+async def test_same_creation_retry_replays_without_duplicate_records() -> None:
     context = workspace_context()
     funding = regular_account(context.workspace.id, currency="RUB")
     creator, accounts, debts, posting = debt_creator([funding])
@@ -244,48 +217,83 @@ async def test_same_creation_retry_replays_and_other_payload_conflicts() -> None
     assert len(debts.created) == 1
     assert len(posting.transfers) == 1
 
+
+async def test_same_creation_key_with_changed_payload_conflicts_without_side_effects() -> None:
+    context = workspace_context()
+    funding = regular_account(context.workspace.id, currency="RUB")
+    creator, accounts, debts, posting = debt_creator([funding])
+    command = give_loan_command(funding.id)
+    await creator.give_loan(context=context, command=command)
+
     with pytest.raises(DebtIdempotencyConflictError):
         await creator.give_loan(
             context=context,
             command=command.model_copy(update={"amount": Decimal("101")}),
         )
 
+    assert len(accounts.created) == 1
+    assert len(debts.created) == 1
+    assert len(posting.transfers) == 1
 
-@pytest.mark.asyncio
-async def test_transfer_account_must_be_active_workspace_owned_and_same_currency() -> None:
+
+@pytest.mark.parametrize(
+    ("workspace_owned", "currency", "is_active", "expected_error"),
+    [
+        pytest.param(
+            False,
+            "RUB",
+            True,
+            DebtAccountUnavailableError,
+            id="foreign-workspace",
+        ),
+        pytest.param(
+            True,
+            "USD",
+            True,
+            DebtCurrencyMismatchError,
+            id="currency-mismatch",
+        ),
+        pytest.param(
+            True,
+            "RUB",
+            False,
+            DebtAccountUnavailableError,
+            id="inactive-account",
+        ),
+    ],
+)
+async def test_transfer_account_must_be_active_workspace_owned_and_same_currency(
+    workspace_owned: bool,
+    currency: str,
+    is_active: bool,
+    expected_error: type[Exception],
+) -> None:
     context = workspace_context()
-    foreign = regular_account(uuid4(), currency="RUB")
-    creator, _, _, _ = debt_creator([foreign])
+    account = regular_account(
+        context.workspace.id if workspace_owned else uuid4(),
+        currency=currency,
+    )
+    account.is_active = is_active
+    creator, accounts, debts, posting = debt_creator([account])
 
-    with pytest.raises(DebtAccountUnavailableError):
+    with pytest.raises(expected_error):
         await creator.give_loan(
             context=context,
-            command=give_loan_command(foreign.id),
+            command=give_loan_command(account.id),
         )
 
-    wrong_currency = regular_account(context.workspace.id, currency="USD")
-    creator, _, _, _ = debt_creator([wrong_currency])
-    with pytest.raises(DebtCurrencyMismatchError):
-        await creator.give_loan(
-            context=context,
-            command=give_loan_command(wrong_currency.id),
-        )
-
-    inactive = regular_account(context.workspace.id, currency="RUB")
-    inactive.is_active = False
-    creator, _, _, _ = debt_creator([inactive])
-    with pytest.raises(DebtAccountUnavailableError):
-        await creator.give_loan(
-            context=context,
-            command=give_loan_command(inactive.id),
-        )
+    assert accounts.created == []
+    assert debts.created == []
+    assert posting.transfers == []
 
 
-@pytest.mark.asyncio
 async def test_debt_service_rolls_back_when_creation_fails_after_account() -> None:
     context = workspace_context()
-    session = SessionStub()
-    creator, accounts, _, _ = debt_creator(session=session, fail_debt_create=True)
+    session = DebtTestSession()
+    creator, accounts, debts, posting = debt_creator(
+        session=session,
+        fail_debt_create=True,
+    )
     service = DebtService(cast(AsyncSession, session))
     service.creator = creator
 
@@ -306,17 +314,18 @@ async def test_debt_service_rolls_back_when_creation_fails_after_account() -> No
         )
 
     assert len(accounts.created) == 1
+    assert debts.created == []
+    assert posting.transfers == []
     assert session.commits == 0
     assert session.rollbacks == 1
 
 
-@pytest.mark.asyncio
 async def test_ledger_posting_creates_balanced_non_profit_debt_transfer() -> None:
     context = workspace_context()
     source = regular_account(context.workspace.id, currency="RUB")
     destination = regular_account(context.workspace.id, currency="RUB")
     ledger = LedgerRepositoryStub()
-    posting = LedgerPostingService(cast(AsyncSession, SessionStub()))
+    posting = LedgerPostingService(cast(AsyncSession, DebtTestSession()))
     posting.ledger = cast(LedgerRepository, ledger)
 
     operation = await posting.post_debt_transfer(
@@ -360,10 +369,10 @@ class LedgerRepositoryStub:
 def debt_creator(
     external_accounts: list[Account] | None = None,
     *,
-    session: SessionStub | None = None,
+    session: DebtTestSession | None = None,
     fail_debt_create: bool = False,
 ) -> tuple[DebtCreator, AccountRepositoryStub, DebtRepositoryStub, PostingServiceStub]:
-    session = session or SessionStub()
+    session = session or DebtTestSession()
     accounts = AccountRepositoryStub(external_accounts)
     debts = DebtRepositoryStub(fail_create=fail_debt_create)
     posting = PostingServiceStub()

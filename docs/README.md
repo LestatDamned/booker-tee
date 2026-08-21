@@ -1,76 +1,47 @@
-# Booker Tee Documentation
+# Booker Tee documentation
 
-Статус: актуальный индекс документации.
+Статус: индекс действующих документов.
 
-Документация хранит только действующие решения и текущие планы. Завершённые
-планы, миграционные снимки и superseded-спецификации удаляются: история остаётся
-в Git.
+Читайте `AGENTS.md`, этот индекс, один профильный документ, затем код и тесты.
+Завершённые планы и аудиты не хранятся рядом с действующими контрактами: их
+история остаётся в Git.
 
-## Как читать
+## Основные контракты
 
-Для любой задачи:
+| Область          | Документ                                                      |
+| ---------------- | ------------------------------------------------------------- |
+| Продукт          | [`PROJECT_VISION.md`](product/PROJECT_VISION.md)              |
+| Приоритеты       | [`ROADMAP.md`](product/ROADMAP.md)                            |
+| Финансы          | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)                   |
+| Архитектура      | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)             |
+| Тестирование     | [`TESTING.md`](TESTING.md)                                    |
+| Принятые решения | [`architecture/decisions`](architecture/decisions/README.md)  |
+| UI/UX            | [`DESIGN.md`](design/DESIGN.md)                               |
+| React-композиция | [`UI_FOUNDATION.md`](design/UI_FOUNDATION.md)                 |
+| React/API        | [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) |
 
-1. [`AGENTS.md`](../AGENTS.md);
-2. этот индекс;
-3. один профильный документ;
-4. код и тесты как окончательная проверка фактического состояния.
+## Feature contracts
 
-Не загружайте все документы одновременно.
+- [`Debts`](features/debts/README.md) — principal, interest и проводки.
+- [`Operations`](features/operations/README.md) — единый поток операций.
+- [`Reports`](features/reports/README.md) — period reports и XLSX.
+- [`Workspace collaboration`](features/workspaces/README.md) — роли,
+  invitations, concurrency и activity.
+- [`Chat integrations`](integrations/CHAT_INTEGRATIONS.md).
+- [`Unknown statement importer`](integrations/UNKNOWN_STATEMENT_IMPORTER.md).
 
-## Источники истины
+## Работа и эксплуатация
 
-| Область                 | Документ                                                                                 | Когда читать                                    |
-| ----------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Продукт                 | [`PROJECT_VISION.md`](product/PROJECT_VISION.md)                                         | Scope, пользователи, продуктовые принципы       |
-| Приоритеты              | [`ROADMAP.md`](product/ROADMAP.md)                                                       | Что делать после текущей задачи                 |
-| Финансы                 | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)                                              | Сущности, статусы, инварианты                   |
-| Код                     | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)                                        | Слои, границы features, transactions, security  |
-| UI/UX                   | [`DESIGN.md`](design/DESIGN.md)                                                          | Визуальный и interaction-контракт               |
-| UI-компоненты           | [`UI_FOUNDATION.md`](design/UI_FOUNDATION.md)                                            | Что переиспользовать и как компоновать страницы |
-| React/API               | [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md)                            | Текущая browser-архитектура и cutover           |
-| Формы                   | [`FORM_DESIGN.md`](design/FORM_DESIGN.md)                                                | React form composition и accessibility          |
-| Решения                 | [`decisions/README.md`](architecture/decisions/README.md)                                | Принятые ADR                                    |
-| Исполнение              | [`frontend/plan/README.md`](frontend/plan/README.md)                                     | Текущий migration stage                         |
-| Рефакторинг imports     | [`refactoring/imports/README.md`](refactoring/imports/README.md)                         | Активный план границ, этапов и тестов           |
-| Рефакторинг ledger      | [`refactoring/ledger/TARGET_ARCHITECTURE.md`](refactoring/ledger/TARGET_ARCHITECTURE.md) | Transaction, DTO и module boundaries            |
-| Месячный XLSX           | [`features/reports/README.md`](features/reports/README.md)                               | Спека и план Reports export                     |
-| Долги                   | [`features/debts/README.md`](features/debts/README.md)                                   | Модель долгов и пошаговая реализация            |
-| Операции                | [`features/operations/README.md`](features/operations/README.md)                         | Единый поток manual/import/debt/system операций |
-| Workspace collaboration | [`features/workspaces/README.md`](features/workspaces/README.md)                         | Invitations, roles, activity и hardening        |
-
-## Операционные документы
-
-- [`COMMANDS.md`](COMMANDS.md) — единый справочник локальных, deployment и
-  эксплуатационных CLI-команд.
-- [`Production deployment plan`](deploy/plan/README.md) — подготовка приложения,
-  Nginx, Telegram, backup/restore и первый production release.
-- [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md) — локальный запуск и smoke flow.
-- [`USER_GUIDE.md`](guides/USER_GUIDE.md) — короткая карта пользовательских
-  сценариев и терминов.
-- [`CHAT_INTEGRATIONS.md`](integrations/CHAT_INTEGRATIONS.md) — действующая
-  граница Telegram/chat integration.
-- [`UNKNOWN_STATEMENT_IMPORTER.md`](integrations/UNKNOWN_STATEMENT_IMPORTER.md) —
-  fallback и mapping неизвестных выписок.
-
-## Текущий frontend plan
-
-Stages 0–7 завершены. Все browser workflows каноничны в React; Jinja/HTMX/
-Alpine presentation stack удалён. Отдельным будущим решением остаётся только
-routing cutover временного `/app` prefix.
-
-- [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
-- [`Users and authentication`](frontend/plan/users/README.md)
-- [`Reports migration`](frontend/plan/reports/README.md)
-- [`Import documents and mapping`](frontend/plan/import-documents-and-mapping/README.md)
-- [`Categories migration`](frontend/plan/categories/README.md)
+- [`COMMANDS.md`](COMMANDS.md) — команды разработки и эксплуатации.
+- [`Production runbook`](deploy/plan/README.md).
+- [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md).
+- [`USER_GUIDE.md`](guides/USER_GUIDE.md).
 
 ## Правила поддержки
 
 - Один факт имеет один основной документ.
-- Кодовые имена, маршруты и статусы сверяются с текущим кодом.
-- Completed plan сворачивается в короткую запись в index и удаляется.
-- Новый документ создаётся только если у него есть отдельный долгоживущий
-  consumer.
-- Временные audits и measurements живут в task artifacts или Git history, а не
-  в активном `docs/`.
-- Битые ссылки и ссылки на удалённые реализации не допускаются.
+- Новый документ создаётся только для отдельного долгоживущего consumer.
+- Структуру файлов не пересказывают: её показывает код.
+- Completed plan удаляется; незавершённый пункт переносится в roadmap или
+  короткий активный план.
+- Даты прогонов, списки удалённых файлов и implementation diary остаются в Git.

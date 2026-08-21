@@ -118,9 +118,7 @@ async def test_workspace_create_commits_workspace_membership_audit_and_selection
     assert session.commit_count == 1
 
 
-async def test_workspace_create_replays_same_payload_and_rejects_changed_payload(
-    monkeypatch,
-) -> None:
+async def test_workspace_create_replays_same_payload_without_duplicate(monkeypatch) -> None:
     session, actor, repositories = creation_harness(monkeypatch)
     command = CreateWorkspaceCommand(
         name="Дом",
@@ -148,8 +146,17 @@ async def test_workspace_create_replays_same_payload_and_rejects_changed_payload
     assert replay.replayed is True
     assert len(repositories.workspaces.created) == 1
 
+
+async def test_workspace_create_rejects_changed_idempotency_payload(monkeypatch) -> None:
+    session, actor, repositories = creation_harness(monkeypatch)
+    repositories.workspaces.existing = SimpleNamespace(
+        name="Дом",
+        type=WorkspaceType.PERSONAL,
+        default_currency="RUB",
+    )
+
     with pytest.raises(WorkspaceIdempotencyConflictError):
-        await creator.create(
+        await creation.WorkspaceCreator(cast(AsyncSession, session)).create(
             actor=actor,
             session_token="session-token",
             command=CreateWorkspaceCommand(
@@ -157,8 +164,11 @@ async def test_workspace_create_replays_same_payload_and_rejects_changed_payload
                 workspace_type=WorkspaceType.PERSONAL,
                 default_currency="RUB",
             ),
-            idempotency_key=key,
+            idempotency_key=uuid4(),
         )
+
+    assert repositories.workspaces.created == []
+    assert session.commit_count == 0
 
 
 class FakeSession:

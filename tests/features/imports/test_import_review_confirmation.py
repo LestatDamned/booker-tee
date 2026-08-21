@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+from import_test_support import ImportTestSession
 from sqlalchemy.exc import IntegrityError
 
 from app.features.import_review.application.confirmation import (
@@ -29,18 +30,6 @@ from app.features.imports.models import RawTransaction
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.transaction_rules.errors import TransactionRuleError
-
-
-class SessionStub:
-    def __init__(self) -> None:
-        self.commits = 0
-        self.rollbacks = 0
-
-    async def commit(self) -> None:
-        self.commits += 1
-
-    async def rollback(self) -> None:
-        self.rollbacks += 1
 
 
 class ImportRepositoryStub:
@@ -148,12 +137,11 @@ class RuleCreatorStub:
         return SimpleNamespace(updated_raw_transaction_ids=frozenset({uuid4()}))
 
 
-@pytest.mark.asyncio
 async def test_confirmation_posts_once_with_server_checked_references() -> None:
     row = confirmable_row()
     command = confirmation_command(row)
     operation_id = uuid4()
-    session = SessionStub()
+    session = ImportTestSession()
     service = confirmation_service(session, row, operation_id=operation_id)
 
     result = await service.execute(context=workspace_context(), command=command)
@@ -173,10 +161,9 @@ async def test_confirmation_posts_once_with_server_checked_references() -> None:
     cast(Any, service._activity).import_review_item_confirmed.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_confirmation_rolls_back_when_activity_append_fails() -> None:
     row = confirmable_row()
-    session = SessionStub()
+    session = ImportTestSession()
     service = confirmation_service(session, row)
     cast(Any, service._activity).import_review_item_confirmed.side_effect = RuntimeError(
         "activity failed"
@@ -192,7 +179,6 @@ async def test_confirmation_rolls_back_when_activity_append_fails() -> None:
     assert session.rollbacks == 1
 
 
-@pytest.mark.asyncio
 async def test_confirmation_refreshes_validation_without_regressing_document_status() -> None:
     row = confirmable_row()
     document = row.uploaded_document
@@ -207,7 +193,7 @@ async def test_confirmation_refreshes_validation_without_regressing_document_sta
         validation_report_json={},
     )
     document.parse_attempts = [attempt]
-    session = SessionStub()
+    session = ImportTestSession()
     service = confirmation_service(session, row)
 
     await service.execute(
@@ -220,12 +206,11 @@ async def test_confirmation_refreshes_validation_without_regressing_document_sta
     assert session.commits == 1
 
 
-@pytest.mark.asyncio
 async def test_confirmation_replays_same_committed_idempotency_key() -> None:
     row = confirmable_row(status=RawTransactionStatus.CONFIRMED)
     command = confirmation_command(row, expected_status=RawTransactionStatus.MATCHED)
     operation_id = uuid4()
-    service = confirmation_service(SessionStub(), row, operation_id=operation_id)
+    service = confirmation_service(ImportTestSession(), row, operation_id=operation_id)
     row.linked_operation_id = operation_id
     service._actor._ledger = cast(
         Any,
@@ -249,17 +234,16 @@ async def test_confirmation_replays_same_committed_idempotency_key() -> None:
     cast(Any, service._activity).import_review_item_confirmed.assert_not_awaited()
 
 
-@pytest.mark.asyncio
 async def test_confirmation_rejects_stale_status_and_dedupe() -> None:
     row = confirmable_row(status=RawTransactionStatus.NEEDS_REVIEW)
     command = confirmation_command(row, expected_status=RawTransactionStatus.MATCHED)
-    stale = confirmation_service(SessionStub(), row)
+    stale = confirmation_service(ImportTestSession(), row)
 
     with pytest.raises(ImportReviewConfirmationConflictError, match="status has changed"):
         await stale.execute(context=workspace_context(), command=command)
 
     row.status = RawTransactionStatus.MATCHED
-    duplicate = confirmation_service(SessionStub(), row, duplicate=True)
+    duplicate = confirmation_service(ImportTestSession(), row, duplicate=True)
     with pytest.raises(ImportReviewConfirmationConflictError, match="dedupe hash"):
         await duplicate.execute(
             context=workspace_context(),
@@ -267,10 +251,9 @@ async def test_confirmation_rejects_stale_status_and_dedupe() -> None:
         )
 
 
-@pytest.mark.asyncio
 async def test_confirmation_rechecks_amount_type_and_rolls_back_rule_failure() -> None:
     row = confirmable_row()
-    invalid = confirmation_service(SessionStub(), row)
+    invalid = confirmation_service(ImportTestSession(), row)
     invalid_command = confirmation_command(row, operation_type=OperationType.INCOME)
 
     with pytest.raises(ImportReviewConfirmationValidationError) as invalid_result:
@@ -280,7 +263,7 @@ async def test_confirmation_rechecks_amount_type_and_rolls_back_rule_failure() -
         ReviewBlockingReasonCode.OPERATION_TYPE_AMOUNT_MISMATCH,
     )
 
-    session = SessionStub()
+    session = ImportTestSession()
     service = confirmation_service(session, row)
     service._actor._rule_creator = cast(
         Any,
@@ -296,10 +279,9 @@ async def test_confirmation_rechecks_amount_type_and_rolls_back_rule_failure() -
     assert session.rollbacks == 1
 
 
-@pytest.mark.asyncio
 async def test_confirmation_requires_manual_rule_pattern_before_posting() -> None:
     row = confirmable_row()
-    service = confirmation_service(SessionStub(), row)
+    service = confirmation_service(ImportTestSession(), row)
     command = confirmation_command(row, remember_rule=True)
     command = command.model_copy(update={"rule_pattern": "   "})
 
@@ -312,10 +294,9 @@ async def test_confirmation_requires_manual_rule_pattern_before_posting() -> Non
     assert cast(PostingStub, service._actor._posting).calls == []
 
 
-@pytest.mark.asyncio
 async def test_confirmation_actor_leaves_transaction_to_outer_workflow() -> None:
     row = confirmable_row()
-    session = SessionStub()
+    session = ImportTestSession()
     actor = confirmation_actor(session, row)
 
     await actor.apply(
@@ -327,7 +308,6 @@ async def test_confirmation_actor_leaves_transaction_to_outer_workflow() -> None
     assert session.rollbacks == 0
 
 
-@pytest.mark.asyncio
 async def test_confirmation_service_recovers_idempotent_replay_after_integrity_race() -> None:
     row = confirmable_row()
     command = confirmation_command(row)
@@ -346,7 +326,7 @@ async def test_confirmation_service_recovers_idempotent_replay_after_integrity_r
         async def find_replay(self, **_kwargs: object) -> object:
             return replay
 
-    session = SessionStub()
+    session = ImportTestSession()
     service = ImportReviewConfirmationService(
         cast(Any, session),
         cast(Any, RacingActorStub()),
@@ -360,7 +340,7 @@ async def test_confirmation_service_recovers_idempotent_replay_after_integrity_r
 
 
 def confirmation_service(
-    session: SessionStub,
+    session: ImportTestSession,
     row: object,
     *,
     operation_id: UUID | None = None,
@@ -381,7 +361,7 @@ def confirmation_service(
 
 
 def confirmation_actor(
-    session: SessionStub,
+    session: ImportTestSession,
     row: object,
     *,
     operation_id: UUID | None = None,

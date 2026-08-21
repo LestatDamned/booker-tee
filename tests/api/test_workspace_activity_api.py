@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi import FastAPI
 from manual_ledger_support import api_context
 
@@ -23,11 +24,10 @@ from app.features.workspaces.schemas import (
     WorkspaceActivityScope,
     WorkspaceActivitySummaryCode,
 )
-from app.main import create_app
 
 
-def test_workspace_activity_returns_keyset_page_and_no_store() -> None:
-    app, service, actor_id, workspace_id, activity = activity_app()
+def test_workspace_activity_returns_keyset_page_and_no_store(app: FastAPI) -> None:
+    app, service, actor_id, workspace_id, activity = activity_app(app)
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/workspaces/{workspace_id}/activity?limit=1")
@@ -49,20 +49,18 @@ def test_workspace_activity_returns_keyset_page_and_no_store() -> None:
     assert response.json()["nextCursor"]["scope"] == "all"
 
 
-def test_workspace_activity_passes_explicit_finance_scope() -> None:
-    app, service, _, workspace_id, _ = activity_app()
+def test_workspace_activity_passes_explicit_finance_scope(app: FastAPI) -> None:
+    app, service, _, workspace_id, _ = activity_app(app)
 
     with TestClient(app) as client:
-        response = client.get(
-            f"/api/v1/workspaces/{workspace_id}/activity?scope=finance"
-        )
+        response = client.get(f"/api/v1/workspaces/{workspace_id}/activity?scope=finance")
 
     assert response.status_code == 200
     assert service.read.await_args.kwargs["scope"] == WorkspaceActivityScope.FINANCE
 
 
-def test_workspace_activity_validates_cursor_pair() -> None:
-    app, service, _, workspace_id, _ = activity_app()
+def test_workspace_activity_validates_cursor_pair(app: FastAPI) -> None:
+    app, service, _, workspace_id, _ = activity_app(app)
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/workspaces/{workspace_id}/activity?beforeId={uuid4()}")
@@ -72,22 +70,43 @@ def test_workspace_activity_validates_cursor_pair() -> None:
     service.read.assert_not_awaited()
 
 
-def test_workspace_activity_maps_forbidden_and_not_found() -> None:
-    app, service, _, workspace_id, _ = activity_app()
+@pytest.mark.parametrize(
+    ("service_error", "status_code", "error_code"),
+    [
+        pytest.param(
+            WorkspaceActivityForbiddenError("forbidden"),
+            403,
+            "workspace_activity_forbidden",
+            id="forbidden",
+        ),
+        pytest.param(
+            WorkspaceNotFoundError("foreign"),
+            404,
+            "workspace_not_found",
+            id="not-found",
+        ),
+    ],
+)
+def test_workspace_activity_maps_access_error(
+    app: FastAPI,
+    service_error: Exception,
+    status_code: int,
+    error_code: str,
+) -> None:
+    app, service, _, workspace_id, _ = activity_app(app)
+    service.read.side_effect = service_error
 
     with TestClient(app) as client:
-        service.read.side_effect = WorkspaceActivityForbiddenError("forbidden")
-        forbidden = client.get(f"/api/v1/workspaces/{workspace_id}/activity")
-        service.read.side_effect = WorkspaceNotFoundError("foreign")
-        missing = client.get(f"/api/v1/workspaces/{workspace_id}/activity")
+        response = client.get(f"/api/v1/workspaces/{workspace_id}/activity")
 
-    assert forbidden.status_code == 403
-    assert forbidden.json()["error"]["code"] == "workspace_activity_forbidden"
-    assert missing.status_code == 404
-    assert missing.json()["error"]["code"] == "workspace_not_found"
+    assert response.status_code == status_code
+    assert response.json()["error"]["code"] == error_code
+    service.read.assert_awaited_once()
 
 
-def activity_app() -> tuple[FastAPI, AsyncMock, UUID, UUID, WorkspaceActivityDto]:
+def activity_app(
+    app: FastAPI,
+) -> tuple[FastAPI, AsyncMock, UUID, UUID, WorkspaceActivityDto]:
     context = api_context(role=WorkspaceRole.OWNER)
     workspace_id = uuid4()
     created_at = datetime(2026, 8, 10, 10, 30, tzinfo=UTC)
@@ -120,7 +139,6 @@ def activity_app() -> tuple[FastAPI, AsyncMock, UUID, UUID, WorkspaceActivityDto
     )
     service = AsyncMock()
     service.read.return_value = activity
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_activity_service] = lambda: service
     return app, service, context.workspace.user.id, workspace_id, activity

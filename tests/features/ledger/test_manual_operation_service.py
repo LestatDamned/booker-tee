@@ -18,10 +18,14 @@ from app.features.ledger.schemas.manual import (
 from app.features.workspaces.service import WorkspaceContext
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "source",
-    [None, OperationSource.BANK_PDF, OperationSource.DEBT, OperationSource.SYSTEM],
+    [
+        pytest.param(None, id="missing"),
+        pytest.param(OperationSource.BANK_PDF, id="bank-pdf"),
+        pytest.param(OperationSource.DEBT, id="debt"),
+        pytest.param(OperationSource.SYSTEM, id="system"),
+    ],
 )
 async def test_get_hides_missing_and_non_manual_operations(
     source: OperationSource | None,
@@ -45,7 +49,6 @@ async def test_get_hides_missing_and_non_manual_operations(
     lookup.assert_awaited_once_with(workspace_id, operation_id)
 
 
-@pytest.mark.asyncio
 async def test_create_returns_reloaded_read_dto(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -111,16 +114,7 @@ async def test_create_returns_reloaded_read_dto(
 
     result = await service.create(
         context=context,
-        command=CreateManualIncomeExpenseCommand(
-            operation_type=OperationType.INCOME,
-            account_id=uuid4(),
-            amount=Decimal("10.00"),
-            operation_date=date(2026, 7, 21),
-            description="Доход",
-            category_id=None,
-            property_id=None,
-            idempotency_key=uuid4(),
-        ),
+        command=manual_income_command(),
     )
 
     assert result is expected
@@ -129,8 +123,13 @@ async def test_create_returns_reloaded_read_dto(
     assert session.rollbacks == 0
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("replayed", [True, False])
+@pytest.mark.parametrize(
+    "replayed",
+    [
+        pytest.param(True, id="replay-skips-activity"),
+        pytest.param(False, id="activity-failure-rolls-back"),
+    ],
+)
 async def test_create_activity_is_idempotent_and_transactional(
     monkeypatch: pytest.MonkeyPatch,
     replayed: bool,
@@ -182,16 +181,7 @@ async def test_create_activity_is_idempotent_and_transactional(
             user=SimpleNamespace(id=uuid4()),
         ),
     )
-    command = CreateManualIncomeExpenseCommand(
-        operation_type=OperationType.INCOME,
-        account_id=uuid4(),
-        amount=Decimal("10.00"),
-        operation_date=date(2026, 7, 21),
-        description="Доход",
-        category_id=None,
-        property_id=None,
-        idempotency_key=uuid4(),
-    )
+    command = manual_income_command()
 
     if replayed:
         await service.create(context=context, command=command)
@@ -206,7 +196,6 @@ async def test_create_activity_is_idempotent_and_transactional(
         session.rollback.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_create_rolls_back_when_writer_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeRepository:
         def __init__(self, _session: object) -> None:
@@ -239,16 +228,7 @@ async def test_create_rolls_back_when_writer_fails(monkeypatch: pytest.MonkeyPat
                 WorkspaceContext,
                 SimpleNamespace(workspace=SimpleNamespace(id=uuid4())),
             ),
-            command=CreateManualIncomeExpenseCommand(
-                operation_type=OperationType.INCOME,
-                account_id=uuid4(),
-                amount=Decimal("10.00"),
-                operation_date=date(2026, 7, 21),
-                description="Доход",
-                category_id=None,
-                property_id=None,
-                idempotency_key=uuid4(),
-            ),
+            command=manual_income_command(),
         )
 
     assert session.commits == 0
@@ -269,4 +249,17 @@ def manual_operation_dto(operation_id: UUID) -> ManualOperationReadDto:
         destination_account=None,
         category=None,
         property=None,
+    )
+
+
+def manual_income_command() -> CreateManualIncomeExpenseCommand:
+    return CreateManualIncomeExpenseCommand(
+        operation_type=OperationType.INCOME,
+        account_id=uuid4(),
+        amount=Decimal("10.00"),
+        operation_date=date(2026, 7, 21),
+        description="Доход",
+        category_id=None,
+        property_id=None,
+        idempotency_key=uuid4(),
     )

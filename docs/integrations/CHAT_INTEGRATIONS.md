@@ -142,5 +142,6 @@ Feature хранит:
 - safe response and notification content;
 - fake provider без сети.
 
-Локальная внутренняя карта модуля находится в
-`src/app/features/chat_integrations/README.md`.
+Фактическая внутренняя карта определяется кодом в
+`src/app/features/chat_integrations/`; этот документ хранит только устойчивый
+product/security contract.

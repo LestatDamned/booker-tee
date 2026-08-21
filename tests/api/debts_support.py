@@ -35,7 +35,6 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 NOW = datetime(2026, 8, 9, 8, 30, tzinfo=UTC)
 
@@ -165,10 +164,10 @@ class DebtServiceStub:
 
 
 def debts_app(
+    app: FastAPI,
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, DebtReaderStub, DebtServiceStub, ApiRequestContext]:
-    app = create_app()
     context = api_context(role=role)
     detail = debt_detail(context.workspace.workspace.id)
     reader = DebtReaderStub(detail)

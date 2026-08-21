@@ -85,7 +85,6 @@ async def test_chat_manual_poster_records_only_new_operations(replayed: bool) ->
     assert activity.manual_operation_created.await_count == (0 if replayed else 1)
 
 
-@pytest.mark.asyncio
 async def test_chat_manual_confirmation_commits_operation_and_state_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -110,7 +109,6 @@ async def test_chat_manual_confirmation_commits_operation_and_state_once(
     assert session.rollbacks == 0
 
 
-@pytest.mark.asyncio
 async def test_chat_manual_confirmation_rolls_back_when_state_cannot_be_consumed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -146,7 +144,6 @@ def confirmation() -> ChatManualOperationConfirmation:
     )
 
 
-@pytest.mark.asyncio
 async def test_manual_state_consume_rejects_an_already_claimed_action() -> None:
     class ClaimedStateRepository:
         async def try_consume_active_conversation_state(

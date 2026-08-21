@@ -2,6 +2,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
+from fastapi import FastAPI
+
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import (
@@ -42,7 +44,6 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
 class MappingReaderStub:
@@ -127,11 +128,11 @@ class MappingImporterStub:
         )
 
 
-def test_mapping_read_api_returns_typed_safe_projection() -> None:
+def test_mapping_read_api_returns_typed_safe_projection(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     mapping = mapping_read_model()
     reader = MappingReaderStub(mapping)
-    app = mapping_app(context, reader)
+    app = mapping_app(app, context, reader)
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
@@ -153,11 +154,11 @@ def test_mapping_read_api_returns_typed_safe_projection() -> None:
     assert reader.read_calls[0]["workspace_id"] == context.workspace.workspace.id
 
 
-def test_mapping_preview_api_converts_visible_row_number_and_returns_scope() -> None:
+def test_mapping_preview_api_converts_visible_row_number_and_returns_scope(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     mapping = mapping_read_model()
     reader = MappingReaderStub(mapping)
-    app = mapping_app(context, reader)
+    app = mapping_app(app, context, reader)
 
     with TestClient(app) as client:
         response = client.post(
@@ -197,11 +198,11 @@ def test_mapping_preview_api_converts_visible_row_number_and_returns_scope() -> 
     ]
 
 
-def test_mapping_source_rows_api_returns_bounded_workspace_projection() -> None:
+def test_mapping_source_rows_api_returns_bounded_workspace_projection(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     mapping = mapping_read_model()
     reader = MappingReaderStub(mapping)
-    app = mapping_app(context, reader)
+    app = mapping_app(app, context, reader)
 
     with TestClient(app) as client:
         response = client.get(
@@ -231,7 +232,7 @@ def test_mapping_source_rows_api_returns_bounded_workspace_projection() -> None:
     ]
 
 
-def test_mapping_preview_api_returns_stable_field_errors() -> None:
+def test_mapping_preview_api_returns_stable_field_errors(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     mapping = mapping_read_model()
     error = MappingCommandValidationError(
@@ -250,7 +251,7 @@ def test_mapping_preview_api_returns_stable_field_errors() -> None:
             ),
         )
     )
-    app = mapping_app(context, MappingReaderStub(mapping, validation_error=error))
+    app = mapping_app(app, context, MappingReaderStub(mapping, validation_error=error))
 
     with TestClient(app) as client:
         response = client.post(
@@ -279,42 +280,48 @@ def test_mapping_preview_api_returns_stable_field_errors() -> None:
     }
 
 
-def test_mapping_api_allows_readonly_viewer_and_masks_analyst_and_other_workspace() -> None:
+def test_mapping_api_allows_readonly_viewer(app: FastAPI) -> None:
     mapping = mapping_read_model()
-    viewer_context = api_context(WorkspaceRole.VIEWER)
-    viewer_reader = MappingReaderStub(mapping)
-    viewer_app = mapping_app(viewer_context, viewer_reader)
+    reader = MappingReaderStub(mapping)
+    app = mapping_app(app, api_context(WorkspaceRole.VIEWER), reader)
 
-    with TestClient(viewer_app) as client:
-        visible = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
 
-    assert visible.status_code == 200
-    assert len(viewer_reader.read_calls) == 1
-
-    analyst_context = api_context(WorkspaceRole.ANALYST)
-    analyst_reader = MappingReaderStub(mapping)
-    analyst_app = mapping_app(analyst_context, analyst_reader)
-    with TestClient(analyst_app) as client:
-        forbidden = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
-
-    assert forbidden.status_code == 403
-    assert forbidden.json()["error"]["code"] == "raw_import_read_forbidden"
-    assert analyst_reader.read_calls == []
-
-    owner_context = api_context(WorkspaceRole.OWNER)
-    missing_app = mapping_app(owner_context, MappingReaderStub(None))
-    with TestClient(missing_app) as client:
-        missing = client.get(f"/api/v1/imports/documents/{uuid4()}/mapping")
-
-    assert missing.status_code == 404
-    assert missing.json()["error"]["code"] == "import_document_not_found"
+    assert response.status_code == 200
+    assert len(reader.read_calls) == 1
 
 
-def test_mapping_import_uses_idempotency_and_returns_review_target() -> None:
+def test_mapping_api_hides_raw_data_from_analyst(app: FastAPI) -> None:
+    mapping = mapping_read_model()
+    reader = MappingReaderStub(mapping)
+    app = mapping_app(app, api_context(WorkspaceRole.ANALYST), reader)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "raw_import_read_forbidden"
+    assert reader.read_calls == []
+
+
+def test_mapping_api_masks_document_outside_workspace(app: FastAPI) -> None:
+    reader = MappingReaderStub(None)
+    app = mapping_app(app, api_context(WorkspaceRole.OWNER), reader)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/imports/documents/{uuid4()}/mapping")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "import_document_not_found"
+    assert len(reader.read_calls) == 1
+
+
+def test_mapping_import_uses_idempotency_and_returns_review_target(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     mapping = mapping_read_model()
     importer = MappingImporterStub()
-    app = mapping_app(context, MappingReaderStub(mapping), importer)
+    app = mapping_app(app, context, MappingReaderStub(mapping), importer)
     idempotency_key = uuid4()
 
     with TestClient(app) as client:
@@ -351,11 +358,11 @@ def test_mapping_import_uses_idempotency_and_returns_review_target() -> None:
     }
 
 
-def test_mapping_import_requires_key_and_maps_payload_conflict() -> None:
+def test_mapping_import_requires_idempotency_key(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     mapping = mapping_read_model()
     importer = MappingImporterStub()
-    app = mapping_app(context, MappingReaderStub(mapping), importer)
+    app = mapping_app(app, context, MappingReaderStub(mapping), importer)
     payload = {
         "mapping": {
             "tableRef": {"pageNumber": 1, "tableIndex": 0},
@@ -369,22 +376,43 @@ def test_mapping_import_requires_key_and_maps_payload_conflict() -> None:
     }
 
     with TestClient(app) as client:
-        missing_key = client.post(
+        response = client.post(
             f"/api/v1/imports/documents/{mapping.document_id}/mapping/import",
             json=payload,
         )
 
-        importer.error = MappingImportIdempotencyConflictError("Ключ уже использован.")
-        conflict = client.post(
+    assert response.status_code == 422
+    assert "Idempotency-Key" in str(response.json())
+    assert importer.calls == []
+
+
+def test_mapping_import_maps_payload_conflict(app: FastAPI) -> None:
+    context = api_context(WorkspaceRole.OWNER)
+    mapping = mapping_read_model()
+    importer = MappingImporterStub()
+    importer.error = MappingImportIdempotencyConflictError("Ключ уже использован.")
+    app = mapping_app(app, context, MappingReaderStub(mapping), importer)
+
+    with TestClient(app) as client:
+        response = client.post(
             f"/api/v1/imports/documents/{mapping.document_id}/mapping/import",
             headers={"Idempotency-Key": str(uuid4())},
-            json=payload,
+            json={
+                "mapping": {
+                    "tableRef": {"pageNumber": 1, "tableIndex": 0},
+                    "operationDateColumn": 0,
+                    "descriptionColumn": 1,
+                    "amountColumn": 2,
+                    "firstDataRowNumber": 2,
+                    "defaultCurrency": "RUB",
+                    "unsignedAmountDirection": "require_sign",
+                }
+            },
         )
 
-    assert missing_key.status_code == 422
-    assert "Idempotency-Key" in str(missing_key.json())
-    assert conflict.status_code == 409
-    assert conflict.json()["error"]["code"] == "mapping_import_idempotency_conflict"
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "mapping_import_idempotency_conflict"
+    assert len(importer.calls) == 1
 
 
 def mapping_read_model() -> StatementMappingOverview:
@@ -419,11 +447,11 @@ def mapping_read_model() -> StatementMappingOverview:
 
 
 def mapping_app(
+    app: FastAPI,
     context: ApiRequestContext,
     reader: MappingReaderStub,
     importer: MappingImporterStub | None = None,
 ):
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_statement_mapping_overview_reader] = lambda: cast(
         Any,

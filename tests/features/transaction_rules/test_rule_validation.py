@@ -35,29 +35,46 @@ def test_rule_fields_normalize_whitespace_and_build_bounded_name() -> None:
     assert fields.name == "OZON MARKET -> Маркетплейсы"
 
 
-@pytest.mark.parametrize("pattern", ["", "   ", "12345", "*** 123 ***"])
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        pytest.param("", id="empty"),
+        pytest.param("   ", id="whitespace-only"),
+        pytest.param("12345", id="digits-only"),
+        pytest.param("*** 123 ***", id="punctuation-and-digits"),
+    ],
+)
 def test_rule_pattern_requires_searchable_text(pattern: str) -> None:
     with pytest.raises(TransactionRuleValidationError):
         validate(pattern=pattern)
 
 
-def test_rule_pattern_and_explicit_name_reject_oversize_values() -> None:
-    with pytest.raises(TransactionRuleValidationError, match="pattern"):
-        validate(pattern="x" * 256)
-    with pytest.raises(TransactionRuleValidationError, match="name"):
-        validate(name="x" * 256)
+@pytest.mark.parametrize(
+    ("name", "pattern", "expected_field"),
+    [
+        pytest.param(None, "x" * 256, "pattern", id="pattern"),
+        pytest.param("x" * 256, "OZON", "name", id="explicit-name"),
+    ],
+)
+def test_rule_text_fields_reject_oversize_values(
+    name: str | None,
+    pattern: str,
+    expected_field: str,
+) -> None:
+    with pytest.raises(TransactionRuleValidationError, match=expected_field):
+        validate(name=name, pattern=pattern)
 
 
 @pytest.mark.parametrize(
     ("amount_min", "amount_max"),
     [
-        (Decimal("-0.01"), None),
-        (None, Decimal("-0.01")),
-        (Decimal("10.01"), Decimal("10.00")),
-        (Decimal("NaN"), None),
-        (None, Decimal("Infinity")),
-        (Decimal("0.001"), None),
-        (None, Decimal("1000000000000.00")),
+        pytest.param(Decimal("-0.01"), None, id="negative-minimum"),
+        pytest.param(None, Decimal("-0.01"), id="negative-maximum"),
+        pytest.param(Decimal("10.01"), Decimal("10.00"), id="reversed-range"),
+        pytest.param(Decimal("NaN"), None, id="non-finite-minimum"),
+        pytest.param(None, Decimal("Infinity"), id="non-finite-maximum"),
+        pytest.param(Decimal("0.001"), None, id="excess-precision"),
+        pytest.param(None, Decimal("1000000000000.00"), id="maximum-too-large"),
     ],
 )
 def test_rule_amount_range_rejects_invalid_bounds(

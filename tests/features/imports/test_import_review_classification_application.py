@@ -57,7 +57,6 @@ class CategoryWriterStub:
         )
 
 
-@pytest.mark.asyncio
 async def test_draft_evaluator_applies_explicit_classification_and_real_category() -> None:
     item = row()
     document = SimpleNamespace(
@@ -92,7 +91,6 @@ async def test_draft_evaluator_applies_explicit_classification_and_real_category
     assert result.confirmability.can_confirm is True
 
 
-@pytest.mark.asyncio
 async def test_draft_evaluator_rejects_category_outside_workspace() -> None:
     item = row()
     evaluator = ImportReviewDraftEvaluator(
@@ -117,7 +115,6 @@ async def test_draft_evaluator_rejects_category_outside_workspace() -> None:
     assert error.value.field == "categoryId"
 
 
-@pytest.mark.asyncio
 async def test_category_creator_does_not_create_for_unknown_review_item() -> None:
     writer = CategoryWriterStub()
     creator = ImportReviewCategoryCreator(

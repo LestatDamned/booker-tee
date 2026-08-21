@@ -8,7 +8,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
-from app.features.chat_integrations import service as chat_service
 from app.features.chat_integrations.actions.review import (
     ChatReviewCategoryPageSelection,
     ChatReviewCategorySelection,
@@ -19,18 +18,7 @@ from app.features.chat_integrations.handlers import (
     review_confirmation as chat_review_confirmation_handler,
 )
 from app.features.chat_integrations.handlers import review_queue as chat_review_queue_handler
-from app.features.chat_integrations.schemas import (
-    ChatConversation,
-    ChatConversationType,
-    ChatProviderCode,
-    ChatUser,
-    InboundChatEvent,
-    InboundChatEventType,
-)
 from app.features.chat_integrations.service import ChatEventService
-from app.features.chat_integrations.use_cases import (
-    workspace as chat_workspace,
-)
 from app.features.chat_integrations.use_cases.review import (
     dto as chat_review_dto,
 )
@@ -39,6 +27,8 @@ from app.features.chat_integrations.use_cases.review.confirmation import (
 )
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.workspaces.service import WorkspaceContext
+
+from .chat_test_support import bound_chat_workspace, callback_event, patch_bound_workspace
 
 
 def _build_chat_review_queue_item(
@@ -87,7 +77,6 @@ def _patch_next_review_item_after_action(
     )
 
 
-@pytest.mark.asyncio
 async def test_chat_confirmation_claims_action_and_applies_shared_actor_before_commit() -> None:
     events: list[str] = []
     commands: list[object] = []
@@ -173,7 +162,6 @@ async def test_chat_confirmation_claims_action_and_applies_shared_actor_before_c
     assert result.action_result.action_label == "операция подтверждена"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_starts_review_confirmation_category_menu(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -181,22 +169,7 @@ async def test_chat_event_service_starts_review_confirmation_category_menu(
     document_id = uuid4()
     raw_transaction_id = uuid4()
     category_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
+    bound_workspace = bound_chat_workspace(workspace_id)
 
     class FakeChatReviewConfirmationService:
         def __init__(self, _session: object, _settings: Settings) -> None:
@@ -234,26 +207,14 @@ async def test_chat_event_service_starts_review_confirmation_category_menu(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_confirmation_handler,
         "ChatReviewConfirmationService",
         FakeChatReviewConfirmationService,
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rev:reviewtoken:conf",
-    )
+    event = callback_event("rev:reviewtoken:conf")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -269,29 +230,13 @@ async def test_chat_event_service_starts_review_confirmation_category_menu(
     assert response.buttons[1][0].callback_data == "rvb:categorytoken"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_changes_review_category_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
     document_id = uuid4()
     raw_transaction_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
+    bound_workspace = bound_chat_workspace(workspace_id)
 
     class FakeChatReviewConfirmationService:
         def __init__(self, _session: object, _settings: Settings) -> None:
@@ -333,7 +278,7 @@ async def test_chat_event_service_changes_review_category_page(
                 page_start_index=7,
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_confirmation_handler,
         "ChatReviewConfirmationService",
@@ -341,19 +286,7 @@ async def test_chat_event_service_changes_review_category_page(
     )
     _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rcp:categorytoken:1",
-    )
+    event = callback_event("rcp:categorytoken:1")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -366,30 +299,14 @@ async def test_chat_event_service_changes_review_category_page(
     assert response.buttons[1][0].callback_data == "rcp:categorytoken:0"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_returns_to_same_review_item(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
     document_id = uuid4()
     raw_transaction_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
     returned_tokens: list[str] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatReviewQueueService:
         def __init__(self, _session: object) -> None:
@@ -421,24 +338,12 @@ async def test_chat_event_service_returns_to_same_review_item(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_queue_handler, "ChatReviewQueueService", FakeChatReviewQueueService
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rvb:categorytoken",
-    )
+    event = callback_event("rvb:categorytoken")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -454,28 +359,12 @@ async def test_chat_event_service_returns_to_same_review_item(
     )
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_confirms_review_item_with_category(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
     selected_categories: list[int] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatReviewConfirmationService:
         def __init__(self, _session: object, _settings: Settings) -> None:
@@ -496,7 +385,7 @@ async def test_chat_event_service_confirms_review_item_with_category(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_confirmation_handler,
         "ChatReviewConfirmationService",
@@ -504,19 +393,7 @@ async def test_chat_event_service_confirms_review_item_with_category(
     )
     _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rvc:categorytoken:1",
-    )
+    event = callback_event("rvc:categorytoken:1")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -530,7 +407,6 @@ async def test_chat_event_service_confirms_review_item_with_category(
     assert response.buttons[0][0].callback_data == "rev:nexttoken:conf"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_shows_property_menu_after_category_selection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -538,22 +414,7 @@ async def test_chat_event_service_shows_property_menu_after_category_selection(
     document_id = uuid4()
     raw_transaction_id = uuid4()
     property_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
+    bound_workspace = bound_chat_workspace(workspace_id)
 
     class FakeChatReviewConfirmationService:
         def __init__(self, _session: object, _settings: Settings) -> None:
@@ -599,26 +460,14 @@ async def test_chat_event_service_shows_property_menu_after_category_selection(
                 )
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_confirmation_handler,
         "ChatReviewConfirmationService",
         FakeChatReviewConfirmationService,
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rvc:categorytoken:0",
-    )
+    event = callback_event("rvc:categorytoken:0")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -636,28 +485,12 @@ async def test_chat_event_service_shows_property_menu_after_category_selection(
     assert response.buttons[2][0].callback_data == "rvb:propertytoken"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_confirms_review_item_with_property(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
     selected_properties: list[int] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatReviewConfirmationService:
         def __init__(self, _session: object, _settings: Settings) -> None:
@@ -678,7 +511,7 @@ async def test_chat_event_service_confirms_review_item_with_property(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_confirmation_handler,
         "ChatReviewConfirmationService",
@@ -686,19 +519,7 @@ async def test_chat_event_service_confirms_review_item_with_property(
     )
     _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rvp:propertytoken:1",
-    )
+    event = callback_event("rvp:propertytoken:1")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),

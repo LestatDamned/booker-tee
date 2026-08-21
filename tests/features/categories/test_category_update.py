@@ -11,7 +11,6 @@ from app.features.categories.models import Category, CategoryKind
 from app.features.categories.service import CategoryService, CategoryUpdateConflictError
 
 
-@pytest.mark.asyncio
 async def test_category_update_rejects_stale_editor_before_mutation() -> None:
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 1, 8, 30, tzinfo=UTC)
@@ -54,7 +53,6 @@ async def test_category_update_rejects_stale_editor_before_mutation() -> None:
     commit.assert_not_awaited()
 
 
-@pytest.mark.asyncio
 async def test_category_update_commits_without_rewriting_financial_history() -> None:
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 1, 8, 30, tzinfo=UTC)

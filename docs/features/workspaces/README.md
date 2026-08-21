@@ -1,89 +1,68 @@
 # Workspace collaboration
 
-Статус: базовый multi-user workflow, адресные invitations, role capabilities,
-единый manager-only журнал administrative/financial activity, explicit limits,
-repository/API/chat isolation, PostgreSQL concurrency gate и локальный two-user
-browser smoke реализованы и проверены. Реальная SMTP-доставка остаётся production
-rollout gate.
+Статус: действующий security и collaboration contract для малой команды.
 
-Workspace — строгая граница финансовых данных. Collaboration не
-создаёт второй ledger или отдельный team backend: несколько
-пользователей работают с теми же workspace-scoped entities через
-общие application services и repositories.
+Workspace — строгая граница финансовых данных. Collaboration использует те же
+application services, repositories и ledger, а не отдельный team backend.
 
-```text
-React workspace UI
-  -> /api/v1/workspaces/*
-  -> workspace application service
-  -> permission policy + workspace-scoped repository
-  -> PostgreSQL
-```
+## Роли
 
-## Что уже работает
+| Capability                    | Owner | Admin | Editor | Uploader | Analyst |    Viewer |
+| ----------------------------- | ----: | ----: | -----: | -------: | ------: | --------: |
+| Финансовые reads              |     ✓ |     ✓ |      ✓ |        ✓ |       ✓ |         ✓ |
+| Financial mutations           |     ✓ |     ✓ |      ✓ |        — |       — |         — |
+| Import management             |     ✓ |     ✓ |      ✓ |        ✓ |       — |         — |
+| Raw import data               |     ✓ |     ✓ |      ✓ |        ✓ |       — | read-only |
+| Team directory/activity       |     ✓ |     ✓ |      — |        — |       — |         — |
+| Members/invitations           |     ✓ |     ✓ |      — |        — |       — |         — |
+| Ownership/workspace lifecycle |     ✓ |     — |      — |        — |       — |         — |
 
-- создание, directory и переключение workspace;
-- membership с ролями и активным/отключённым статусом;
-- приглашение на конкретный verified email, email delivery, accept и revoke;
-- изменение роли, disable/reactivate, self-leave;
-- атомарная передача ownership;
-- deactivate/restore workspace с fallback sessions;
-- optimistic concurrency, row locks и idempotency для опасных
-  transitions;
-- workspace audit events для administrative mutations;
-- React экраны workspace directory, settings, members и invitations;
-- отдельный owner/admin activity timeline с URL-фильтрами, safe typed projection,
-  entity links и keyset pagination;
-- различимый доступ всех шести ролей: analyst не получает raw import data,
-  viewer читает её без mutation, team directory доступен только owner/admin;
-- session capabilities управляют React navigation, но сервер повторно проверяет
-  каждую raw/team boundary.
+Конкретную capability всегда проверяет backend policy. Session capabilities
+нужны React для navigation, но не заменяют server authorization. Uploader
+управляет import documents/mapping, но не подтверждает ledger mutation. Analyst
+не получает raw imported data; viewer не получает mutation.
 
-## Цель укрепления
+## Invitations
 
-Довести collaboration до надёжного сценария малой команды:
+Invitation связана с normalized verified email, workspace, role, expiry и
+single-use token. Public preview и ошибки не раскрывают наличие user или
+membership. Accept требует authenticated user с совпадающим verified email,
+активный workspace и pending invitation.
 
-1. каждая выдаваемая роль имеет отличимый и тестируемый смысл;
-2. owner/admin видит на отдельной странице значимые administrative и financial
-   mutations с persisted actor;
-3. simultaneous mutations не перезаписывают чужие изменения;
-4. workspace isolation подтверждена для всех browser/API/chat
-   boundaries;
-5. лимит малой команды явный, а не молчаливое обрезание списка.
+Create, resend, revoke и accept идемпотентны или возвращают стабильный conflict.
+Email delivery не владеет membership transaction; failure сохраняет безопасное
+состояние для retry. Реальная SMTP-доставка остаётся production gate.
 
-## Границы
+## Membership и lifecycle
 
-Этот план не включает:
+Поддерживаются role change, disable/reactivate, self-leave, ownership transfer и
+workspace deactivate/restore. Нельзя удалить/отключить последнего owner или
+обойти ownership transfer. Опасные переходы используют optimistic version и,
+где нужен единственный победитель, row lock.
 
-- realtime presence, WebSocket и live cursors;
-- comments, mentions и review assignments;
-- произвольные custom roles и permission builder;
-- organisation hierarchy и groups;
-- cross-workspace movements и consolidated workspaces;
-- PostgreSQL RLS при текущем single-backend access model;
-- background queue только ради invitation email.
+При потере доступа active workspace в session заменяется валидным fallback без
+раскрытия данных прежнего workspace.
 
-Эти capabilities появляются только после подтверждённого product scenario.
+## Activity
 
-## Документы
+Owner/admin видит единый keyset-paginated journal значимых administrative и
+financial mutations. Event записывается в той же transaction, что и mutation,
+с actor, workspace, entity reference, timestamp и versioned typed details.
 
-- [`EMAIL_BOUND_INVITATIONS.md`](EMAIL_BOUND_INVITATIONS.md) — адресные
-  invitations, delivery, accept и membership recovery;
-- [`ROLE_CAPABILITIES.md`](ROLE_CAPABILITIES.md) — каноническая
-  permission matrix и смысл `analyst`;
-- [`ACTIVITY_AND_AUTHORSHIP.md`](ACTIVITY_AND_AUTHORSHIP.md) — единый manager-only
-  журнал значимых administrative и financial actions;
-- [`COLLABORATION_HARDENING.md`](COLLABORATION_HARDENING.md) — isolation,
-  concurrency, explicit limits и security gates;
-- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — порядок vertical slices,
-  проверки и exit gates.
+Details содержат только безопасные identifiers, amounts/currencies и outcome;
+tokens, email delivery payloads, raw documents, descriptions и account numbers
+не сохраняются. Это operational history, не compliance audit. Event bus/outbox
+не нужен без external consumer.
 
-Общий runtime contract остаётся в
-[`src/app/features/workspaces/README.md`](../../../src/app/features/workspaces/README.md),
-а общие architecture и financial invariants — в
-[`docs/architecture/ARCHITECTURE.md`](../../architecture/ARCHITECTURE.md) и
-[`docs/domain/DOMAIN_MODEL.md`](../../domain/DOMAIN_MODEL.md).
+## Concurrency и isolation
 
-Stage 4 implementation обязана следовать принятым constraints из
-[`ACTIVITY_AND_AUTHORSHIP.md`](ACTIVITY_AND_AUTHORSHIP.md): transactional append,
-узкий activity writer/repository, explicit replay outcome, typed/versioned payload
-и отсутствие event bus/outbox без external consumer.
+- Каждый repository lookup фильтрует `workspace_id` или валидирует owned parent.
+- Client workspace id и role никогда не считаются доказательством доступа.
+- Version conflicts возвращают stable `409`; replay не повторяет side effects.
+- DB constraints защищают unique membership/invitation и ownership invariants.
+- PostgreSQL RLS не используется при текущем single-backend access model.
+- Явные limits малой команды возвращают ошибку, а не молча обрезают directory.
+
+Обязательные проверки: two-workspace isolation, cross-role API/chat/browser
+access, concurrent invitation/membership/ownership transitions, session fallback
+и отсутствие sensitive activity details.

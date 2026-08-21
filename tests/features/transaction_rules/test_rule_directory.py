@@ -10,6 +10,7 @@ from app.features.ledger.models import OperationType
 from app.features.properties.models import Property, PropertyStatus
 from app.features.transaction_rules.application.directory import (
     TransactionRuleDirectoryReader,
+    enable_blocked_reason,
 )
 from app.features.transaction_rules.models import (
     MoneyDirection,
@@ -21,7 +22,10 @@ from app.features.transaction_rules.repository import (
     TransactionRuleDirectoryResult,
     TransactionRuleDirectoryRow,
 )
-from app.features.transaction_rules.schemas import TransactionRuleDirectoryStatus
+from app.features.transaction_rules.schemas import (
+    TransactionRuleDirectoryStatus,
+    TransactionRuleEnableBlockedReason,
+)
 
 
 class TransactionRuleDirectorySourceStub:
@@ -80,7 +84,54 @@ class TransactionRuleDirectorySourceStub:
         return self.target_suggestion_count
 
 
-@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("attribute", "reference", "expected"),
+    [
+        pytest.param(
+            "category",
+            Category(
+                workspace_id=uuid4(),
+                name="Архивная категория",
+                kind=CategoryKind.EXPENSE,
+                is_active=False,
+            ),
+            TransactionRuleEnableBlockedReason.CATEGORY_INACTIVE,
+            id="category",
+        ),
+        pytest.param(
+            "property",
+            Property(
+                workspace_id=uuid4(),
+                name="Архивный объект",
+                status=PropertyStatus.ARCHIVED,
+            ),
+            TransactionRuleEnableBlockedReason.PROPERTY_ARCHIVED,
+            id="property",
+        ),
+        pytest.param(
+            "account",
+            Account(
+                workspace_id=uuid4(),
+                name="Архивный счёт",
+                currency="RUB",
+                is_active=False,
+            ),
+            TransactionRuleEnableBlockedReason.ACCOUNT_UNAVAILABLE,
+            id="account",
+        ),
+    ],
+)
+def test_enable_blocked_reason_identifies_each_unavailable_target(
+    attribute: str,
+    reference: Category | Property | Account,
+    expected: TransactionRuleEnableBlockedReason,
+) -> None:
+    rule = transaction_rule(reference.workspace_id)
+    setattr(rule, attribute, reference)
+
+    assert enable_blocked_reason(rule) == expected
+
+
 async def test_directory_projects_complete_rule_meaning_and_archived_references() -> None:
     workspace_id = uuid4()
     category = Category(
@@ -153,7 +204,6 @@ async def test_directory_projects_complete_rule_meaning_and_archived_references(
     assert source.property_calls == [(workspace_id, {property_.id})]
 
 
-@pytest.mark.asyncio
 async def test_viewer_directory_is_read_only_and_read_has_no_mutation_dependency() -> None:
     workspace_id = uuid4()
     rule = transaction_rule(workspace_id, is_active=True)
@@ -188,7 +238,6 @@ async def test_viewer_directory_is_read_only_and_read_has_no_mutation_dependency
     assert not capabilities.can_delete
 
 
-@pytest.mark.asyncio
 async def test_directory_returns_a_target_outside_the_current_page() -> None:
     workspace_id = uuid4()
     page_rule = transaction_rule(workspace_id)

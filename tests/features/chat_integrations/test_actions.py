@@ -63,11 +63,29 @@ from app.features.chat_integrations.providers.telegram import (
 )
 
 
-def test_telegram_callback_data_is_limited_to_64_bytes() -> None:
-    assert TelegramCallbackDataPolicy.ensure_callback_data("expense:start") == "expense:start"
+@pytest.mark.parametrize(
+    "callback_data",
+    [
+        pytest.param("x", id="one-byte"),
+        pytest.param("x" * 64, id="64-ascii-bytes"),
+        pytest.param("я" * 32, id="64-utf8-bytes"),
+    ],
+)
+def test_telegram_callback_data_accepts_1_to_64_utf8_bytes(callback_data: str) -> None:
+    assert TelegramCallbackDataPolicy.ensure_callback_data(callback_data) == callback_data
 
+
+@pytest.mark.parametrize(
+    "callback_data",
+    [
+        pytest.param("", id="empty"),
+        pytest.param("x" * 65, id="65-ascii-bytes"),
+        pytest.param("я" * 33, id="66-utf8-bytes"),
+    ],
+)
+def test_telegram_callback_data_rejects_values_outside_byte_limit(callback_data: str) -> None:
     with pytest.raises(TelegramUpdateNormalizationError):
-        TelegramCallbackDataPolicy.ensure_callback_data("x" * 65)
+        TelegramCallbackDataPolicy.ensure_callback_data(callback_data)
 
 
 def test_chat_review_callback_data_is_short_and_parseable() -> None:
@@ -107,6 +125,9 @@ def test_chat_review_callback_data_is_short_and_parseable() -> None:
         )
         is not None
     )
+
+
+def test_chat_review_rule_callback_data_is_short_and_parseable() -> None:
     rule_save_callback_data = ChatReviewRuleSuggestionCallbackData.build_save_action(
         action_token="shorttoken",
     )
@@ -128,6 +149,9 @@ def test_chat_review_callback_data_is_short_and_parseable() -> None:
     assert ChatReviewRulePatternCallbackData.parse_pattern_selection(
         rule_pattern_callback_data
     ) == ChatReviewRulePatternSelection(action_token="shorttoken", pattern_index=2)
+
+
+def test_chat_workspace_callback_data_is_short_and_parseable() -> None:
     workspace_callback_data = ChatWorkspaceCallbackData.build_workspace_selection(
         action_token="shorttoken",
         workspace_index=1,
@@ -137,6 +161,9 @@ def test_chat_review_callback_data_is_short_and_parseable() -> None:
     assert ChatWorkspaceCallbackData.parse_workspace_selection(workspace_callback_data) == (
         ChatWorkspaceSelection(action_token="shorttoken", workspace_index=1)
     )
+
+
+def test_chat_summary_callback_data_is_short_and_parseable() -> None:
     summary_callback_data = ChatSummaryCallbackData.build_period_selection(
         month_start=date(2026, 7, 1),
     )

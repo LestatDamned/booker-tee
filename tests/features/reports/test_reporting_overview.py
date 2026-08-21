@@ -114,7 +114,6 @@ class ReportingRepositoryStub:
         return ReportUncategorizedPage(items=[], page=page, page_size=page_size, total=0)
 
 
-@pytest.mark.asyncio
 async def test_reporting_reader_applies_default_currency_and_constant_read_shape() -> None:
     repository = ReportingRepositoryStub()
     workspace_id = uuid4()
@@ -167,7 +166,6 @@ async def test_reporting_reader_applies_default_currency_and_constant_read_shape
     assert overview.uncategorized.page == 2
 
 
-@pytest.mark.asyncio
 async def test_reporting_reader_rejects_inverted_date_range_before_reads() -> None:
     repository = ReportingRepositoryStub()
 
@@ -185,18 +183,45 @@ async def test_reporting_reader_rejects_inverted_date_range_before_reads() -> No
     assert repository.calls == []
 
 
-@pytest.mark.asyncio
-async def test_reporting_reader_rejects_foreign_workspace_reference() -> None:
+@pytest.mark.parametrize(
+    ("filters", "expected_code"),
+    [
+        pytest.param(
+            ReportingFilters(account_id=uuid4()),
+            "report_filter_not_found",
+            id="account",
+        ),
+        pytest.param(
+            ReportingFilters(category_id=uuid4()),
+            "report_filter_not_found",
+            id="category",
+        ),
+        pytest.param(
+            ReportingFilters(property_id=uuid4()),
+            "report_filter_not_found",
+            id="property",
+        ),
+        pytest.param(
+            ReportingFilters(currency="EUR"),
+            "invalid_report_currency",
+            id="currency",
+        ),
+    ],
+)
+async def test_reporting_reader_rejects_unavailable_filter_before_report_reads(
+    filters: ReportingFilters,
+    expected_code: str,
+) -> None:
     repository = ReportingRepositoryStub()
 
     with pytest.raises(ReportingFilterError) as error:
         await ReportingOverviewReader(repository).read(
             workspace_id=uuid4(),
             default_currency="RUB",
-            filters=ReportingFilters(account_id=uuid4()),
+            filters=filters,
         )
 
-    assert error.value.code == "report_filter_not_found"
+    assert error.value.code == expected_code
     assert [call[0] for call in repository.calls] == [
         "accounts",
         "categories",
@@ -204,21 +229,6 @@ async def test_reporting_reader_rejects_foreign_workspace_reference() -> None:
     ]
 
 
-@pytest.mark.asyncio
-async def test_reporting_reader_rejects_currency_not_owned_by_workspace_accounts() -> None:
-    repository = ReportingRepositoryStub()
-
-    with pytest.raises(ReportingFilterError) as error:
-        await ReportingOverviewReader(repository).read(
-            workspace_id=uuid4(),
-            default_currency="RUB",
-            filters=ReportingFilters(currency="EUR"),
-        )
-
-    assert error.value.code == "invalid_report_currency"
-
-
-@pytest.mark.asyncio
 async def test_reporting_summary_sql_is_currency_and_profit_scoped() -> None:
     session = SummarySessionCapture()
     workspace_id = uuid4()
@@ -257,7 +267,6 @@ class SummarySessionCapture:
         return SummaryResult()
 
 
-@pytest.mark.asyncio
 async def test_property_aggregate_keeps_duplicate_names_as_distinct_uuid_rows() -> None:
     first_id = uuid4()
     second_id = uuid4()
@@ -296,7 +305,6 @@ async def test_property_aggregate_keeps_duplicate_names_as_distinct_uuid_rows() 
     assert "operations.affects_profit IS true" in sql
 
 
-@pytest.mark.asyncio
 async def test_category_aggregate_preserves_uncategorized_and_archived_identity() -> None:
     archived_id = uuid4()
     session = AggregateSessionCapture(
@@ -346,7 +354,6 @@ class AggregateSessionCapture:
         return AggregateResult(self.rows)
 
 
-@pytest.mark.asyncio
 async def test_account_balances_use_period_boundaries_currency_and_relevant_accounts() -> None:
     workspace_id = uuid4()
     active_account = Account(
@@ -401,7 +408,6 @@ async def test_account_balances_use_period_boundaries_currency_and_relevant_acco
     assert "RUB" in query.compile().params.values()
 
 
-@pytest.mark.asyncio
 async def test_uncategorized_page_is_bounded_stable_and_normalizes_last_page() -> None:
     first_id = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
     second_id = UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")

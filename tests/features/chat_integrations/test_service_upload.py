@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.chat_integrations import application as chat_application
-from app.features.chat_integrations import service as chat_service
 from app.features.chat_integrations.handlers import upload as chat_upload_handler
 from app.features.chat_integrations.providers.fake import FakeChatProvider
 from app.features.chat_integrations.schemas import (
@@ -21,11 +20,16 @@ from app.features.chat_integrations.schemas import (
     InboundChatEventType,
 )
 from app.features.chat_integrations.service import ChatEventService
-from app.features.chat_integrations.use_cases import dashboard as chat_dashboard
-from app.features.chat_integrations.use_cases import workspace as chat_workspace
 from app.features.imports.documents.commands.upload import StatementUploadResult
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.workspaces.service import WorkspaceContext
+
+from .chat_test_support import (
+    bound_chat_workspace,
+    callback_event,
+    patch_bound_workspace,
+    patch_private_status,
+)
 
 
 def test_telegram_document_uses_configured_upload_limit() -> None:
@@ -42,7 +46,6 @@ def test_telegram_document_uses_configured_upload_limit() -> None:
         )
 
 
-@pytest.mark.asyncio
 async def test_telegram_upload_uses_conversation_state_as_idempotency_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -112,54 +115,16 @@ async def test_telegram_upload_uses_conversation_state_as_idempotency_key(
     chat_repository.consume_conversation_state.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_shows_upload_instructions_for_bound_callback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
 
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
+    patch_bound_workspace(monkeypatch, bound_workspace)
+    patch_private_status(monkeypatch, documents=0, rows=0)
 
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
-
-    class FakeChatPrivateStatusReader:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def read_status(self, _context: WorkspaceContext) -> chat_dashboard.ChatPrivateStatus:
-            return chat_dashboard.ChatPrivateStatus(
-                documents_needing_attention=0,
-                raw_transactions_needing_attention=0,
-            )
-
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
-    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
-
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="upload:start",
-    )
+    event = callback_event("upload:start")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -169,27 +134,12 @@ async def test_chat_event_service_shows_upload_instructions_for_bound_callback(
     assert response.buttons[0][0].callback_data == "main:menu"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_starts_document_upload_for_bound_private_chat(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
+    bound_workspace = bound_chat_workspace(workspace_id)
+    context = bound_workspace.context
 
     class FakeChatDocumentUploadService:
         def __init__(self, _session: object, _settings: Settings, _downloader: object) -> None:
@@ -205,7 +155,7 @@ async def test_chat_event_service_starts_document_upload_for_bound_private_chat(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_upload_handler, "ChatDocumentUploadService", FakeChatDocumentUploadService
     )
@@ -240,33 +190,18 @@ async def test_chat_event_service_starts_document_upload_for_bound_private_chat(
     assert response.buttons[0][0].callback_data == "upl:uploadtoken:0"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_completes_document_upload_after_account_choice(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
+    context = bound_workspace.context
     upload_result = StatementUploadResult(
         document_id=uuid4(),
         document_status=UploadedDocumentStatus.REQUIRES_REVIEW,
         filename="statement.pdf",
         replayed=False,
     )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatDocumentUploadService:
         def __init__(self, _session: object, _settings: Settings, _downloader: object) -> None:
@@ -280,24 +215,12 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
             }
             return upload_result
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_upload_handler, "ChatDocumentUploadService", FakeChatDocumentUploadService
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="upl:uploadtoken:0",
-    )
+    event = callback_event("upl:uploadtoken:0")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -320,20 +243,12 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
     )
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_notifies_shared_feed_after_document_upload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
+    context = bound_workspace.context
     upload_result = StatementUploadResult(
         document_id=uuid4(),
         document_status=UploadedDocumentStatus.REQUIRES_REVIEW,
@@ -341,13 +256,6 @@ async def test_chat_event_service_notifies_shared_feed_after_document_upload(
         replayed=False,
     )
     notified_documents: list[tuple[object, object]] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatDocumentUploadService:
         def __init__(self, _session: object, _settings: Settings, _downloader: object) -> None:
@@ -364,7 +272,7 @@ async def test_chat_event_service_notifies_shared_feed_after_document_upload(
             assert kwargs["context"] is context
             notified_documents.append((kwargs["document_id"], kwargs["document_status"]))
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_upload_handler, "ChatDocumentUploadService", FakeChatDocumentUploadService
     )
@@ -374,19 +282,7 @@ async def test_chat_event_service_notifies_shared_feed_after_document_upload(
         FakeChatSharedFeedNotificationService,
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="upl:uploadtoken:0",
-    )
+    event = callback_event("upl:uploadtoken:0")
     provider = FakeChatProvider()
 
     await ChatEventService(

@@ -1,36 +1,41 @@
 # Reports
 
-Статус: месячный XLSX-экспорт реализован 2026-08-10;
-ручной authenticated browser smoke pending.
+Статус: действующий Reports и monthly XLSX contract.
 
-Reports строит проверяемую финансовую картину периода из confirmed
-`Operation + MoneyEntry`. Первая версия XLSX-экспорта намеренно
-ограничена одним календарным месяцем и одной валютой. Это
-рабочий тестовый scope, а не общая платформа экспортов.
+Reports читает только confirmed `Operation + MoneyEntry` и группирует результат
+по currency. Transfer показывается как движение между accounts, но не входит в
+income, expense, profit или property ROI.
 
-Экспорт должен:
+## Period reports
 
-- повторять authoritative итоги текущего Reports read model;
-- показывать счета, категории, объекты и все confirmed движения
-  выбранного месяца;
-- различать ручные, импортированные, debt и system operations;
-- показывать обе стороны transfer, но не считать его income, expense
-  или profit;
-- отдавать файл синхронным authenticated HTTP response без
-  хранения на сервере.
+Overview, category/property breakdowns и operation lists используют один
+backend-owned reporting read model. URL хранит period и filters; React не
+пересчитывает финансовые итоги из загруженных строк.
 
-Первая версия не включает background jobs, историю экспортов,
-произвольные периоды, смешивание валют, AI-выводы, графики или
-пользовательские XLSX-шаблоны.
+Mixed currencies не складываются в одно число. Missing category/property
+показывается как отдельная явная группа.
 
-## Документы
+## Monthly XLSX
 
-- [`MONTHLY_XLSX_EXPORT.md`](MONTHLY_XLSX_EXPORT.md) — product, data, API,
-  workbook, security и performance contract;
-- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — последовательные шаги,
-  проверки и exit gates.
+Первая версия принимает один calendar month и одну currency и отдаёт
+authenticated synchronous HTTP download без серверного хранения файла.
 
-Общие финансовые инварианты остаются в
-[`docs/domain/DOMAIN_MODEL.md`](../../domain/DOMAIN_MODEL.md), а действующая
-browser/API архитектура — в
-[`docs/architecture/ARCHITECTURE.md`](../../architecture/ARCHITECTURE.md).
+Workbook содержит:
+
+- `Итоги` — income, expense, profit и transfer turnover;
+- `Счета` — opening, inflow, outflow и closing;
+- `Категории` — confirmed income/expense totals;
+- `Объекты` — confirmed property-linked result;
+- `Операции` — полный проверяемый список движений периода.
+
+Operations sheet показывает operation id, date, type, source, description,
+account/transfer side, amount, currency, category, property and status. Обе
+стороны transfer видимы, но financial totals не считают их income/expense.
+
+Файл использует стабильные sheet/column names, ISO dates и numeric money cells;
+formula injection из пользовательского текста блокируется. Workspace scope,
+role и выбранная currency проверяются сервером. Empty month возвращает
+валидный workbook с нулевыми итогами.
+
+Не входят без отдельной потребности: background jobs, export history, arbitrary
+periods, mixed-currency totals, charts, AI commentary и custom templates.

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
+from import_test_support import ImportTestSession
 from sqlalchemy.exc import IntegrityError
 
 from app.features.import_review.application.transfer_options import (
@@ -50,7 +51,6 @@ class SuggestionSourceStub:
         return self.existing
 
 
-@pytest.mark.asyncio
 async def test_transfer_reader_keeps_eligibility_and_direction_on_server() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
@@ -118,7 +118,6 @@ async def test_transfer_reader_keeps_eligibility_and_direction_on_server() -> No
     assert options.existing_operation_candidates[0].counterparty_account.id == destination.id
 
 
-@pytest.mark.asyncio
 async def test_transfer_reader_exposes_confirmed_counterparty_from_same_workspace_only() -> None:
     workspace_id = uuid4()
     foreign_workspace_id = uuid4()
@@ -177,7 +176,6 @@ async def test_transfer_reader_exposes_confirmed_counterparty_from_same_workspac
     assert isolated_options.counterparty_account is None
 
 
-@pytest.mark.asyncio
 async def test_transfer_actor_replays_cross_document_result_by_idempotency_key() -> None:
     document_id = uuid4()
     paired_document_id = uuid4()
@@ -214,7 +212,6 @@ async def test_transfer_actor_replays_cross_document_result_by_idempotency_key()
     assert result.replayed is True
 
 
-@pytest.mark.asyncio
 async def test_transfer_actor_marks_new_transfer_as_not_replayed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -242,7 +239,6 @@ async def test_transfer_actor_marks_new_transfer_as_not_replayed(
     assert result.replayed is False
 
 
-@pytest.mark.asyncio
 async def test_transfer_actor_rejects_reused_key_with_another_payload() -> None:
     command = CreateImportReviewTransferCommand(
         document_id=uuid4(),
@@ -264,7 +260,6 @@ async def test_transfer_actor_rejects_reused_key_with_another_payload() -> None:
         )
 
 
-@pytest.mark.asyncio
 async def test_transfer_service_recovers_idempotent_replay_after_integrity_race() -> None:
     command = CreateImportReviewTransferCommand(
         document_id=uuid4(),
@@ -279,17 +274,6 @@ async def test_transfer_service_recovers_idempotent_replay_after_integrity_race(
         replayed=True,
     )
 
-    class SessionStub:
-        def __init__(self) -> None:
-            self.commits = 0
-            self.rollbacks = 0
-
-        async def commit(self) -> None:
-            self.commits += 1
-
-        async def rollback(self) -> None:
-            self.rollbacks += 1
-
     class RacingActorStub:
         async def apply(self, **_kwargs: object) -> object:
             raise IntegrityError("insert operation", {}, Exception("unique violation"))
@@ -297,7 +281,7 @@ async def test_transfer_service_recovers_idempotent_replay_after_integrity_race(
         async def find_replay(self, **_kwargs: object) -> object:
             return replay
 
-    session = SessionStub()
+    session = ImportTestSession()
     service = ImportReviewTransferService(
         cast(Any, session),
         cast(Any, RacingActorStub()),
@@ -313,7 +297,6 @@ async def test_transfer_service_recovers_idempotent_replay_after_integrity_race(
     assert session.rollbacks == 1
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("link_existing", [False, True])
 async def test_transfer_service_records_command_specific_activity(
     link_existing: bool,

@@ -2,12 +2,12 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from subprocess import run
+from subprocess import CompletedProcess, run
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_backup_script_creates_verified_dump_without_originals(tmp_path: Path) -> None:
+def prepare_backup_test(tmp_path: Path) -> tuple[Path, Path, Path]:
     env_file = tmp_path / "production.env"
     env_file.write_text("POSTGRES_DB=booker_tee\n", encoding="utf-8")
     env_file.chmod(0o600)
@@ -31,20 +31,39 @@ esac
         encoding="utf-8",
     )
     docker.chmod(0o700)
+    return env_file, command_log, executable_dir
+
+
+def run_backup(
+    tmp_path: Path,
+    *,
+    fail_dump: bool = False,
+    project: str | None = None,
+) -> tuple[CompletedProcess[str], Path, Path]:
+    env_file, command_log, executable_dir = prepare_backup_test(tmp_path)
     backup_dir = tmp_path / "backup-set"
+    env = {
+        "BOOKER_TEE_ENV_FILE": str(env_file),
+        "DOCKER_LOG": str(command_log),
+        "FAIL_DUMP": "1" if fail_dump else "0",
+        "PATH": f"{executable_dir}:/usr/bin",
+    }
+    if project is not None:
+        env["BOOKER_TEE_BACKUP_PROJECT"] = project
 
     result = run(
         [str(PROJECT_ROOT / "scripts/backup.sh"), str(backup_dir)],
         cwd=PROJECT_ROOT,
-        env={
-            "BOOKER_TEE_ENV_FILE": str(env_file),
-            "DOCKER_LOG": str(command_log),
-            "PATH": f"{executable_dir}:/usr/bin",
-        },
+        env=env,
         capture_output=True,
         text=True,
         check=False,
     )
+    return result, backup_dir, command_log
+
+
+def test_backup_script_creates_verified_dump_without_originals(tmp_path: Path) -> None:
+    result, backup_dir, command_log = run_backup(tmp_path)
 
     assert result.returncode == 0, result.stderr
     assert os.stat(backup_dir).st_mode & 0o777 == 0o700
@@ -70,38 +89,17 @@ esac
     assert "stop app" in commands
     assert "start app" in commands
 
-    failed_backup_dir = tmp_path / "failed-backup-set"
-    failed_env = {
-        "BOOKER_TEE_ENV_FILE": str(env_file),
-        "DOCKER_LOG": str(command_log),
-        "FAIL_DUMP": "1",
-        "PATH": f"{executable_dir}:/usr/bin",
-    }
-    failed_result = run(
-        [str(PROJECT_ROOT / "scripts/backup.sh"), str(failed_backup_dir)],
-        cwd=PROJECT_ROOT,
-        env=failed_env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
-    assert failed_result.returncode != 0
-    assert (failed_backup_dir / "INCOMPLETE").exists()
-    assert command_log.read_text(encoding="utf-8").count("start app") == 2
+def test_backup_script_marks_failed_dump_incomplete_and_restarts_app(tmp_path: Path) -> None:
+    result, backup_dir, command_log = run_backup(tmp_path, fail_dump=True)
 
-    unsafe_result = run(
-        [str(PROJECT_ROOT / "scripts/backup.sh"), str(tmp_path / "unsafe")],
-        cwd=PROJECT_ROOT,
-        env={
-            "BOOKER_TEE_BACKUP_PROJECT": "booker-tee",
-            "BOOKER_TEE_ENV_FILE": str(env_file),
-            "DOCKER_LOG": str(command_log),
-            "PATH": f"{executable_dir}:/usr/bin",
-        },
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert unsafe_result.returncode != 0
-    assert "unsupported Compose project name" in unsafe_result.stderr
+    assert result.returncode != 0
+    assert (backup_dir / "INCOMPLETE").exists()
+    assert command_log.read_text(encoding="utf-8").count("start app") == 1
+
+
+def test_backup_script_rejects_unsafe_project(tmp_path: Path) -> None:
+    result, _backup_dir, _command_log = run_backup(tmp_path, project="booker-tee")
+
+    assert result.returncode != 0
+    assert "unsupported Compose project name" in result.stderr

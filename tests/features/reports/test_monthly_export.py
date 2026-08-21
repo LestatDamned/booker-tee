@@ -2,7 +2,8 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from io import BytesIO
 from typing import Any, cast
-from uuid import UUID, uuid4
+from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 from openpyxl import load_workbook
@@ -50,30 +51,47 @@ def test_month_date_range_rejects_invalid_values(month: str) -> None:
         month_date_range(month)
 
 
-@pytest.mark.asyncio
 async def test_monthly_reader_reuses_overview_and_enforces_entry_limit() -> None:
-    overview_reader = OverviewReaderStub()
-    repository = EntryRepositoryStub(entry_count=MAX_MONTHLY_EXPORT_ENTRIES + 1)
+    workspace_id = uuid4()
+    requested_filters = ReportingFilters(
+        date_from=date(2026, 7, 1),
+        date_to=date(2026, 7, 31),
+        currency="rub",
+    )
+    applied_filters = ReportingFilters(
+        date_from=requested_filters.date_from,
+        date_to=requested_filters.date_to,
+        currency="RUB",
+    )
+    overview_reader = AsyncMock()
+    overview_reader.read.return_value = reporting_overview(applied_filters)
+    repository = AsyncMock()
+    repository.list_operation_entries.return_value = [operation_entry()] * (
+        MAX_MONTHLY_EXPORT_ENTRIES + 1
+    )
     reader = MonthlyReportReader(cast(Any, overview_reader), cast(Any, repository))
 
     with pytest.raises(MonthlyExportTooLargeError):
         await reader.read(
-            workspace_id=uuid4(),
+            workspace_id=workspace_id,
             workspace_name="Личные финансы",
             default_currency="RUB",
             month="2026-07",
             currency="rub",
         )
 
-    assert overview_reader.filters == ReportingFilters(
-        date_from=date(2026, 7, 1),
-        date_to=date(2026, 7, 31),
-        currency="rub",
+    overview_reader.read.assert_awaited_once_with(
+        workspace_id=workspace_id,
+        default_currency="RUB",
+        filters=requested_filters,
     )
-    assert repository.limit == MAX_MONTHLY_EXPORT_ENTRIES + 1
+    repository.list_operation_entries.assert_awaited_once_with(
+        workspace_id=workspace_id,
+        filters=applied_filters,
+        limit=MAX_MONTHLY_EXPORT_ENTRIES + 1,
+    )
 
 
-@pytest.mark.asyncio
 async def test_operation_entry_projection_is_bounded_and_preserves_provenance() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
@@ -211,43 +229,6 @@ def test_xlsx_builder_writes_stable_typed_and_safe_workbook() -> None:
     assert operations.auto_filter.ref == "A1:O3"
 
 
-class OverviewReaderStub:
-    filters: ReportingFilters | None = None
-
-    async def read(
-        self,
-        *,
-        workspace_id: UUID,
-        default_currency: str,
-        filters: ReportingFilters,
-        **_: object,
-    ) -> ReportingOverview:
-        self.filters = filters
-        applied = ReportingFilters(
-            date_from=filters.date_from,
-            date_to=filters.date_to,
-            currency=(filters.currency or default_currency).upper(),
-        )
-        return reporting_overview(applied)
-
-
-class EntryRepositoryStub:
-    def __init__(self, *, entry_count: int) -> None:
-        self.entry_count = entry_count
-        self.limit: int | None = None
-
-    async def list_operation_entries(
-        self,
-        *,
-        workspace_id: UUID,
-        filters: ReportingFilters,
-        limit: int,
-    ) -> list[ReportOperationEntryRow]:
-        self.limit = limit
-        row = operation_entry()
-        return [row] * self.entry_count
-
-
 class QueryResult:
     def __init__(self, rows: list[tuple[Any, ...]]) -> None:
         self.rows = rows
@@ -272,19 +253,20 @@ class EntrySessionCapture:
 
 
 def reporting_overview(filters: ReportingFilters) -> ReportingOverview:
+    currency = filters.currency or "RUB"
     return ReportingOverview(
         filters=filters,
         filter_options=ReportingFilterOptions(
-            accounts=[], categories=[], properties=[], currencies=[filters.currency or "RUB"]
+            accounts=[], categories=[], properties=[], currencies=[currency]
         ),
         summary=ReportMoneySummaryRow(
-            filters.currency or "RUB",
+            currency,
             Decimal("100.00"),
             Decimal("40.00"),
             Decimal("60.00"),
         ),
         balance_summary=ReportBalanceSummary(
-            filters.currency or "RUB",
+            currency,
             Decimal("1000.00"),
             Decimal("1060.00"),
             Decimal("60.00"),
@@ -293,7 +275,7 @@ def reporting_overview(filters: ReportingFilters) -> ReportingOverview:
             ReportAccountBalanceRow(
                 uuid4(),
                 "Основной",
-                filters.currency or "RUB",
+                currency,
                 Decimal("1000.00"),
                 Decimal("1060.00"),
                 Decimal("60.00"),

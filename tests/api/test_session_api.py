@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -17,11 +18,10 @@ from app.features.workspaces.models import (
     WorkspaceType,
 )
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
-def test_session_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_session_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/session")
 
     assert response.status_code == 401
@@ -33,8 +33,7 @@ def test_session_requires_authentication() -> None:
     }
 
 
-def test_session_exposes_workspace_and_capabilities_in_camel_case() -> None:
-    app = create_app()
+def test_session_exposes_workspace_and_capabilities_in_camel_case(app: FastAPI) -> None:
     user_id = uuid4()
     workspace_id = uuid4()
 
@@ -151,12 +150,13 @@ def test_api_csrf_rejects_missing_token() -> None:
     assert error.value.code == "invalid_csrf"
 
 
-def test_openapi_describes_runtime_api_error_envelope() -> None:
-    openapi = create_app().openapi()
-
-    session_unauthorized = openapi["paths"]["/api/v1/session"]["get"]["responses"]["401"]
-    list_validation = openapi["paths"]["/api/v1/operations"]["get"]["responses"]["422"]
-    create_validation = openapi["paths"]["/api/v1/manual-ledger"]["post"]["responses"]["422"]
+def test_openapi_describes_runtime_api_error_envelope(
+    canonical_openapi_schema: dict[str, Any],
+) -> None:
+    paths = canonical_openapi_schema["paths"]
+    session_unauthorized = paths["/api/v1/session"]["get"]["responses"]["401"]
+    list_validation = paths["/api/v1/operations"]["get"]["responses"]["422"]
+    create_validation = paths["/api/v1/manual-ledger"]["post"]["responses"]["422"]
 
     for response in (session_unauthorized, list_validation, create_validation):
         schema = response["content"]["application/json"]["schema"]

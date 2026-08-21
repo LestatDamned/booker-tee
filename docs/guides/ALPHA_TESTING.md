@@ -1,82 +1,38 @@
-# Alpha Testing
+# Alpha testing
 
-Статус: актуальный локальный smoke guide.
+Статус: локальный smoke guide для канонического React frontend.
 
 ## Запуск
 
-Требуются Docker и свободный порт `8000`.
-
-macOS/Linux:
-
 ```bash
 ./scripts/alpha-up.sh
+# Windows: .\scripts\alpha-up.ps1
 ```
 
-Windows PowerShell:
+Открыть `http://127.0.0.1:8000`. Для фонового запуска добавить `--detach`.
+Остановка: `./scripts/alpha-down.sh`.
 
-```powershell
-.\scripts\alpha-up.ps1
-```
-
-Открыть `http://127.0.0.1:8000`.
-
-Фоновый запуск:
-
-```bash
-./scripts/alpha-up.sh --detach
-```
-
-Другой порт:
-
-```bash
-BOOKER_TEE_APP_PORT=8010 ./scripts/alpha-up.sh --detach
-```
-
-Остановка:
-
-```bash
-./scripts/alpha-down.sh
-```
-
-Сброс локальных alpha data — destructive:
+Сброс локальных данных выполняется только намеренно:
 
 ```bash
 ./scripts/alpha-reset.sh --yes
 ```
 
-Не использовать reset для окружения с нужными данными.
-
 ## Smoke flow
 
-1. Зарегистрироваться или войти.
-2. Создать/выбрать workspace.
-3. Создать account.
-4. Добавить manual income и expense.
-5. Создать internal transfer и проверить, что он не попал в profit.
-6. Загрузить sanitized PDF/XLSX statement.
-7. Проверить document status:
-   - known parser ведёт к review;
-   - unknown layout ведёт к mapping;
-   - failure сохраняет document и attempt.
-8. В Import Review классифицировать, подтвердить/игнорировать строки и проверить
-   duplicate/transfer behavior.
-9. Сверить account balance и reports.
-10. Проверить mobile width и keyboard navigation на критической форме.
+1. Зарегистрироваться или войти и выбрать workspace.
+2. Создать account.
+3. Добавить income и expense.
+4. Создать transfer и убедиться, что он не попал в profit.
+5. Загрузить sanitized PDF/XLSX.
+6. Проверить known parser, unknown mapping и безопасное сохранение failure.
+7. Подтвердить, игнорировать и сопоставить строки Import Review.
+8. Сверить operations, account balance и reports.
+9. Проверить критическую форму с keyboard navigation и на mobile width.
 
-## Что сообщать
+В отчёте укажите URL, шаги, expected/actual result, browser, viewport и
+воспроизводимость. Screenshots и console/network details не должны содержать
+tokens, account identifiers или raw statement data.
 
-- URL и шаг;
-- ожидаемый и фактический результат;
-- browser/OS/viewport;
-- screenshot без приватных данных;
-- воспроизводимость;
-- console/network error без tokens/raw statement content.
-
-## Границы alpha
-
-- Использовать только вымышленные или sanitized документы.
-- Не считать alpha backup production backup.
-- Chat integration выключена по умолчанию.
-- Часть authenticated страниц ещё SSR; Manual Ledger, Accounts list/create и
-  полный Imports workflow — React.
-- Upload пока может занимать request синхронно.
+Используйте только вымышленные или sanitized документы. Alpha backup не является
+production backup; upload пока может выполняться синхронно.

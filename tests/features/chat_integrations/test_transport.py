@@ -3,7 +3,7 @@ from typing import Any, cast
 
 import httpx
 import pytest
-from fastapi import HTTPException, status
+from fastapi import FastAPI, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api_client import ApiTestClient as TestClient
@@ -25,7 +25,6 @@ from app.features.chat_integrations.webhook import (
     TelegramWebhookUrlBuilder,
 )
 from app.features.chat_integrations.webhook_repository import TelegramWebhookClaimResult
-from app.main import create_app
 
 
 class FakeTelegramWebhookUpdates:
@@ -75,9 +74,9 @@ def test_telegram_webhook_secret_policy_rejects_missing_or_wrong_secret(
 
 @pytest.mark.parametrize("headers", [{}, {"X-Telegram-Bot-Api-Secret-Token": "wrong"}])
 def test_telegram_webhook_route_rejects_missing_or_wrong_secret(
+    app: FastAPI,
     headers: dict[str, str],
 ) -> None:
-    app = create_app()
     app.dependency_overrides[get_settings] = lambda: Settings(
         chat_integrations_enabled=True,
         telegram_mode="webhook",
@@ -103,7 +102,6 @@ def test_telegram_webhook_url_builder_uses_public_base_url() -> None:
     assert webhook_url == "https://booker.example/chat-integrations/telegram/webhook"
 
 
-@pytest.mark.asyncio
 async def test_telegram_webhook_registrar_sets_public_webhook() -> None:
     seen_payloads: list[dict[str, object]] = []
 
@@ -137,7 +135,6 @@ async def test_telegram_webhook_registrar_sets_public_webhook() -> None:
     ]
 
 
-@pytest.mark.asyncio
 async def test_telegram_webhook_receiver_sends_service_response() -> None:
     requests: list[tuple[str, dict[str, object]]] = []
 
@@ -176,7 +173,6 @@ async def test_telegram_webhook_receiver_sends_service_response() -> None:
     assert updates.completed == [100]
 
 
-@pytest.mark.asyncio
 async def test_telegram_webhook_receiver_skips_completed_update() -> None:
     settings = Settings(
         chat_integrations_enabled=True,
@@ -208,7 +204,6 @@ def test_telegram_webhook_rejects_invalid_update_id(update_id: object) -> None:
     assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
-@pytest.mark.asyncio
 async def test_telegram_webhook_marks_failed_update_for_retry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -238,7 +233,6 @@ async def test_telegram_webhook_marks_failed_update_for_retry(
     assert updates.failed == [101]
 
 
-@pytest.mark.asyncio
 async def test_polling_worker_updates_offset_and_sends_start_response() -> None:
     requests: list[tuple[str, dict[str, object]]] = []
 
@@ -284,7 +278,6 @@ async def test_polling_worker_updates_offset_and_sends_start_response() -> None:
     assert "Booker Tee" in str(requests[1][1]["text"])
 
 
-@pytest.mark.asyncio
 async def test_polling_worker_edits_review_callback_response(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -359,7 +352,6 @@ async def test_polling_worker_edits_review_callback_response(
     )
 
 
-@pytest.mark.asyncio
 async def test_polling_worker_ignores_replayed_update_id() -> None:
     requests: list[tuple[str, dict[str, object]]] = []
 

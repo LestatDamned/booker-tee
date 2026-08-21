@@ -1,5 +1,3 @@
-import pytest
-
 from app.features.chat_integrations.presenters import TelegramMainMenuPresenter
 from app.features.chat_integrations.schemas import (
     ChatConversation,
@@ -12,7 +10,6 @@ from app.features.chat_integrations.schemas import (
 from app.features.chat_integrations.service import ChatEventService
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_returns_safe_start_menu() -> None:
     conversation = ChatConversation(
         provider=ChatProviderCode.TELEGRAM,
@@ -51,7 +48,6 @@ def test_unlinked_account_notice_includes_telegram_id_and_dev_link() -> None:
     assert "/app/chat-integrations/telegram/dev-link?external_user_id=42" in response.text
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_does_not_expose_financial_data_for_unknown_message() -> None:
     conversation = ChatConversation(
         provider=ChatProviderCode.TELEGRAM,

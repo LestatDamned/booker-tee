@@ -164,7 +164,6 @@ def test_telegram_edit_message_payload_uses_source_message_id() -> None:
     }
 
 
-@pytest.mark.asyncio
 async def test_telegram_client_requests_get_updates() -> None:
     seen_payloads: list[dict[str, object]] = []
 
@@ -189,7 +188,6 @@ async def test_telegram_client_requests_get_updates() -> None:
     ]
 
 
-@pytest.mark.asyncio
 async def test_telegram_client_http_error_hides_bot_token() -> None:
     async def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -211,7 +209,6 @@ async def test_telegram_client_http_error_hides_bot_token() -> None:
     assert "query is too old" in error_text
 
 
-@pytest.mark.asyncio
 async def test_telegram_client_edits_message_text() -> None:
     seen_payloads: list[dict[str, object]] = []
 
@@ -240,7 +237,6 @@ async def test_telegram_client_edits_message_text() -> None:
     assert seen_payloads == [{"chat_id": 42, "text": "Updated", "message_id": 12}]
 
 
-@pytest.mark.asyncio
 async def test_telegram_outbound_sender_edits_callback_source_message() -> None:
     requests: list[tuple[str, dict[str, object]]] = []
 
@@ -288,7 +284,6 @@ async def test_telegram_outbound_sender_edits_callback_source_message() -> None:
     ]
 
 
-@pytest.mark.asyncio
 async def test_telegram_outbound_sender_still_edits_when_callback_answer_fails() -> None:
     requests: list[tuple[str, dict[str, object]]] = []
 
@@ -342,7 +337,6 @@ async def test_telegram_outbound_sender_still_edits_when_callback_answer_fails()
     ]
 
 
-@pytest.mark.asyncio
 async def test_telegram_outbound_sender_falls_back_when_edit_fails() -> None:
     requests: list[tuple[str, dict[str, object]]] = []
 
@@ -393,7 +387,6 @@ async def test_telegram_outbound_sender_falls_back_when_edit_fails() -> None:
     ]
 
 
-@pytest.mark.asyncio
 async def test_telegram_client_downloads_document_by_file_path() -> None:
     seen_requests: list[tuple[str, bytes]] = []
 
@@ -431,7 +424,6 @@ async def test_telegram_client_downloads_document_by_file_path() -> None:
     assert seen_requests[1] == ("/file/bottest-token/documents/statement.pdf", b"")
 
 
-@pytest.mark.asyncio
 async def test_telegram_client_sets_webhook_with_secret_token() -> None:
     seen_payloads: list[dict[str, object]] = []
 
@@ -460,7 +452,6 @@ async def test_telegram_client_sets_webhook_with_secret_token() -> None:
     ]
 
 
-@pytest.mark.asyncio
 async def test_fake_provider_records_sent_messages() -> None:
     provider = FakeChatProvider()
     conversation = ChatConversation(

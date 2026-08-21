@@ -1,14 +1,17 @@
 from types import SimpleNamespace
-from typing import Any, cast
-from unittest.mock import AsyncMock
+from typing import cast
+from unittest.mock import create_autospec
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account, AccountType
+from app.features.accounts.repository import AccountRepository
 from app.features.categories.models import Category, CategoryKind
+from app.features.categories.repository import CategoryRepository
 from app.features.properties.models import Property, PropertyStatus
+from app.features.properties.repository import PropertyRepository
 from app.features.transaction_rules.application.target_resolution import (
     TransactionRuleTargetResolver,
 )
@@ -19,18 +22,22 @@ from app.features.transaction_rules.errors import (
 from app.features.transaction_rules.models import TransactionRule
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("target", ["category", "property", "account"])
-async def test_create_rejects_foreign_or_missing_target(target: str) -> None:
+@pytest.mark.parametrize(
+    ("target", "expected_field"),
+    [
+        pytest.param("category", "categoryId", id="category"),
+        pytest.param("property", "propertyId", id="property"),
+        pytest.param("account", "accountId", id="account"),
+    ],
+)
+async def test_create_rejects_foreign_or_missing_target(
+    target: str,
+    expected_field: str,
+) -> None:
     resolver = target_resolver()
-    setattr(
-        resolver,
-        f"{target}s" if target != "property" else "properties",
-        SimpleNamespace(get_for_workspace=AsyncMock(return_value=None)),
-    )
     target_id = uuid4()
 
-    with pytest.raises(TransactionRuleValidationError):
+    with pytest.raises(TransactionRuleValidationError) as caught:
         await resolver.resolve_for_create(
             workspace_id=uuid4(),
             category_id=target_id if target == "category" else None,
@@ -38,9 +45,10 @@ async def test_create_rejects_foreign_or_missing_target(target: str) -> None:
             account_id=target_id if target == "account" else None,
         )
 
+    assert caught.value.field == expected_field
 
-@pytest.mark.asyncio
-async def test_update_can_retain_archived_targets_but_activation_revalidates_them() -> None:
+
+async def test_update_can_retain_archived_targets() -> None:
     workspace_id = uuid4()
     category = Category(
         id=uuid4(),
@@ -89,8 +97,58 @@ async def test_update_can_retain_archived_targets_but_activation_revalidates_the
     assert targets.category is category
     assert targets.property is property_
     assert targets.account is account
-    with pytest.raises(TransactionRuleActivationBlockedError):
+
+
+@pytest.mark.parametrize(
+    ("target", "expected_field"),
+    [
+        pytest.param("category", "categoryId", id="category"),
+        pytest.param("property", "propertyId", id="property"),
+        pytest.param("account", "accountId", id="account"),
+    ],
+)
+async def test_activation_rejects_each_archived_target(
+    target: str,
+    expected_field: str,
+) -> None:
+    workspace_id = uuid4()
+    category = Category(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Категория",
+        kind=CategoryKind.EXPENSE,
+        is_active=target != "category",
+    )
+    property_ = Property(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Объект",
+        status=PropertyStatus.ARCHIVED if target == "property" else PropertyStatus.ACTIVE,
+    )
+    account = Account(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Счёт",
+        type=AccountType.CARD,
+        currency="RUB",
+        is_active=target != "account",
+    )
+    rule = TransactionRule(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Rule",
+        pattern="RULE",
+        category_id=category.id,
+        property_id=property_.id,
+        account_id=account.id,
+        is_active=False,
+    )
+    resolver = target_resolver(category=category, property_=property_, account=account)
+
+    with pytest.raises(TransactionRuleActivationBlockedError) as caught:
         await resolver.validate_for_activation(workspace_id=workspace_id, rule=rule)
+
+    assert caught.value.field == expected_field
 
 
 def target_resolver(
@@ -100,16 +158,10 @@ def target_resolver(
     account: Account | None = None,
 ) -> TransactionRuleTargetResolver:
     resolver = TransactionRuleTargetResolver(cast(AsyncSession, SimpleNamespace()))
-    resolver.categories = cast(
-        Any,
-        SimpleNamespace(get_for_workspace=AsyncMock(return_value=category)),
-    )
-    resolver.properties = cast(
-        Any,
-        SimpleNamespace(get_for_workspace=AsyncMock(return_value=property_)),
-    )
-    resolver.accounts = cast(
-        Any,
-        SimpleNamespace(get_for_workspace=AsyncMock(return_value=account)),
-    )
+    resolver.categories = create_autospec(CategoryRepository, instance=True)
+    resolver.categories.get_for_workspace.return_value = category
+    resolver.properties = create_autospec(PropertyRepository, instance=True)
+    resolver.properties.get_for_workspace.return_value = property_
+    resolver.accounts = create_autospec(AccountRepository, instance=True)
+    resolver.accounts.get_for_workspace.return_value = account
     return resolver

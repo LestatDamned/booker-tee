@@ -4,6 +4,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from debt_test_support import DebtTestSession
 
 from app.features.accounts.models import Account, AccountType
 from app.features.debts.domain import DebtKind, DebtValidationError
@@ -21,14 +22,6 @@ from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
 
 NOW = datetime(2026, 8, 9, 8, 30, tzinfo=UTC)
-
-
-class SessionStub:
-    def __init__(self) -> None:
-        self.flushes = 0
-
-    async def flush(self) -> None:
-        self.flushes += 1
 
 
 class AccountRepositoryStub:
@@ -93,10 +86,9 @@ class LedgerRepositoryStub:
         self.deleted.append(operation)
 
 
-@pytest.mark.asyncio
 async def test_editor_updates_only_safe_debt_details() -> None:
     context, debt, account = debt_fixture()
-    editor = DebtDetailsEditor(cast(Any, SessionStub()))
+    editor = DebtDetailsEditor(cast(Any, DebtTestSession()))
     editor.accounts = cast(Any, AccountRepositoryStub(account))
     editor.debts = cast(Any, DebtRepositoryStub(debt))
     editor.ledger = cast(Any, LedgerRepositoryStub())
@@ -124,10 +116,34 @@ async def test_editor_updates_only_safe_debt_details() -> None:
     assert debt.updated_at != NOW
 
 
-@pytest.mark.asyncio
-async def test_editor_validates_terms_and_snapshot_against_current_debt() -> None:
+@pytest.mark.parametrize(
+    ("credit_limit", "expected_updated_at", "expected_error", "message"),
+    [
+        pytest.param(
+            Decimal("50.00"),
+            NOW,
+            DebtValidationError,
+            "credit limit",
+            id="debt-exceeds-credit-limit",
+        ),
+        pytest.param(
+            Decimal("200.00"),
+            datetime(2026, 8, 8, tzinfo=UTC),
+            DebtMaintenanceConflictError,
+            "changed",
+            id="stale-snapshot",
+        ),
+    ],
+)
+async def test_editor_rejects_invalid_terms_or_snapshot(
+    credit_limit: Decimal,
+    expected_updated_at: datetime,
+    expected_error: type[Exception],
+    message: str,
+) -> None:
     context, debt, account = debt_fixture(kind=DebtKind.CREDIT_CARD)
-    editor = DebtDetailsEditor(cast(Any, SessionStub()))
+    session = DebtTestSession()
+    editor = DebtDetailsEditor(cast(Any, session))
     editor.accounts = cast(Any, AccountRepositoryStub(account))
     editor.debts = cast(Any, DebtRepositoryStub(debt))
     editor.ledger = cast(Any, LedgerRepositoryStub())
@@ -136,37 +152,39 @@ async def test_editor_validates_terms_and_snapshot_against_current_debt() -> Non
         name="Кредитка",
         opened_on=None,
         maturity_date=None,
-        credit_limit=Decimal("50.00"),
+        credit_limit=credit_limit,
         notes=None,
-        expected_updated_at=NOW,
+        expected_updated_at=expected_updated_at,
     )
 
-    with pytest.raises(DebtValidationError, match="credit limit"):
+    with pytest.raises(expected_error, match=message):
         await editor.update(context=context, command=command)
-    with pytest.raises(DebtMaintenanceConflictError):
-        await editor.update(
-            context=context,
-            command=command.model_copy(
-                update={
-                    "credit_limit": Decimal("200.00"),
-                    "expected_updated_at": datetime(2026, 8, 8, tzinfo=UTC),
-                }
-            ),
-        )
+
+    assert account.name == "Кредит"
+    assert debt.credit_limit == Decimal("200.00")
+    assert debt.updated_at == NOW
+    assert session.flushes == 0
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize(("has_history", "has_payments"), [(True, False), (False, True)])
+@pytest.mark.parametrize(
+    ("has_history", "has_payments"),
+    [
+        pytest.param(True, False, id="import-history"),
+        pytest.param(False, True, id="debt-payments"),
+    ],
+)
 async def test_deleter_blocks_every_kind_of_financial_history(
     has_history: bool,
     has_payments: bool,
 ) -> None:
     context, debt, account = debt_fixture()
     accounts = AccountRepositoryStub(account, has_history=has_history)
-    deleter = DebtDeleter(cast(Any, SessionStub()))
+    session = DebtTestSession()
+    ledger = LedgerRepositoryStub()
+    deleter = DebtDeleter(cast(Any, session))
     deleter.accounts = cast(Any, accounts)
     deleter.debts = cast(Any, DebtRepositoryStub(debt, has_payments=has_payments))
-    deleter.ledger = cast(Any, LedgerRepositoryStub())
+    deleter.ledger = cast(Any, ledger)
 
     with pytest.raises(DebtDeleteBlockedError):
         await deleter.delete(
@@ -178,13 +196,14 @@ async def test_deleter_blocks_every_kind_of_financial_history(
         )
 
     assert accounts.deleted is False
+    assert ledger.deleted == []
+    assert session.flushes == 0
 
 
-@pytest.mark.asyncio
 async def test_deleter_removes_unused_debt_even_with_opening_balance() -> None:
     context, debt, account = debt_fixture()
     accounts = AccountRepositoryStub(account)
-    deleter = DebtDeleter(cast(Any, SessionStub()))
+    deleter = DebtDeleter(cast(Any, DebtTestSession()))
     deleter.accounts = cast(Any, accounts)
     deleter.debts = cast(Any, DebtRepositoryStub(debt))
     deleter.ledger = cast(Any, LedgerRepositoryStub())
@@ -202,7 +221,6 @@ async def test_deleter_removes_unused_debt_even_with_opening_balance() -> None:
     assert accounts.deleted is True
 
 
-@pytest.mark.asyncio
 async def test_deleter_removes_the_single_opening_transfer_with_the_debt() -> None:
     context, debt, account = debt_fixture()
     opening_transfer = Operation(
@@ -213,7 +231,7 @@ async def test_deleter_removes_the_single_opening_transfer_with_the_debt() -> No
     )
     accounts = AccountRepositoryStub(account)
     ledger = LedgerRepositoryStub()
-    deleter = DebtDeleter(cast(Any, SessionStub()))
+    deleter = DebtDeleter(cast(Any, DebtTestSession()))
     deleter.accounts = cast(Any, accounts)
     deleter.debts = cast(
         Any,
@@ -233,7 +251,6 @@ async def test_deleter_removes_the_single_opening_transfer_with_the_debt() -> No
     assert accounts.deleted is True
 
 
-@pytest.mark.asyncio
 async def test_deleter_keeps_debt_with_non_creation_operation() -> None:
     context, debt, account = debt_fixture(kind=DebtKind.CREDIT_CARD)
     expense = Operation(
@@ -243,10 +260,12 @@ async def test_deleter_keeps_debt_with_non_creation_operation() -> None:
         source=OperationSource.MANUAL,
     )
     accounts = AccountRepositoryStub(account)
-    deleter = DebtDeleter(cast(Any, SessionStub()))
+    session = DebtTestSession()
+    ledger = LedgerRepositoryStub()
+    deleter = DebtDeleter(cast(Any, session))
     deleter.accounts = cast(Any, accounts)
     deleter.debts = cast(Any, DebtRepositoryStub(debt, operations=[expense]))
-    deleter.ledger = cast(Any, LedgerRepositoryStub())
+    deleter.ledger = cast(Any, ledger)
 
     with pytest.raises(DebtDeleteBlockedError):
         await deleter.delete(
@@ -258,6 +277,8 @@ async def test_deleter_keeps_debt_with_non_creation_operation() -> None:
         )
 
     assert accounts.deleted is False
+    assert ledger.deleted == []
+    assert session.flushes == 0
 
 
 def debt_fixture(

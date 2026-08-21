@@ -49,7 +49,6 @@ def test_shared_feed_import_notification_hides_financial_details() -> None:
     assert message.buttons[0][0].url == "https://booker.example/app/imports/documents/1/review"
 
 
-@pytest.mark.asyncio
 async def test_shared_feed_notification_service_sends_safe_import_notification(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

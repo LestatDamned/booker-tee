@@ -2,7 +2,9 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
 from accounts_support import account_correction_app, account_detail_app, accounts_app
+from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
 from app.api.v1.accounts.detail_mapping import AccountDetailResponseMapper
@@ -23,19 +25,20 @@ from app.features.ledger.domain.types import (
 )
 from app.features.ledger.errors import OperationVersionConflictError
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
-def test_account_directory_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_account_directory_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/accounts")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_account_detail_returns_account_relative_transfer_and_source_target() -> None:
-    app, ledger, references, workspace_id, account_id = account_detail_app()
+def test_account_detail_returns_account_relative_transfer_and_source_target(
+    app: FastAPI,
+) -> None:
+    app, ledger, references, workspace_id, account_id = account_detail_app(app)
 
     with TestClient(app) as client:
         response = client.get(
@@ -78,8 +81,8 @@ def test_account_detail_returns_account_relative_transfer_and_source_target() ->
     assert references.workspace_ids == [workspace_id]
 
 
-def test_account_detail_returns_workspace_scoped_not_found() -> None:
-    app, ledger, references, _, account_id = account_detail_app(found=False)
+def test_account_detail_returns_workspace_scoped_not_found(app: FastAPI) -> None:
+    app, ledger, references, _, account_id = account_detail_app(app, found=False)
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/accounts/{account_id}")
@@ -127,8 +130,8 @@ def test_account_detail_links_debt_operation_to_debt_workflow() -> None:
     assert target.debt_account_id == debt_account_id
 
 
-def test_account_detail_hides_mutations_from_viewer() -> None:
-    app, _, _, _, account_id = account_detail_app(role=WorkspaceRole.VIEWER)
+def test_account_detail_hides_mutations_from_viewer(app: FastAPI) -> None:
+    app, _, _, _, account_id = account_detail_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/accounts/{account_id}")
@@ -145,8 +148,8 @@ def test_account_detail_hides_mutations_from_viewer() -> None:
     }
 
 
-def test_account_detail_rejects_inverted_date_range() -> None:
-    app, ledger, _, _, account_id = account_detail_app()
+def test_account_detail_rejects_inverted_date_range(app: FastAPI) -> None:
+    app, ledger, _, _, account_id = account_detail_app(app)
 
     with TestClient(app) as client:
         response = client.get(
@@ -158,7 +161,7 @@ def test_account_detail_rejects_inverted_date_range() -> None:
     assert ledger.calls == []
 
 
-def test_imported_operation_correction_returns_committed_movement() -> None:
+def test_imported_operation_correction_returns_committed_movement(app: FastAPI) -> None:
     (
         app,
         ledger,
@@ -167,7 +170,7 @@ def test_imported_operation_correction_returns_committed_movement() -> None:
         account_id,
         operation_id,
         category_id,
-    ) = account_correction_app()
+    ) = account_correction_app(app)
     property_id = uuid4()
 
     with TestClient(app) as client:
@@ -209,8 +212,11 @@ def test_imported_operation_correction_returns_committed_movement() -> None:
     )
 
 
-def test_imported_operation_correction_requires_account_association() -> None:
-    app, _, use_case, _, account_id, operation_id, _ = account_correction_app(found=False)
+def test_imported_operation_correction_requires_account_association(app: FastAPI) -> None:
+    app, _, use_case, _, account_id, operation_id, _ = account_correction_app(
+        app,
+        found=False,
+    )
 
     with TestClient(app) as client:
         response = client.put(
@@ -228,9 +234,9 @@ def test_imported_operation_correction_requires_account_association() -> None:
     assert use_case.calls == []
 
 
-def test_imported_operation_correction_maps_stale_version_to_conflict() -> None:
+def test_imported_operation_correction_maps_stale_version_to_conflict(app: FastAPI) -> None:
     app, _, use_case, _, account_id, operation_id, _ = account_correction_app(
-        error=OperationVersionConflictError()
+        app, error=OperationVersionConflictError()
     )
 
     with TestClient(app) as client:
@@ -249,9 +255,11 @@ def test_imported_operation_correction_maps_stale_version_to_conflict() -> None:
     assert len(use_case.calls) == 1
 
 
-def test_imported_operation_correction_requires_financial_write_permission() -> None:
+def test_imported_operation_correction_requires_financial_write_permission(
+    app: FastAPI,
+) -> None:
     app, ledger, use_case, _, account_id, operation_id, _ = account_correction_app(
-        role=WorkspaceRole.VIEWER
+        app, role=WorkspaceRole.VIEWER
     )
 
     with TestClient(app) as client:
@@ -270,8 +278,10 @@ def test_imported_operation_correction_requires_financial_write_permission() -> 
     assert use_case.calls == []
 
 
-def test_account_directory_returns_decimal_strings_and_server_capabilities() -> None:
-    app, service, workspace_id = accounts_app()
+def test_account_directory_returns_decimal_strings_and_server_capabilities(
+    app: FastAPI,
+) -> None:
+    app, service, workspace_id = accounts_app(app)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/accounts")
@@ -305,8 +315,8 @@ def test_account_directory_returns_decimal_strings_and_server_capabilities() -> 
     assert service.read_calls == [(workspace_id, True)]
 
 
-def test_account_directory_is_readonly_for_viewer() -> None:
-    app, service, workspace_id = accounts_app(role=WorkspaceRole.VIEWER)
+def test_account_directory_is_readonly_for_viewer(app: FastAPI) -> None:
+    app, service, workspace_id = accounts_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/accounts")
@@ -319,8 +329,8 @@ def test_account_directory_is_readonly_for_viewer() -> None:
     assert service.read_calls == [(workspace_id, False)]
 
 
-def test_account_create_dispatches_workspace_scoped_command() -> None:
-    app, service, workspace_id = accounts_app()
+def test_account_create_dispatches_workspace_scoped_command(app: FastAPI) -> None:
+    app, service, workspace_id = accounts_app(app)
 
     with TestClient(app) as client:
         response = client.post(
@@ -348,8 +358,8 @@ def test_account_create_dispatches_workspace_scoped_command() -> None:
     ]
 
 
-def test_account_create_returns_field_errors_without_calling_service() -> None:
-    app, service, _ = accounts_app()
+def test_account_create_returns_field_errors_without_calling_service(app: FastAPI) -> None:
+    app, service, _ = accounts_app(app)
 
     with TestClient(app) as client:
         response = client.post(
@@ -373,8 +383,8 @@ def test_account_create_returns_field_errors_without_calling_service() -> None:
     assert service.create_calls == []
 
 
-def test_account_create_requires_financial_write_permission() -> None:
-    app, service, _ = accounts_app(role=WorkspaceRole.VIEWER)
+def test_account_create_requires_financial_write_permission(app: FastAPI) -> None:
+    app, service, _ = accounts_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.post(
@@ -392,8 +402,8 @@ def test_account_create_requires_financial_write_permission() -> None:
     assert service.create_calls == []
 
 
-def test_account_update_uses_workspace_and_stale_write_token() -> None:
-    app, service, workspace_id = accounts_app()
+def test_account_update_uses_workspace_and_stale_write_token(app: FastAPI) -> None:
+    app, service, workspace_id = accounts_app(app)
     account = service.directory.items[0]
 
     with TestClient(app) as client:
@@ -425,8 +435,8 @@ def test_account_update_uses_workspace_and_stale_write_token() -> None:
     ]
 
 
-def test_account_update_requires_financial_write_permission() -> None:
-    app, service, _ = accounts_app(role=WorkspaceRole.VIEWER)
+def test_account_update_requires_financial_write_permission(app: FastAPI) -> None:
+    app, service, _ = accounts_app(app, role=WorkspaceRole.VIEWER)
     account = service.directory.items[0]
 
     with TestClient(app) as client:
@@ -445,38 +455,50 @@ def test_account_update_requires_financial_write_permission() -> None:
     assert service.update_calls == []
 
 
-def test_account_archive_uses_explicit_stale_state_guards() -> None:
-    app, service, workspace_id = accounts_app()
+@pytest.mark.parametrize(
+    ("action", "expected_active", "target_active"),
+    [
+        pytest.param("archive", True, False, id="archive"),
+        pytest.param("restore", False, True, id="restore"),
+    ],
+)
+def test_account_lifecycle_uses_explicit_stale_state_guards(
+    app: FastAPI,
+    action: str,
+    expected_active: bool,
+    target_active: bool,
+) -> None:
+    app, service, workspace_id = accounts_app(app)
     account = service.directory.items[0]
 
     with TestClient(app) as client:
         response = client.post(
-            f"/api/v1/accounts/{account.id}/archive",
+            f"/api/v1/accounts/{account.id}/{action}",
             json={
-                "expectedActive": True,
+                "expectedActive": expected_active,
                 "expectedUpdatedAt": "2026-07-30T12:00:00Z",
             },
         )
 
     assert response.status_code == 200
-    assert response.json()["isActive"] is False
+    assert response.json()["isActive"] is target_active
     assert response.json()["capabilities"] == {
-        "canArchive": False,
-        "canRestore": True,
+        "canArchive": target_active,
+        "canRestore": not target_active,
     }
     assert service.lifecycle_calls == [
         (
             workspace_id,
             account.id,
-            False,
-            True,
+            target_active,
+            expected_active,
             account.updated_at,
         )
     ]
 
 
-def test_account_archive_rejects_invalid_expected_state() -> None:
-    app, service, _ = accounts_app()
+def test_account_archive_rejects_invalid_expected_state(app: FastAPI) -> None:
+    app, service, _ = accounts_app(app)
     account = service.directory.items[0]
 
     with TestClient(app) as client:

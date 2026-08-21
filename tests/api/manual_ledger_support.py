@@ -39,7 +39,6 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
 class ManualOperationServiceStub:
@@ -194,11 +193,11 @@ class ManualLedgerReferenceReaderStub:
 
 
 def manual_ledger_app(
+    app: FastAPI,
     operations: list[ManualOperationReadDto],
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, ManualOperationServiceStub, ManualLedgerReferenceReaderStub, UUID]:
-    app = create_app()
     context = api_context(role=role)
     service = ManualOperationServiceStub(operations)
     reference_reader = ManualLedgerReferenceReaderStub()

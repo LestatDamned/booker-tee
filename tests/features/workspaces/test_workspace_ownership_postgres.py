@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.security import hash_session_token
 from app.db.base import utc_now
@@ -26,11 +26,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.asyncio
-async def test_concurrent_transfer_preserves_exactly_one_authoritative_owner() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_concurrent_transfer_preserves_exactly_one_authoritative_owner(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     seed = await seed_transfer_race(sessions)
 
     async def transfer(recipient_member_id: UUID, recipient_updated_at: datetime):
@@ -97,7 +96,6 @@ async def test_concurrent_transfer_preserves_exactly_one_authoritative_owner() -
         assert transfer_audits == 1
     finally:
         await cleanup(sessions, seed)
-        await engine.dispose()
 
 
 @dataclass(frozen=True)

@@ -1,12 +1,12 @@
 import os
 from dataclasses import replace
-from typing import cast
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.features.categories.models import Category, CategoryKind
 from app.features.imports.documents.types import (
@@ -41,234 +41,202 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.asyncio
-async def test_database_rejects_rule_delete_when_raw_provenance_is_added() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_database_rejects_rule_delete_when_raw_provenance_is_added(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     ids = await seed_rule_suggestion(sessions)
 
-    try:
-        async with sessions() as session:
-            with pytest.raises(IntegrityError):
-                await session.execute(
-                    delete(TransactionRule).where(TransactionRule.id == ids.rule_id)
-                )
-            await session.rollback()
+    async with sessions() as session:
+        with pytest.raises(IntegrityError):
+            await session.execute(delete(TransactionRule).where(TransactionRule.id == ids.rule_id))
+        await session.rollback()
 
-        async with sessions() as session:
-            raw_rule_id = await session.scalar(
-                select(RawTransaction.suggested_by_rule_id).where(
-                    RawTransaction.id == ids.raw_transaction_id
-                )
+    async with sessions() as session:
+        raw_rule_id = await session.scalar(
+            select(RawTransaction.suggested_by_rule_id).where(
+                RawTransaction.id == ids.raw_transaction_id
             )
-        assert raw_rule_id == ids.rule_id
-    finally:
-        await delete_rule_suggestion(sessions, ids)
-        await engine.dispose()
+        )
+    assert raw_rule_id == ids.rule_id
 
 
-@pytest.mark.asyncio
-async def test_workspace_delete_still_cascades_raw_rows_and_rules() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_workspace_delete_still_cascades_raw_rows_and_rules(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     ids = await seed_rule_suggestion(sessions)
 
-    try:
-        async with sessions() as session:
-            await session.execute(delete(Workspace).where(Workspace.id == ids.workspace_id))
-            await session.execute(delete(User).where(User.id == ids.user_id))
-            await session.commit()
+    async with sessions() as session:
+        await session.execute(delete(Workspace).where(Workspace.id == ids.workspace_id))
+        await session.execute(delete(User).where(User.id == ids.user_id))
+        await session.commit()
 
-        async with sessions() as session:
-            assert await session.get(TransactionRule, ids.rule_id) is None
-            assert await session.get(RawTransaction, ids.raw_transaction_id) is None
-    finally:
-        await delete_rule_suggestion(sessions, ids)
-        await engine.dispose()
+    async with sessions() as session:
+        assert await session.get(TransactionRule, ids.rule_id) is None
+        assert await session.get(RawTransaction, ids.raw_transaction_id) is None
 
 
-@pytest.mark.asyncio
-async def test_directory_sql_filters_counts_orders_pages_and_isolates_workspaces() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_directory_sql_filters_counts_orders_pages_and_isolates_workspaces(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     local = await seed_rule_suggestion(sessions)
     foreign = await seed_rule_suggestion(sessions)
     category_id = uuid4()
     active_rule_id = uuid4()
 
-    try:
-        async with sessions() as session:
-            local_rule = await session.get(TransactionRule, local.rule_id)
-            assert local_rule is not None
-            local_rule.category_id = category_id
-            session.add_all(
-                [
-                    Category(
-                        id=category_id,
-                        workspace_id=local.workspace_id,
-                        name="Marketplaces",
-                        kind=CategoryKind.EXPENSE,
-                    ),
-                    TransactionRule(
-                        id=active_rule_id,
-                        workspace_id=local.workspace_id,
-                        name="Alpha market rule",
-                        pattern="TRAVEL",
-                        priority=5,
-                        is_active=True,
-                        category_id=category_id,
-                        created_by_user_id=local.user_id,
-                    ),
-                ]
-            )
-            await session.commit()
+    async with sessions() as session:
+        local_rule = await session.get(TransactionRule, local.rule_id)
+        assert local_rule is not None
+        local_rule.category_id = category_id
+        session.add_all(
+            [
+                Category(
+                    id=category_id,
+                    workspace_id=local.workspace_id,
+                    name="Marketplaces",
+                    kind=CategoryKind.EXPENSE,
+                ),
+                TransactionRule(
+                    id=active_rule_id,
+                    workspace_id=local.workspace_id,
+                    name="Alpha market rule",
+                    pattern="TRAVEL",
+                    priority=5,
+                    is_active=True,
+                    category_id=category_id,
+                    created_by_user_id=local.user_id,
+                ),
+            ]
+        )
+        await session.commit()
 
-        async with sessions() as session:
-            repository = TransactionRuleRepository(session)
-            first = await repository.read_directory(
-                workspace_id=local.workspace_id,
-                search="market",
-                category_id=category_id,
-                status=TransactionRuleDirectoryStatus.ALL,
-                page=1,
-                page_size=1,
-            )
-            second = await repository.read_directory(
-                workspace_id=local.workspace_id,
-                search="market",
-                category_id=category_id,
-                status=TransactionRuleDirectoryStatus.ALL,
-                page=2,
-                page_size=1,
-            )
-            foreign_result = await repository.read_directory(
-                workspace_id=foreign.workspace_id,
-                search=None,
-                category_id=None,
-                status=TransactionRuleDirectoryStatus.ALL,
-                page=1,
-                page_size=50,
-            )
+    async with sessions() as session:
+        repository = TransactionRuleRepository(session)
+        first = await repository.read_directory(
+            workspace_id=local.workspace_id,
+            search="market",
+            category_id=category_id,
+            status=TransactionRuleDirectoryStatus.ALL,
+            page=1,
+            page_size=1,
+        )
+        second = await repository.read_directory(
+            workspace_id=local.workspace_id,
+            search="market",
+            category_id=category_id,
+            status=TransactionRuleDirectoryStatus.ALL,
+            page=2,
+            page_size=1,
+        )
+        foreign_result = await repository.read_directory(
+            workspace_id=foreign.workspace_id,
+            search=None,
+            category_id=None,
+            status=TransactionRuleDirectoryStatus.ALL,
+            page=1,
+            page_size=50,
+        )
 
-        assert (first.all_count, first.active_count, first.disabled_count) == (2, 1, 1)
-        assert first.total == 2
-        assert first.rows[0].rule.id == active_rule_id
-        assert second.rows[0].rule.id == local.rule_id
-        assert second.rows[0].direct_raw_suggestion_count == 1
-        assert foreign_result.total == 1
-        assert foreign_result.rows[0].rule.id == foreign.rule_id
-    finally:
-        await delete_rule_suggestion(sessions, local)
-        await delete_rule_suggestion(sessions, foreign)
-        await engine.dispose()
+    assert (first.all_count, first.active_count, first.disabled_count) == (2, 1, 1)
+    assert first.total == 2
+    assert first.rows[0].rule.id == active_rule_id
+    assert second.rows[0].rule.id == local.rule_id
+    assert second.rows[0].direct_raw_suggestion_count == 1
+    assert foreign_result.total == 1
+    assert foreign_result.rows[0].rule.id == foreign.rule_id
 
 
-@pytest.mark.asyncio
-async def test_create_idempotency_replays_exact_payload_and_rejects_key_reuse() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_create_idempotency_replays_exact_payload_and_rejects_key_reuse(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     ids = await seed_rule_suggestion(sessions)
     key = uuid4()
 
-    try:
-        async with sessions() as session:
-            user = await session.get(User, ids.user_id)
-            workspace = await session.get(Workspace, ids.workspace_id)
-            assert user is not None and workspace is not None
-            context = WorkspaceContext(
-                user=user,
-                workspace=workspace,
-                membership=WorkspaceMember(
-                    workspace_id=workspace.id,
-                    user_id=user.id,
-                ),
-            )
-            command = CreateTransactionRuleCommand(
-                name="Idempotent API rule",
-                pattern="API RETRY",
-                match_type=TransactionRuleMatchType.CONTAINS,
-                category_id=None,
-                property_id=None,
-                target_operation_type=OperationType.EXPENSE,
-                direction=MoneyDirection.OUTFLOW,
-            )
-            management = TransactionRuleManagementUseCase(session)
-            created = await management.create_rule_idempotently(
+    async with sessions() as session:
+        user = await session.get(User, ids.user_id)
+        workspace = await session.get(Workspace, ids.workspace_id)
+        assert user is not None and workspace is not None
+        context = WorkspaceContext(
+            user=user,
+            workspace=workspace,
+            membership=WorkspaceMember(
+                workspace_id=workspace.id,
+                user_id=user.id,
+            ),
+        )
+        command = CreateTransactionRuleCommand(
+            name="Idempotent API rule",
+            pattern="API RETRY",
+            match_type=TransactionRuleMatchType.CONTAINS,
+            category_id=None,
+            property_id=None,
+            target_operation_type=OperationType.EXPENSE,
+            direction=MoneyDirection.OUTFLOW,
+        )
+        management = TransactionRuleManagementUseCase(session)
+        created = await management.create_rule_idempotently(
+            context=context,
+            command=command,
+            idempotency_key=key,
+        )
+        replay = await management.create_rule_idempotently(
+            context=context,
+            command=command,
+            idempotency_key=key,
+        )
+
+        assert created.replayed is False
+        assert replay.replayed is True
+        assert replay.rule.id == created.rule.id
+        with pytest.raises(TransactionRuleCreateReplayConflictError):
+            await management.create_rule_idempotently(
                 context=context,
-                command=command,
+                command=replace(command, pattern="DIFFERENT"),
                 idempotency_key=key,
             )
-            replay = await management.create_rule_idempotently(
-                context=context,
-                command=command,
-                idempotency_key=key,
-            )
 
-            assert created.replayed is False
-            assert replay.replayed is True
-            assert replay.rule.id == created.rule.id
-            with pytest.raises(TransactionRuleCreateReplayConflictError):
-                await management.create_rule_idempotently(
-                    context=context,
-                    command=replace(command, pattern="DIFFERENT"),
-                    idempotency_key=key,
-                )
-
-            await session.execute(
-                delete(TransactionRule).where(TransactionRule.id == created.rule.id)
-            )
-            await session.commit()
-    finally:
-        await delete_rule_suggestion(sessions, ids)
-        await engine.dispose()
+        await session.execute(delete(TransactionRule).where(TransactionRule.id == created.rule.id))
+        await session.commit()
 
 
-@pytest.mark.asyncio
-async def test_disable_changes_future_matching_state_without_rewriting_existing_suggestion() -> (
-    None
-):
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_disable_changes_future_matching_state_without_rewriting_existing_suggestion(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     ids = await seed_rule_suggestion(sessions)
 
-    try:
-        async with sessions() as session:
-            rule = await session.get(TransactionRule, ids.rule_id)
-            assert rule is not None
-            management = TransactionRuleManagementUseCase(session)
-            enabled = await management.set_rule_active(
-                workspace_id=ids.workspace_id,
-                rule_id=ids.rule_id,
-                is_active=True,
-                expected_active=False,
-                expected_updated_at=rule.updated_at,
-            )
-            await management.set_rule_active(
-                workspace_id=ids.workspace_id,
-                rule_id=ids.rule_id,
-                is_active=False,
-                expected_active=True,
-                expected_updated_at=enabled.updated_at,
-            )
+    async with sessions() as session:
+        rule = await session.get(TransactionRule, ids.rule_id)
+        assert rule is not None
+        management = TransactionRuleManagementUseCase(session)
+        enabled = await management.set_rule_active(
+            workspace_id=ids.workspace_id,
+            rule_id=ids.rule_id,
+            is_active=True,
+            expected_active=False,
+            expected_updated_at=rule.updated_at,
+        )
+        await management.set_rule_active(
+            workspace_id=ids.workspace_id,
+            rule_id=ids.rule_id,
+            is_active=False,
+            expected_active=True,
+            expected_updated_at=enabled.updated_at,
+        )
 
-        async with sessions() as session:
-            raw = await session.get(RawTransaction, ids.raw_transaction_id)
-            rule = await session.get(TransactionRule, ids.rule_id)
-            assert raw is not None and rule is not None
-            assert rule.is_active is False
-            assert raw.status == RawTransactionStatus.SUGGESTED
-            assert raw.suggested_by_rule_id == ids.rule_id
-            payload = raw.raw_payload
-            suggestion = cast(dict[str, object], payload["rule_suggestion"])
-            assert suggestion["rule_id"] == str(ids.rule_id)
-    finally:
-        await delete_rule_suggestion(sessions, ids)
-        await engine.dispose()
+    async with sessions() as session:
+        raw = await session.get(RawTransaction, ids.raw_transaction_id)
+        rule = await session.get(TransactionRule, ids.rule_id)
+        assert raw is not None and rule is not None
+        assert rule.is_active is False
+        assert raw.status == RawTransactionStatus.SUGGESTED
+        assert raw.suggested_by_rule_id == ids.rule_id
+        payload = raw.raw_payload
+        suggestion = cast(dict[str, object], payload["rule_suggestion"])
+        assert suggestion["rule_id"] == str(ids.rule_id)
 
 
 class RuleSuggestionIds:
@@ -354,17 +322,3 @@ async def seed_rule_suggestion(sessions) -> RuleSuggestionIds:
         rule_id=rule_id,
         raw_transaction_id=raw_transaction_id,
     )
-
-
-async def delete_rule_suggestion(sessions, ids: RuleSuggestionIds) -> None:
-    async with sessions() as session:
-        await session.execute(
-            delete(RawTransaction).where(RawTransaction.id == ids.raw_transaction_id)
-        )
-        await session.execute(delete(TransactionRule).where(TransactionRule.id == ids.rule_id))
-        await session.execute(
-            delete(UploadedDocument).where(UploadedDocument.id == ids.document_id)
-        )
-        await session.execute(delete(Workspace).where(Workspace.id == ids.workspace_id))
-        await session.execute(delete(User).where(User.id == ids.user_id))
-        await session.commit()

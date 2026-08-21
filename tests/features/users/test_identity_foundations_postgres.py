@@ -1,18 +1,18 @@
 import asyncio
 import os
 from datetime import timedelta
+from typing import Any
 from urllib.parse import parse_qs, urlparse
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.security import (
     auth_rate_limit_bucket_hash,
     hash_password,
     hash_session_token,
-    hash_user_token,
     verify_password,
 )
 from app.core.settings import Settings
@@ -60,13 +60,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.asyncio
-async def test_token_replacement_consumption_and_rate_limit_are_concurrency_safe() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_token_replacement_and_consumption_are_concurrency_safe(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     user_id = uuid4()
-    bucket_hash = "a" * 64
 
     async with sessions() as session:
         session.add(
@@ -117,6 +115,24 @@ async def test_token_replacement_consumption_and_rate_limit_are_concurrency_safe
 
         assert sorted(await asyncio.gather(consume(), consume())) == [False, True]
 
+        async with sessions() as session:
+            second = await session.get(UserToken, second_id)
+            assert second is not None and second.consumed_at is not None
+    finally:
+        async with sessions() as session:
+            await session.execute(delete(UserToken).where(UserToken.user_id == user_id))
+            await session.execute(delete(User).where(User.id == user_id))
+            await session.commit()
+
+
+async def test_rate_limit_increment_is_concurrency_safe(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
+    bucket_hash = uuid4().hex * 2
+
+    try:
+
         async def increment() -> int:
             async with sessions() as session:
                 count = await AuthRateLimitRepository(session).increment(
@@ -136,117 +152,110 @@ async def test_token_replacement_consumption_and_rate_limit_are_concurrency_safe
                 )
                 == 10
             )
-            assert await session.get(UserToken, second_id) is not None
     finally:
         async with sessions() as session:
             await session.execute(
                 delete(AuthRateLimit).where(AuthRateLimit.bucket_hash == bucket_hash)
             )
-            await session.execute(delete(UserToken).where(UserToken.user_id == user_id))
-            await session.execute(delete(User).where(User.id == user_id))
             await session.commit()
-        await engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_session_management_is_user_scoped() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    user_ids = [uuid4(), uuid4()]
-    session_ids = [uuid4(), uuid4(), uuid4()]
-    now = utc_now()
+async def test_session_directory_is_user_scoped(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
+    user_ids, session_ids = await seed_user_sessions(sessions)
     settings = Settings(auth_secret_key="session-management-test-secret")
 
     async with sessions() as session:
+        snapshots = await UserSessionService(session, settings).list_active(
+            user_id=user_ids[0],
+            current_session_id=session_ids[0],
+        )
+
+    assert [snapshot.id for snapshot in snapshots] == session_ids[:2]
+    assert [snapshot.is_current for snapshot in snapshots] == [True, False]
+
+
+async def test_session_revoke_masks_foreign_session(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
+    user_ids, session_ids = await seed_user_sessions(sessions)
+    settings = Settings(auth_secret_key="session-management-test-secret")
+
+    async with sessions() as session:
+        with pytest.raises(UserSessionNotFoundError):
+            await UserSessionService(session, settings).revoke(
+                user_id=user_ids[0],
+                current_session_id=session_ids[0],
+                session_id=session_ids[2],
+            )
+
+    async with sessions() as session:
+        foreign_session = await session.get(UserSession, session_ids[2])
+        assert foreign_session is not None and foreign_session.revoked_at is None
+
+
+async def test_revoke_other_sessions_preserves_current_and_foreign(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
+    user_ids, session_ids = await seed_user_sessions(sessions)
+    settings = Settings(auth_secret_key="session-management-test-secret")
+
+    async with sessions() as session:
+        revoked_count = await UserSessionService(session, settings).revoke_others(
+            user_id=user_ids[0],
+            current_session_id=session_ids[0],
+        )
+
+    assert revoked_count == 1
+
+    async with sessions() as session:
+        current = await session.get(UserSession, session_ids[0])
+        other = await session.get(UserSession, session_ids[1])
+        foreign = await session.get(UserSession, session_ids[2])
+        assert current is not None and current.revoked_at is None
+        assert other is not None and other.revoked_at is not None
+        assert foreign is not None and foreign.revoked_at is None
+
+
+async def seed_user_sessions(
+    sessions: async_sessionmaker[Any],
+) -> tuple[list[UUID], list[UUID]]:
+    user_ids = [uuid4(), uuid4()]
+    session_ids = [uuid4(), uuid4(), uuid4()]
+    now = utc_now()
+    async with sessions() as session:
         session.add_all(
-            [
-                User(
-                    id=user_ids[0],
-                    email=f"sessions-{user_ids[0]}@example.test",
-                    password_hash="hash",
-                    email_verified_at=now,
-                ),
-                User(
-                    id=user_ids[1],
-                    email=f"sessions-{user_ids[1]}@example.test",
-                    password_hash="hash",
-                    email_verified_at=now,
-                ),
-            ]
+            User(
+                id=user_id,
+                email=f"sessions-{user_id}@example.test",
+                password_hash="hash",
+                email_verified_at=now,
+            )
+            for user_id in user_ids
         )
         session.add_all(
-            [
-                UserSession(
-                    id=session_ids[0],
-                    user_id=user_ids[0],
-                    session_token_hash=hash_session_token(f"session-{session_ids[0]}"),
-                    last_seen_at=now,
-                    expires_at=now + timedelta(days=1),
-                    user_agent_summary="Chrome · Linux",
-                ),
-                UserSession(
-                    id=session_ids[1],
-                    user_id=user_ids[0],
-                    session_token_hash=hash_session_token(f"session-{session_ids[1]}"),
-                    last_seen_at=now - timedelta(minutes=1),
-                    expires_at=now + timedelta(days=1),
-                    user_agent_summary="Safari · iPhone",
-                ),
-                UserSession(
-                    id=session_ids[2],
-                    user_id=user_ids[1],
-                    session_token_hash=hash_session_token(f"session-{session_ids[2]}"),
-                    last_seen_at=now,
-                    expires_at=now + timedelta(days=1),
-                ),
-            ]
+            UserSession(
+                id=session_id,
+                user_id=user_ids[0] if index < 2 else user_ids[1],
+                session_token_hash=hash_session_token(f"session-{session_id}"),
+                last_seen_at=now - timedelta(minutes=index) if index < 2 else now,
+                expires_at=now + timedelta(days=1),
+                user_agent_summary=("Chrome · Linux", "Safari · iPhone", None)[index],
+            )
+            for index, session_id in enumerate(session_ids)
         )
         await session.commit()
-
-    try:
-        async with sessions() as session:
-            service = UserSessionService(session, settings)
-            snapshots = await service.list_active(
-                user_id=user_ids[0],
-                current_session_id=session_ids[0],
-            )
-            assert [snapshot.id for snapshot in snapshots] == session_ids[:2]
-            assert snapshots[0].is_current
-            with pytest.raises(UserSessionNotFoundError):
-                await service.revoke(
-                    user_id=user_ids[0],
-                    current_session_id=session_ids[0],
-                    session_id=session_ids[2],
-                )
-
-        async with sessions() as session:
-            foreign_session = await session.get(UserSession, session_ids[2])
-            assert foreign_session is not None and foreign_session.revoked_at is None
-            revoked_count = await UserSessionService(session, settings).revoke_others(
-                user_id=user_ids[0],
-                current_session_id=session_ids[0],
-            )
-            assert revoked_count == 1
-
-        async with sessions() as session:
-            current = await session.get(UserSession, session_ids[0])
-            other = await session.get(UserSession, session_ids[1])
-            assert current is not None and current.revoked_at is None
-            assert other is not None and other.revoked_at is not None
-    finally:
-        async with sessions() as session:
-            await session.execute(delete(UserSession).where(UserSession.user_id.in_(user_ids)))
-            await session.execute(delete(User).where(User.id.in_(user_ids)))
-            await session.commit()
-        await engine.dispose()
+    return user_ids, session_ids
 
 
-@pytest.mark.asyncio
-async def test_verification_first_signup_creates_identity_then_workspace_once() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_verification_first_signup_creates_identity_then_workspace_once(
+    postgres_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_sessions
     identity_id = uuid4()
     email = f"verification-{identity_id}@example.test"
     settings = Settings(
@@ -363,14 +372,12 @@ async def test_verification_first_signup_creates_identity_then_workspace_once() 
             if user_id is not None:
                 await session.execute(delete(User).where(User.id == user_id))
             await session.commit()
-        await engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_invite_only_signup_uses_pending_workspace_invitation() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_invite_only_signup_uses_pending_workspace_invitation(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     owner_id = uuid4()
     workspace_id = uuid4()
     invitation_id = uuid4()
@@ -381,141 +388,170 @@ async def test_invite_only_signup_uses_pending_workspace_invitation() -> None:
         registration_mode="invite_only",
     )
 
-    try:
-        async with sessions() as session:
-            session.add(
-                User(
-                    id=owner_id,
-                    email=f"owner-{owner_id}@example.test",
-                    password_hash="hash",
-                    name="Owner",
-                    email_verified_at=utc_now(),
-                )
+    async with sessions() as session:
+        session.add(
+            User(
+                id=owner_id,
+                email=f"owner-{owner_id}@example.test",
+                password_hash="hash",
+                name="Owner",
+                email_verified_at=utc_now(),
             )
-            session.add(
-                Workspace(
-                    id=workspace_id,
-                    owner_id=owner_id,
-                    name="Invited workspace",
-                )
+        )
+        session.add(
+            Workspace(
+                id=workspace_id,
+                owner_id=owner_id,
+                name="Invited workspace",
             )
-            session.add(
-                WorkspaceMember(
-                    workspace_id=workspace_id,
-                    user_id=owner_id,
-                    role=WorkspaceRole.OWNER,
-                    status=WorkspaceMemberStatus.ACTIVE,
-                )
+        )
+        session.add(
+            WorkspaceMember(
+                workspace_id=workspace_id,
+                user_id=owner_id,
+                role=WorkspaceRole.OWNER,
+                status=WorkspaceMemberStatus.ACTIVE,
             )
-            session.add(
-                WorkspaceInvitation(
-                    id=invitation_id,
-                    workspace_id=workspace_id,
-                    invitee_email=email,
-                    role=WorkspaceRole.VIEWER,
-                    status=WorkspaceInvitationStatus.PENDING,
-                    token_hash=hash_invitation_token(token),
-                    invited_by_user_id=owner_id,
-                    expires_at=utc_now() + timedelta(hours=1),
-                )
+        )
+        session.add(
+            WorkspaceInvitation(
+                id=invitation_id,
+                workspace_id=workspace_id,
+                invitee_email=email,
+                role=WorkspaceRole.VIEWER,
+                status=WorkspaceInvitationStatus.PENDING,
+                token_hash=hash_invitation_token(token),
+                invited_by_user_id=owner_id,
+                expires_at=utc_now() + timedelta(hours=1),
             )
-            await session.commit()
+        )
+        await session.commit()
 
-        async with sessions() as session:
-            result = await EmailVerificationService(session, settings).request_signup(
-                email=email,
-                password="correct horse battery staple",
-                name="Invitee",
-                base_url="https://booker.example",
-                invitation_token=token,
-            )
-            assert result.email is not None
-            assert await session.scalar(select(User.id).where(User.email == email)) is not None
-            invitation = await session.get(WorkspaceInvitation, invitation_id)
-            assert invitation is not None
-            assert invitation.status == WorkspaceInvitationStatus.PENDING
-    finally:
-        async with sessions() as session:
-            rate_limit_hashes = [
-                auth_rate_limit_bucket_hash(scope=scope, key=key, settings=settings)
-                for scope, key in (
-                    ("signup-account", email),
-                    ("signup-network", "unknown"),
-                )
-            ]
-            await session.execute(
-                delete(AuthRateLimit).where(AuthRateLimit.bucket_hash.in_(rate_limit_hashes))
-            )
-            await session.execute(delete(Workspace).where(Workspace.id == workspace_id))
-            await session.execute(
-                delete(User).where(User.email.in_([email, f"owner-{owner_id}@example.test"]))
-            )
-            await session.commit()
-        await engine.dispose()
+    async with sessions() as session:
+        result = await EmailVerificationService(session, settings).request_signup(
+            email=email,
+            password="correct horse battery staple",
+            name="Invitee",
+            base_url="https://booker.example",
+            invitation_token=token,
+        )
+        assert result.email is not None
+        assert await session.scalar(select(User.id).where(User.email == email)) is not None
+        invitation = await session.get(WorkspaceInvitation, invitation_id)
+        assert invitation is not None
+        assert invitation.status == WorkspaceInvitationStatus.PENDING
 
 
-@pytest.mark.asyncio
-async def test_verification_resend_is_generic_and_rate_limited_for_known_and_unknown() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+async def test_verification_resend_is_generic_and_rate_limited_for_known_and_unknown(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
     unique = uuid4()
     email = f"unknown-{unique}@example.test"
     network_key = f"network-{unique}"
     settings = Settings(auth_secret_key="verification-resend-test-secret")
-    bucket_hashes = [
-        auth_rate_limit_bucket_hash(
-            scope=scope,
-            key=key,
-            settings=settings,
+    async with sessions() as session:
+        result = await EmailVerificationService(session, settings).request_resend(
+            email=email,
+            base_url="https://booker.example",
+            network_key=network_key,
         )
-        for scope, key in (
-            ("verification-resend-account", email),
-            ("verification-resend-network", network_key),
-        )
-    ]
+        assert result.email is None
 
-    try:
-        async with sessions() as session:
-            result = await EmailVerificationService(session, settings).request_resend(
+    async with sessions() as session:
+        with pytest.raises(AuthRateLimitedError):
+            await EmailVerificationService(session, settings).request_resend(
                 email=email,
                 base_url="https://booker.example",
                 network_key=network_key,
             )
-            assert result.email is None
-
-        async with sessions() as session:
-            with pytest.raises(AuthRateLimitedError):
-                await EmailVerificationService(session, settings).request_resend(
-                    email=email,
-                    base_url="https://booker.example",
-                    network_key=network_key,
-                )
-    finally:
-        async with sessions() as session:
-            await session.execute(
-                delete(AuthRateLimit).where(AuthRateLimit.bucket_hash.in_(bucket_hashes))
-            )
-            await session.commit()
-        await engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_password_change_rotates_current_session_and_reset_revokes_every_session() -> None:
-    assert TEST_DATABASE_URL is not None
-    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    unique = uuid4()
-    email = f"password-{unique}@example.test"
-    current_token = f"current-{unique}"
+async def test_password_change_rotates_current_session_and_revokes_others(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
+    user_id, session_ids, _email, current_token = await seed_password_user(sessions)
     settings = Settings(
         auth_secret_key="password-lifecycle-test-secret-32-bytes",
         public_base_url="https://booker.example",
     )
+
+    async with sessions() as session:
+        user = await session.get(User, user_id)
+        assert user is not None
+        rotated_token = await PasswordService(session, settings).change_password(
+            user=user,
+            session_token=session_ids[0],
+            current_password="old secure phrase",
+            new_password="new secure phrase",
+        )
+        assert rotated_token.refresh_token != current_token
+
+    async with sessions() as session:
+        current = await session.get(UserSession, session_ids[0])
+        other = await session.get(UserSession, session_ids[1])
+        user = await session.get(User, user_id)
+        assert current is not None and current.revoked_at is None
+        assert current.session_token_hash == hash_session_token(rotated_token.refresh_token)
+        assert other is not None and other.revoked_at is not None
+        assert user is not None and verify_password("new secure phrase", user.password_hash)
+
+
+async def test_password_reset_changes_password_revokes_sessions_and_consumes_token(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    sessions = postgres_rollback_sessions
+    user_id, _session_ids, email, _current_token = await seed_password_user(sessions)
+    network_key = f"network-{uuid4()}"
+    settings = Settings(
+        auth_secret_key="password-lifecycle-test-secret-32-bytes",
+        public_base_url="https://booker.example",
+    )
+
+    async with sessions() as session:
+        request = await PasswordService(session, settings).request_reset(
+            email=email,
+            base_url="https://booker.example",
+            network_key=network_key,
+        )
+        assert request.email is not None
+        reset_token = parse_qs(urlparse(request.email.text.splitlines()[2]).fragment)["token"][0]
+
+    async with sessions() as session:
+        await PasswordService(session, settings).reset_password(
+            token=reset_token,
+            new_password="final secure phrase",
+            network_key=network_key,
+        )
+
+    async with sessions() as session:
+        user = await session.get(User, user_id)
+        active_session = await session.scalar(
+            select(UserSession.id).where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+            )
+        )
+        assert user is not None
+        assert verify_password("final secure phrase", user.password_hash)
+        assert active_session is None
+        with pytest.raises(InvalidPasswordResetTokenError):
+            await PasswordService(session, settings).reset_password(
+                token=reset_token,
+                new_password="another secure phrase",
+                network_key=network_key,
+            )
+
+
+async def seed_password_user(
+    sessions: async_sessionmaker[Any],
+) -> tuple[UUID, list[UUID], str, str]:
+    unique = uuid4()
     user_id = uuid4()
     session_ids = [uuid4(), uuid4()]
-    reset_token: str | None = None
-
+    email = f"password-{unique}@example.test"
+    current_token = f"current-{unique}"
     async with sessions() as session:
         session.add(
             User(
@@ -542,85 +578,4 @@ async def test_password_change_rotates_current_session_and_reset_revokes_every_s
             ]
         )
         await session.commit()
-
-    try:
-        async with sessions() as session:
-            user = await session.get(User, user_id)
-            assert user is not None
-            rotated_token = await PasswordService(session, settings).change_password(
-                user=user,
-                session_token=session_ids[0],
-                current_password="old secure phrase",
-                new_password="new secure phrase",
-            )
-            assert rotated_token.refresh_token != current_token
-
-        async with sessions() as session:
-            current = await session.get(UserSession, session_ids[0])
-            other = await session.get(UserSession, session_ids[1])
-            user = await session.get(User, user_id)
-            assert current is not None and current.revoked_at is None
-            assert current.session_token_hash == hash_session_token(rotated_token.refresh_token)
-            assert other is not None and other.revoked_at is not None
-            assert user is not None and verify_password("new secure phrase", user.password_hash)
-
-            request = await PasswordService(session, settings).request_reset(
-                email=email,
-                base_url="https://booker.example",
-                network_key=f"network-{unique}",
-            )
-            assert request.email is not None
-            reset_token = parse_qs(urlparse(request.email.text.splitlines()[2]).fragment)["token"][
-                0
-            ]
-
-        async with sessions() as session:
-            await PasswordService(session, settings).reset_password(
-                token=reset_token,
-                new_password="final secure phrase",
-                network_key=f"network-{unique}",
-            )
-
-        async with sessions() as session:
-            user = await session.get(User, user_id)
-            active_session = await session.scalar(
-                select(UserSession.id).where(
-                    UserSession.user_id == user_id,
-                    UserSession.revoked_at.is_(None),
-                )
-            )
-            assert user is not None
-            assert verify_password("final secure phrase", user.password_hash)
-            assert active_session is None
-            with pytest.raises(InvalidPasswordResetTokenError):
-                await PasswordService(session, settings).reset_password(
-                    token=reset_token,
-                    new_password="another secure phrase",
-                    network_key=f"network-{unique}",
-                )
-    finally:
-        async with sessions() as session:
-            rate_limit_hashes = [
-                auth_rate_limit_bucket_hash(scope=scope, key=key, settings=settings)
-                for scope, key in (
-                    ("password-reset-account", email),
-                    ("password-reset-network", f"network-{unique}"),
-                    ("password-reset-attempt-network", f"network-{unique}"),
-                )
-            ]
-            if reset_token is not None:
-                rate_limit_hashes.append(
-                    auth_rate_limit_bucket_hash(
-                        scope="password-reset-token",
-                        key=hash_user_token(reset_token),
-                        settings=settings,
-                    )
-                )
-            await session.execute(
-                delete(AuthRateLimit).where(AuthRateLimit.bucket_hash.in_(rate_limit_hashes))
-            )
-            await session.execute(delete(UserSession).where(UserSession.user_id == user_id))
-            await session.execute(delete(UserToken).where(UserToken.user_id == user_id))
-            await session.execute(delete(User).where(User.id == user_id))
-            await session.commit()
-        await engine.dispose()
+    return user_id, session_ids, email, current_token

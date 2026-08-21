@@ -2,8 +2,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-import pytest
-
 from app.features.accounts.application.directory import AccountDirectoryService
 from app.features.accounts.models import Account, AccountType
 from app.features.accounts.repository import AccountDirectoryRow
@@ -82,7 +80,6 @@ class AccountCreationSourceStub:
         return self.account
 
 
-@pytest.mark.asyncio
 async def test_account_directory_builds_authoritative_summaries_from_one_read() -> None:
     workspace_id = uuid4()
     account_id = uuid4()
@@ -129,7 +126,6 @@ async def test_account_directory_builds_authoritative_summaries_from_one_read() 
     )
 
 
-@pytest.mark.asyncio
 async def test_account_directory_create_returns_committed_account_summary() -> None:
     workspace_id = uuid4()
     created = account(

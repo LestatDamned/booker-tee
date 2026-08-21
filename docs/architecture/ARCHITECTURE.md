@@ -225,21 +225,12 @@ Application гарантирует сохранение source, attempts и revi
   явного объяснения.
 - Shared abstraction появляется после повторного устойчивого контракта.
 
-## Frontend migration
+## Frontend runtime
 
-Каждый workflow проходит:
-
-```text
-inventory
-  -> API/application boundary
-  -> React state/UI
-  -> tests and browser evidence
-  -> canonical navigation
-  -> delete legacy adapter
-```
-
-После replacement gate старые mutation routes/templates/presenters удалены;
-GET compatibility redirects временно остаются до общего routing cutover.
+Все browser workflows каноничны в React. Historical GET routes могут сохранять
+query-preserving redirects до общего routing cutover; старые mutation routes,
+templates и presenters не возвращаются. Новый workflow проходит через
+application/API boundary, typed React state, tests и browser evidence.
 
 ## Testing
 

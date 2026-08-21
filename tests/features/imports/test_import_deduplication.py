@@ -2,8 +2,6 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
-import pytest
-
 from app.features.imports.models import RawTransaction
 from app.features.imports.statements.deduplication import (
     DuplicatePolicy,
@@ -50,7 +48,6 @@ def test_duplicate_policy_leaves_new_transaction_unchanged() -> None:
     assert decision is None
 
 
-@pytest.mark.asyncio
 async def test_overlapping_statement_uses_status_without_polluting_normalization_error() -> None:
     workspace_id = uuid4()
     document_id = uuid4()

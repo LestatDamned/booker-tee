@@ -1,365 +1,98 @@
-# React Frontend Architecture
+# React frontend architecture
 
-Статус: активная целевая архитектура browser frontend.
+Статус: действующая browser architecture.
 
-Принятые причины решения зафиксированы в
-[`architecture/decisions`](../architecture/decisions/README.md), текущая
-последовательность — в [`frontend plan`](../frontend/plan/README.md).
-
-## Решение
-
-Booker Tee использует один React SPA для всего browser frontend и FastAPI как
-единственный backend.
+Booker Tee использует один React Router SPA и FastAPI как единственный backend и
+session owner.
 
 ```text
-React route
-  -> typed API client
-  -> /api/v1
-  -> application use case/query
-  -> domain/repository
+React route -> typed API client -> /api/v1 -> application use case/query
+            -> domain/repository -> PostgreSQL
 ```
 
-Jinja/HTMX/Alpine presentation stack удалён и не должен восстанавливаться.
+Jinja/HTMX/Alpine presentation stack удалён и не возвращается. Historical GET
+routes могут выполнять query-preserving redirect в React до отдельного routing
+cutover; legacy mutations не сохраняются.
 
-## Current state
-
-Каноничны в React:
-
-- `/app` (Dashboard);
-- `/app/operations` (`/app/ledger/manual` — compatibility redirect);
-- `/app/accounts`;
-- `/app/accounts/:accountId`;
-- `/app/debts`;
-- `/app/debts/:debtId`;
-- `/app/imports`;
-- `/app/imports/upload`;
-- `/app/imports/documents/:documentId`;
-- `/app/imports/documents/:documentId/mapping`;
-- `/app/imports/documents/:documentId/review`;
-- `/app/reports`;
-- `/app/properties`;
-- `/app/categories`;
-- `/app/categories/:categoryId`;
-- `/app/rules`;
-- `/app/workspaces`;
-- `/app/workspaces/:workspaceId/activity`;
-- `/app/workspaces/invitation#token=...`;
-- `/app/chat-integrations/telegram/dev-link` в local/test окружении;
-- `/app/profile` и `/app/profile/sessions`;
-- `/app/auth/login` и `/app/auth/signup`;
-- shared shell/foundation/themes.
-
-Все product, public invitation и auth pages каноничны в React. `/` направляет в
-React SPA; локальная chat integration page остаётся development-only surface.
-
-## Runtime and deployment
+## Runtime
 
 ```text
-/app/*    React SPA fallback
-/assets/* immutable React build assets
-/api/v1/* FastAPI JSON
-/         redirect to React SPA
-/...      historical GET redirects + provider webhooks
+/app/*    React SPA
+/api/v1/* FastAPI JSON API
+/         redirect to React
 ```
 
-- `react_frontend.py` раздаёт SPA и assets;
-- `legacy_frontend_redirects.py` временно хранит явные GET redirects со старых
-  browser routes на канонические React routes;
-- React dev server proxy обращается к FastAPI.
-- Production build раздаётся FastAPI в same-origin deployment.
-- Короткий access JWT хранится только в памяти React и передаётся как Bearer.
-- Ротируемый refresh JWT хранится в scoped `HttpOnly` cookie; server-side
-  `UserSession` сохраняет немедленный отзыв и управление устройствами.
-- Security middleware проверяет host/origin/session.
-- CORS не открывается широко.
+Production использует same-origin proxy. CORS не заменяет правильный deployment.
+FastAPI владеет authentication, session, CSRF и workspace context.
 
-`/app` prefix осознанно сохранён. Его можно удалить отдельным routing cutover;
-до этого historical product GET routes используют query-preserving redirects.
+## Frontend boundaries
 
-## Frontend structure
+- `app/routes/`: URL parsing, loaders/actions and route-level composition.
+- `app/features/`: feature state, mappers and UI.
+- `app/ui/`: proven shared components without financial policy.
+- `app/styles/`: semantic tokens, themes and foundation.
+- `app/api/`: transport client and generated schema.
+- `app/session/`: authenticated session/capability state.
+- `app/shell/`: navigation and workspace context.
 
-```text
-frontend/app/
-  api/
-    generated/       generated OpenAPI types
-    transport.ts     common fetch/error boundary
-  routes/            React Router adapters/loaders
-  features/          domain-specific UI/state
-  ui/                stable shared components
-  shell/             authenticated navigation
-  session/           session/workspace boundary
-  shared/            small date/money primitives
-  styles/
-    tokens.css
-    themes/
-    foundation.css
-```
-
-Routes are thin. Feature code не импортирует внутренности другой feature.
-Shared UI не знает API и business transitions.
+Routes remain thin. A feature owns its server DTO → UI model mapping, draft,
+mutation state and feature-specific layout.
 
 ## API boundary
 
-### Contracts
+Versioned JSON routers live in `src/app/api/v1` and call application use
+cases/readers directly. They do not call browser redirects or serialize ORM.
+Pydantic response schemas own the wire contract.
 
-- Server Pydantic schemas — wire contract.
-- OpenAPI генерирует TypeScript shape.
-- Runtime validation используется на network boundary для critical responses.
-- Handwritten feature models не редактируют generated types.
-- Money — decimal string; date/time — ISO; identity — UUID string.
+Generated TypeScript types represent transport only. Feature models may narrow
+or reshape them, but must handle unknown/optional values explicitly. Runtime
+validation is used only at trust boundaries that need it, not for every internal
+object.
 
-### Capabilities
+Backend returns:
 
-Backend возвращает facts:
+- formatted or exact money/currency values;
+- status and financial outcome;
+- action capabilities;
+- stable error code and field errors;
+- optimistic version/pagination metadata;
+- privacy-safe references.
 
-```json
-{
-  "canEdit": false,
-  "canDelete": false,
-  "blockingReasonCode": "linked_operation"
-}
-```
+React does not derive permission, duplicate policy, transfer direction,
+confirmation readiness or profit behavior from raw fields.
 
-Frontend выбирает copy, icon, layout и target route. Он не выводит permission
-или financial rule из status.
+## State
 
-### Errors
+- URL owns shareable filters, period, page and selected identity.
+- Loader owns initial server state.
+- Component owns ephemeral draft, expansion and pending action.
+- Server owns financial truth and durable workflow state.
+- Query/mutation helpers remain feature-local until a repeated contract exists.
 
-Используются стабильные классы:
+On conflict, keep the user's draft when safe, show the server outcome and offer
+reload/retry. Idempotency keys are stable across a retry of the same intent and
+change for a new intent.
 
-- `401` unauthenticated;
-- `403` authenticated без capability;
-- `404` недоступная/несуществующая workspace entity;
-- `409` stale state, idempotency conflict или недопустимый transition;
-- `422` field/command validation;
-- `5xx` unexpected failure без private details.
+## Styling and composition
 
-Error response имеет stable code, message и optional field errors. Draft не
-теряется при ожидаемой server validation.
+Use semantic CSS variables, themes and CSS Modules. Shared component CSS owns
+its internals; feature CSS owns unique layout. Do not add Tailwind/shadcn,
+runtime CSS-in-JS or a second theme system.
 
-Повторяющиеся frontend-типы и constructors для network, `401`, `403` и generic
-mutation errors находятся в `app/api/failures.ts`. Feature API сохраняет рядом с
-workflow обработку `404`, `409`, `422`, blocker codes, fallback copy и runtime
-validation успешного ответа. Общий слой не выбирает доменный transition и не
-скрывает порядок обработки feature-specific статусов.
+Select components through [`UI_FOUNDATION.md`](UI_FOUNDATION.md). Prefer native
+controls and platform behavior. Accessibility and responsive rules live in
+[`DESIGN.md`](DESIGN.md).
 
-Loader-запросы возвращают `unauthenticated`, чтобы route мог показать стабильное
-состояние входа. Browser mutation handlers используют общий
-`session/unauthenticated.ts`: он перенаправляет только для `401` и сохраняет
-`pathname + search + hash` в параметре `next`. Feature-код не собирает login URL
-и не вызывает `window.location.assign` самостоятельно. `403` остаётся локальной
-ошибкой capability и никогда не превращается в login redirect.
+## Testing
 
-Collection routes с одинаковым контрактом `unauthenticated | error` используют
-`session/authenticated-route-state-page.tsx` поверх общего `RouteStatePage`.
-Detail и document workflows оставляют локальную композицию, когда их
-`forbidden`, `notFound`, copy или recovery action действительно различаются.
+For a changed workflow, use the smallest relevant set:
 
-### Mutations
+- backend domain/application tests for financial/security rules;
+- API tests for auth, schema and stable errors;
+- feature tests for DTO mapping, URL state and mutation outcomes;
+- browser audit for critical end-to-end, focus and responsive behavior;
+- generated API contract check when schemas change.
 
-- Финансовые mutations не optimistic.
-- UI-only disclosure/selection может быть optimistic.
-- Pending предотвращает повторную submit.
-- Retry-sensitive command имеет idempotency/replay contract.
-- Response содержит smallest truthful committed consistency set.
-- После mutation не выполняется серия хрупких client-side догадок.
-
-## State ownership
-
-### URL
-
-Хранит navigation context:
-
-- route identity;
-- filter/sort/page;
-- выбранную строку или количество раскрытых rows, если Back/Forward должен это
-  восстанавливать.
-
-### Loader/server state
-
-Хранит API snapshots. Без доказанной необходимости не добавляется global cache
-library.
-
-### Feature-local state
-
-- active panel/disclosure;
-- form draft;
-- focus/confirmation;
-- transient pending/error;
-- выбранная mapping table.
-
-### Server only
-
-- financial truth;
-- permissions/capabilities;
-- lifecycle;
-- dedupe;
-- transfer direction/validity;
-- confirmability и blocking reasons.
-
-## Styling
-
-- Semantic tokens и theme files.
-- Component CSS Modules.
-- Feature module может композировать shared primitives.
-- Legacy CSS не импортируется.
-- Global React CSS ограничен reset/foundation/app geometry.
-- Inline palette values допустимы только в token/theme definitions.
-- Class naming внутри module может быть Pascal/camel по локальному соглашению;
-  filenames остаются kebab-case, component symbols — PascalCase.
-
-## Components
-
-Поднимать component в `ui/` только после устойчивого повторения. Уже существуют:
-
-- buttons, icon, status primitives;
-- fields/form layout/error summary;
-- money value;
-- page frame/header/request state/route state/loading page;
-- expansion and confirmation;
-- workbench surface/header;
-- workbench toolbar/search;
-- applied filter summary;
-- responsive record collection;
-- workbench filter/status/content regions;
-- workbench row/panel;
-- searchable select и action stack.
-
-Не создавать universal CRUD page, generic financial row schema или form
-generator.
-
-## Forms and accessibility
-
-Следовать [`FORM_DESIGN.md`](FORM_DESIGN.md):
-
-- controlled draft там, где есть cross-field logic;
-- native controls по умолчанию;
-- error summary + field errors;
-- focus first invalid field;
-- accessible dialog/disclosure;
-- reduced motion;
-- status text независимо от цвета.
-
-## Workflow contracts
-
-### Manual Ledger
-
-React владеет list/filter/draft UI. API/application владеет create/update,
-cancel/restore/delete, optimistic version и transfer invariants.
-
-### Import Review
-
-React владеет queue navigation, panels и drafts. Server владеет validation,
-classification facts, duplicate evidence, transfers, rule application,
-posting, lifecycle и authoritative reconciliation.
-
-### Import documents and mapping
-
-План:
-[`import-documents-and-mapping`](../frontend/plan/import-documents-and-mapping/README.md).
-
-Ключевые ограничения:
-
-- upload сохраняет source до parse;
-- `storage_key` не публикуется;
-- raw text/tables bounded и lazy;
-- mapping preview server-side;
-- mapping import создаёт reviewable rows и идемпотентен;
-- конечный шаг — существующий React Import Review.
-
-### Accounts and account ledger
-
-Действующий feature contract:
-[`frontend/app/features/accounts/README.md`](../../frontend/app/features/accounts/README.md).
-
-Ключевые ограничения:
-
-- list использует focused aggregate projection без per-account ledger N+1;
-- balance остается server-owned и учитывает только confirmed entries;
-- filters/pagination принадлежат URL, account/settings drafts — feature state;
-- detail reads не seed-ят categories и не выполняют commit;
-- account mutations имеют explicit stale-state guard;
-- imported correction переиспользует optimistic operation version и меняет
-  только разрешенные review fields.
-
-### Transaction Rules
-
-Действующие contracts:
-
-- [`frontend/app/features/transaction-rules/README.md`](../../frontend/app/features/transaction-rules/README.md) —
-  React route, state и interaction ownership;
-- [`src/app/features/transaction_rules/README.md`](../../src/app/features/transaction_rules/README.md) —
-  application/domain, non-browser consumers и financial boundaries.
-
-Ключевые ограничения:
-
-- rule только предлагает/prefill-ит Import Review и не подтверждает ledger;
-- URL владеет directory filters/pagination, local state — drawer, один inline
-  editor и confirmations;
-- workspace access, references, capabilities и concurrency принадлежат server;
-- create идемпотентен, lifecycle влияет на future matching, hard delete
-  разрешён только disabled и directly unreferenced rule;
-- create открывается справа, edit раскрывается под выбранной записью.
-
-### Public and integration workflows
-
-Workspace invitation preview/accept использует privacy-safe public read API и
-authenticated CSRF-protected accept API. Telegram dev-link доступен только в
-local/test; production API возвращает `404`. Provider webhook остаётся FastAPI
-integration adapter, а не browser page.
-
-## Vertical migration
-
-```text
-1. Observe current behavior and geometry.
-2. Define typed application/API boundary.
-3. Implement route state and UI.
-4. Cover server authority and React interactions.
-5. Run realistic browser flow.
-6. Switch canonical navigation.
-7. Delete legacy routes/templates/presenters/assets/tests.
-```
-
-Нельзя:
-
-- вызывать HTML route из API;
-- сериализовать legacy ViewModel;
-- переносить ORM object в browser contract;
-- оставлять две mutation surfaces после cutover;
-- считать redirect полноценным cleanup;
-- переписывать domain/application ради удобства JSX.
-
-## Testing and gates
-
-Backend:
-
-- application/domain;
-- workspace isolation;
-- API auth/schema/error;
-- idempotency/concurrency;
-- no side effects in reads.
-
-Frontend:
-
-- runtime schema;
-- route loader/action;
-- state/draft/error;
-- keyboard/focus/accessibility;
-- formatting and build.
-
-Browser:
-
-- realistic workflow;
-- desktop `1440`, tablet `920`, mobile `390`;
-- deep links, reload, Back/Forward и historical redirects;
-- no overflow, console/page/request errors.
-
-## Final definition of done
-
-- React — единственный browser frontend.
-- FastAPI — единственный backend.
-- Jinja/HTMX/Alpine и legacy CSS удалены.
-- Public/auth presentation работает в том же React SPA.
-- `/app` routing cutover осознанно отложен.
-- Financial/security rules остались server-owned.
-- Документация описывает текущий код, а завершённые migration journals удалены.
+A browser feature is complete only when the API is authoritative, historical
+GET compatibility is explicit, no second presentation implementation exists and
+privacy/workspace/financial invariants remain covered.

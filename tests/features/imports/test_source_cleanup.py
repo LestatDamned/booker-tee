@@ -45,7 +45,6 @@ class DocumentsStub:
         }
 
 
-@pytest.mark.asyncio
 async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphans(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,

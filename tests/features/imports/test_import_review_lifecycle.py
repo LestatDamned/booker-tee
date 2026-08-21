@@ -3,6 +3,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from import_test_support import ImportTestSession
 
 from app.features.import_review.application.lifecycle import (
     ImportReviewLifecycleActor,
@@ -129,18 +130,6 @@ def test_restored_review_status_after_unlink_preserves_rule_suggestion() -> None
     )
 
 
-class SessionStub:
-    def __init__(self) -> None:
-        self.commits = 0
-        self.rollbacks = 0
-
-    async def commit(self) -> None:
-        self.commits += 1
-
-    async def rollback(self) -> None:
-        self.rollbacks += 1
-
-
 class ImportRepositoryStub:
     def __init__(self, row: object, document: object) -> None:
         self.row = row
@@ -167,7 +156,6 @@ class ImportRepositoryStub:
         cast(Any, document).status = status
 
 
-@pytest.mark.asyncio
 async def test_lifecycle_service_syncs_queue_document_and_reopens_import() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
@@ -179,7 +167,7 @@ async def test_lifecycle_service_syncs_queue_document_and_reopens_import() -> No
         parse_attempts=[],
         raw_transactions=[confirmed, row],
     )
-    session = SessionStub()
+    session = ImportTestSession()
     actor = ImportReviewLifecycleActor(cast(Any, session))
     imports = ImportRepositoryStub(row, document)
     actor._documents = cast(Any, imports)

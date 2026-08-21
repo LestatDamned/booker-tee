@@ -58,7 +58,6 @@ def test_chat_month_range_handles_december() -> None:
     )
 
 
-@pytest.mark.asyncio
 async def test_chat_review_state_claimer_allows_only_one_final_action() -> None:
     state = SimpleNamespace(consumed_at=None)
     claim_results = [True, False]
@@ -96,7 +95,6 @@ def test_chat_manual_date_parser_accepts_russian_and_iso_formats() -> None:
     assert chat_manual_parsing.ChatManualDateParser.parse("2026-06-30") == date(2026, 6, 30)
 
 
-@pytest.mark.asyncio
 async def test_chat_manual_progress_accepts_text_date_on_date_choice_step() -> None:
     state = SimpleNamespace(
         step="choose_date",

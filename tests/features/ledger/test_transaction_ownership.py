@@ -21,14 +21,11 @@ from app.features.ledger.schemas.manual import (
 )
 
 
-@pytest.mark.asyncio
-async def test_ledger_reference_resolver_uses_non_committing_category_lookups() -> None:
+async def test_uncategorized_lookup_does_not_take_commit_ownership() -> None:
     workspace_id = uuid4()
     uncategorized = SimpleNamespace(id=uuid4())
-    transfer = SimpleNamespace(id=uuid4())
     categories = SimpleNamespace(
         ensure_uncategorized=AsyncMock(return_value=uncategorized),
-        ensure_system=AsyncMock(return_value=transfer),
     )
     resolver = LedgerReferenceResolver(cast(Any, object()))
     resolver.categories = cast(Any, categories)
@@ -40,12 +37,20 @@ async def test_ledger_reference_resolver_uses_non_committing_category_lookups() 
         )
         is uncategorized
     )
-    assert await resolver.get_transfer_category(workspace_id) is transfer
     categories.ensure_uncategorized.assert_awaited_once_with(workspace_id)
+
+
+async def test_transfer_category_lookup_does_not_take_commit_ownership() -> None:
+    workspace_id = uuid4()
+    transfer = SimpleNamespace(id=uuid4())
+    categories = SimpleNamespace(ensure_system=AsyncMock(return_value=transfer))
+    resolver = LedgerReferenceResolver(cast(Any, object()))
+    resolver.categories = cast(Any, categories)
+
+    assert await resolver.get_transfer_category(workspace_id) is transfer
     categories.ensure_system.assert_awaited_once_with(workspace_id, "transfer")
 
 
-@pytest.mark.asyncio
 async def test_debt_accounts_cannot_bypass_manual_principal_transfer() -> None:
     workspace_id = uuid4()
     debt_account = SimpleNamespace(id=uuid4(), type=AccountType.DEBT, is_active=True)
@@ -59,8 +64,7 @@ async def test_debt_accounts_cannot_bypass_manual_principal_transfer() -> None:
         await resolver.get_transfer_account(workspace_id, debt_account.id)
 
 
-@pytest.mark.asyncio
-async def test_only_credit_card_expense_uses_debt_account_generically() -> None:
+async def test_credit_card_expense_can_use_debt_account_generically() -> None:
     workspace_id = uuid4()
     debt_account = SimpleNamespace(id=uuid4(), type=AccountType.DEBT, is_active=True)
     resolver = LedgerReferenceResolver(cast(Any, object()))
@@ -83,29 +87,60 @@ async def test_only_credit_card_expense_uses_debt_account_generically() -> None:
         )
         is debt_account
     )
-    with pytest.raises(LedgerPostingError, match="only record an expense"):
-        await resolver.get_income_expense_account(
-            workspace_id,
-            debt_account.id,
+
+
+@pytest.mark.parametrize(
+    ("kind", "is_active", "operation_type", "message"),
+    [
+        pytest.param(
+            DebtKind.CREDIT_CARD,
+            True,
             OperationType.INCOME,
-        )
-    resolver.debts.get_for_workspace.return_value = SimpleNamespace(kind=DebtKind.MORTGAGE)
-    with pytest.raises(LedgerPostingError, match="Loan and mortgage"):
+            "only record an expense",
+            id="credit-card-income",
+        ),
+        pytest.param(
+            DebtKind.MORTGAGE,
+            True,
+            OperationType.EXPENSE,
+            "Loan and mortgage",
+            id="mortgage",
+        ),
+        pytest.param(
+            DebtKind.CREDIT_CARD,
+            False,
+            OperationType.EXPENSE,
+            "archived debt",
+            id="archived-credit-card",
+        ),
+    ],
+)
+async def test_income_expense_rejects_invalid_debt_account_usage(
+    kind: DebtKind,
+    is_active: bool,
+    operation_type: OperationType,
+    message: str,
+) -> None:
+    workspace_id = uuid4()
+    debt_account = SimpleNamespace(id=uuid4(), type=AccountType.DEBT, is_active=is_active)
+    resolver = LedgerReferenceResolver(cast(Any, object()))
+    resolver.accounts = cast(
+        Any,
+        SimpleNamespace(get_for_workspace=AsyncMock(return_value=debt_account)),
+    )
+    resolver.debts = cast(
+        Any,
+        SimpleNamespace(get_for_workspace=AsyncMock(return_value=SimpleNamespace(kind=kind))),
+    )
+
+    with pytest.raises(LedgerPostingError, match=message):
         await resolver.get_income_expense_account(
             workspace_id,
             debt_account.id,
-            OperationType.EXPENSE,
-        )
-    debt_account.is_active = False
-    with pytest.raises(LedgerPostingError, match="archived debt"):
-        await resolver.get_income_expense_account(
-            workspace_id,
-            debt_account.id,
-            OperationType.EXPENSE,
+            operation_type,
         )
 
 
-@pytest.mark.asyncio
 async def test_category_ensure_system_keeps_commit_with_transaction_owner(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -144,7 +179,6 @@ class NestedTransactionStub:
         self.exited += 1
 
 
-@pytest.mark.asyncio
 async def test_idempotency_race_rolls_back_only_savepoint() -> None:
     workspace_id = uuid4()
     idempotency_key = uuid4()

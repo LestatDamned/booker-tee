@@ -23,7 +23,6 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
 class DocumentListSourceStub:
@@ -83,9 +82,9 @@ class DocumentListSourceStub:
         )
 
 
-def test_import_documents_returns_typed_workspace_list() -> None:
+def test_import_documents_returns_typed_workspace_list(app: FastAPI) -> None:
     row = document_row()
-    app, source, workspace_id = import_documents_app([row])
+    app, source, workspace_id = import_documents_app(app, [row])
 
     with TestClient(app) as client:
         response = client.get(
@@ -162,8 +161,8 @@ def test_import_documents_returns_typed_workspace_list() -> None:
     assert source.paginations == [ImportDocumentListPagination(page=1, per_page=50)]
 
 
-def test_import_documents_is_readonly_for_viewer_without_hiding_data() -> None:
-    app, _, _ = import_documents_app([document_row()], role=WorkspaceRole.VIEWER)
+def test_import_documents_is_readonly_for_viewer_without_hiding_data(app: FastAPI) -> None:
+    app, _, _ = import_documents_app(app, [document_row()], role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/imports/documents")
@@ -179,8 +178,8 @@ def test_import_documents_is_readonly_for_viewer_without_hiding_data() -> None:
     assert payload["items"][0]["nextStepKind"] == "detail"
 
 
-def test_import_documents_hide_raw_data_from_analyst() -> None:
-    app, source, _ = import_documents_app([document_row()], role=WorkspaceRole.ANALYST)
+def test_import_documents_hide_raw_data_from_analyst(app: FastAPI) -> None:
+    app, source, _ = import_documents_app(app, [document_row()], role=WorkspaceRole.ANALYST)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/imports/documents")
@@ -190,8 +189,8 @@ def test_import_documents_hide_raw_data_from_analyst() -> None:
     assert source.workspace_ids == []
 
 
-def test_import_documents_returns_empty_workspace() -> None:
-    app, source, workspace_id = import_documents_app([])
+def test_import_documents_returns_empty_workspace(app: FastAPI) -> None:
+    app, source, workspace_id = import_documents_app(app, [])
 
     with TestClient(app) as client:
         response = client.get("/api/v1/imports/documents")
@@ -202,8 +201,8 @@ def test_import_documents_returns_empty_workspace() -> None:
     assert source.workspace_ids == [workspace_id] * 4
 
 
-def test_import_documents_rejects_inverted_statement_period() -> None:
-    app, source, _ = import_documents_app([])
+def test_import_documents_rejects_inverted_statement_period(app: FastAPI) -> None:
+    app, source, _ = import_documents_app(app, [])
 
     with TestClient(app) as client:
         response = client.get(
@@ -215,8 +214,8 @@ def test_import_documents_rejects_inverted_statement_period() -> None:
     assert source.workspace_ids == []
 
 
-def test_import_documents_normalizes_unsupported_pagination_values() -> None:
-    app, source, _ = import_documents_app([document_row()])
+def test_import_documents_normalizes_unsupported_pagination_values(app: FastAPI) -> None:
+    app, source, _ = import_documents_app(app, [document_row()])
 
     with TestClient(app) as client:
         response = client.get("/api/v1/imports/documents?page=-4&per_page=33")
@@ -227,11 +226,11 @@ def test_import_documents_normalizes_unsupported_pagination_values() -> None:
 
 
 def import_documents_app(
+    app: FastAPI,
     rows: list[ImportDocumentListRow],
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, DocumentListSourceStub, UUID]:
-    app = create_app()
     context = api_context(role)
     source = DocumentListSourceStub(rows)
     app.dependency_overrides[get_api_request_context] = lambda: context

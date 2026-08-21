@@ -44,7 +44,6 @@ from app.features.transaction_rules.schemas import (
     TransactionRuleUsageDto,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
 class TransactionRuleDirectoryReaderStub:
@@ -115,6 +114,7 @@ class TransactionRuleMutationServiceStub:
 
 
 def transaction_rules_app(
+    app: FastAPI,
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, TransactionRuleDirectoryReaderStub, UUID]:
@@ -125,16 +125,17 @@ def transaction_rules_app(
         WorkspaceRole.EDITOR,
     }
     reader = TransactionRuleDirectoryReaderStub(directory(can_write=can_write))
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_transaction_rule_directory_reader] = lambda: reader
     return app, reader, context.workspace.workspace.id
 
 
 def transaction_rules_mutation_app(
-    *, role: WorkspaceRole = WorkspaceRole.OWNER
+    app: FastAPI,
+    *,
+    role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, TransactionRuleMutationServiceStub]:
-    app, reader, _ = transaction_rules_app(role=role)
+    app, reader, _ = transaction_rules_app(app, role=role)
     mutations = TransactionRuleMutationServiceStub(reader.directory.items[0])
     app.dependency_overrides[get_transaction_rule_mutation_service] = lambda: mutations
     return app, mutations

@@ -69,7 +69,6 @@ def test_sanitize_upload_filename_removes_paths_and_unsafe_characters() -> None:
     assert sanitize_upload_filename("../bank statement июнь.xlsx") == "bank_statement_.xlsx"
 
 
-@pytest.mark.asyncio
 async def test_upload_storage_preserves_pdf_bytes(tmp_path: Path) -> None:
     content = b"%PDF-1.4 local fixture bytes"
     upload = UploadFile(file=BytesIO(content), filename="../private-bank-statement.pdf")
@@ -93,7 +92,6 @@ async def test_upload_storage_preserves_pdf_bytes(tmp_path: Path) -> None:
     assert S_IMODE(stored.path.parent.parent.stat().st_mode) == 0o700
 
 
-@pytest.mark.asyncio
 async def test_upload_storage_preserves_xlsx_extension(tmp_path: Path) -> None:
     workbook_file = BytesIO()
     workbook = Workbook()
@@ -117,7 +115,6 @@ async def test_upload_storage_preserves_xlsx_extension(tmp_path: Path) -> None:
     assert stored.storage_key == f"{workspace_id}/{document_id}/source.xlsx"
 
 
-@pytest.mark.asyncio
 async def test_upload_storage_rejects_oversized_file_without_leaving_partial(
     tmp_path: Path,
 ) -> None:
@@ -134,7 +131,6 @@ async def test_upload_storage_rejects_oversized_file_without_leaving_partial(
     assert list(tmp_path.rglob("source.pdf")) == []  # noqa: ASYNC240
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("filename", "content", "message"),
     [
@@ -158,7 +154,6 @@ async def test_upload_storage_rejects_invalid_file_signature(
     assert list(tmp_path.rglob("source.*")) == []  # noqa: ASYNC240
 
 
-@pytest.mark.asyncio
 async def test_upload_storage_rejects_zip_without_xlsx_structure(tmp_path: Path) -> None:
     content = BytesIO()
     with ZipFile(content, "w", compression=ZIP_DEFLATED) as archive:
@@ -174,7 +169,6 @@ async def test_upload_storage_rejects_zip_without_xlsx_structure(tmp_path: Path)
     assert list(tmp_path.rglob("source.xlsx")) == []  # noqa: ASYNC240
 
 
-@pytest.mark.asyncio
 async def test_upload_storage_does_not_overwrite_existing_file(tmp_path: Path) -> None:
     storage = UploadStorage(tmp_path)
     workspace_id = uuid4()
@@ -196,7 +190,6 @@ async def test_upload_storage_does_not_overwrite_existing_file(tmp_path: Path) -
     assert stored.path.read_bytes() == original
 
 
-@pytest.mark.asyncio
 async def test_upload_storage_rejects_path_through_symlink(tmp_path: Path) -> None:
     root_dir = tmp_path / "uploads"
     outside_dir = tmp_path / "outside"
@@ -215,7 +208,6 @@ async def test_upload_storage_rejects_path_through_symlink(tmp_path: Path) -> No
     assert list(outside_dir.iterdir()) == []
 
 
-@pytest.mark.asyncio
 async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) -> None:
     workspace_id = uuid4()
     account = SimpleNamespace(id=uuid4(), currency="RUB")
@@ -265,7 +257,6 @@ async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) 
     assert list(tmp_path.rglob("source.pdf")) == []  # noqa: ASYNC240
 
 
-@pytest.mark.asyncio
 async def test_statement_upload_rejects_changed_idempotent_payload(tmp_path: Path) -> None:
     workspace_id = uuid4()
     account = SimpleNamespace(id=uuid4(), currency="RUB")
@@ -304,7 +295,6 @@ async def test_statement_upload_rejects_changed_idempotent_payload(tmp_path: Pat
         )
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("activity_fails", [False, True])
 async def test_statement_upload_cleans_stored_file_when_first_transaction_fails(
     tmp_path: Path,
@@ -420,7 +410,6 @@ def test_source_file_retention_policy(
     assert should_retain_source_file(attempt) is expected
 
 
-@pytest.mark.asyncio
 async def test_processed_source_is_deleted_and_marked_after_parse(tmp_path: Path) -> None:
     storage = UploadStorage(tmp_path)
     stored = await storage.save_upload(
@@ -449,7 +438,6 @@ async def test_processed_source_is_deleted_and_marked_after_parse(tmp_path: Path
     commit.assert_awaited_once_with()
 
 
-@pytest.mark.asyncio
 async def test_source_deletion_failure_preserves_reference_for_cleanup(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
@@ -484,7 +472,6 @@ async def test_source_deletion_failure_preserves_reference_for_cleanup(
     assert "sensitive path" not in caplog.text
 
 
-@pytest.mark.asyncio
 async def test_statement_extraction_runs_outside_event_loop() -> None:
     event_loop_thread = get_ident()
     extraction_thread: int | None = None
@@ -510,7 +497,6 @@ async def test_statement_extraction_runs_outside_event_loop() -> None:
     assert extraction_thread != event_loop_thread
 
 
-@pytest.mark.asyncio
 async def test_inactive_workspace_preserves_extracted_import_without_mapping_rows() -> None:
     document = SimpleNamespace(status=UploadedDocumentStatus.PARSING)
     attempt = SimpleNamespace(finished_at=None)
@@ -685,7 +671,6 @@ def test_xlsx_extractor_enforces_sheet_count(tmp_path: Path) -> None:
         )
 
 
-@pytest.mark.asyncio
 async def test_resource_limit_failure_preserves_document_and_failed_attempt() -> None:
     document = SimpleNamespace(status=UploadedDocumentStatus.PARSING)
     attempt = SimpleNamespace(finished_at=None)
@@ -748,7 +733,6 @@ def test_reviewable_raw_transaction_statuses_include_normalized_rows() -> None:
     assert RawTransactionStatus.DUPLICATE not in REVIEW_QUEUE_STATUSES
 
 
-@pytest.mark.asyncio
 async def test_duplicate_candidate_query_is_workspace_and_document_scoped() -> None:
     workspace_id = uuid4()
     document_id = uuid4()

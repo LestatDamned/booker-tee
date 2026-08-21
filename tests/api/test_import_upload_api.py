@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
+from fastapi import FastAPI
+
 import app.api.v1.imports.router as imports_router_module
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
@@ -18,10 +20,12 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
-def test_upload_reference_returns_active_accounts_and_limits(monkeypatch) -> None:
+def test_upload_reference_returns_active_accounts_and_limits(
+    app: FastAPI,
+    monkeypatch,
+) -> None:
     context = api_context(WorkspaceRole.OWNER)
     account_id = uuid4()
 
@@ -45,7 +49,7 @@ def test_upload_reference_returns_active_accounts_and_limits(monkeypatch) -> Non
         "LedgerReferenceResolver",
         FakeAccountResolver,
     )
-    app = upload_app(context)
+    app = upload_app(app, context)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/imports/upload-reference")
@@ -70,7 +74,7 @@ def test_upload_reference_returns_active_accounts_and_limits(monkeypatch) -> Non
     }
 
 
-def test_upload_returns_committed_document_target(monkeypatch) -> None:
+def test_upload_returns_committed_document_target(app: FastAPI, monkeypatch) -> None:
     context = api_context(WorkspaceRole.OWNER)
     document = SimpleNamespace(id=uuid4(), status=UploadedDocumentStatus.REQUIRES_REVIEW)
     calls: list[dict[str, object]] = []
@@ -93,7 +97,7 @@ def test_upload_returns_committed_document_target(monkeypatch) -> None:
 
     monkeypatch.setattr(imports_router_module, "StatementUploadUseCase", FakeUploadUseCase)
     monkeypatch.setattr(imports_router_module, "_read_committed_detail", fake_detail)
-    app = upload_app(context)
+    app = upload_app(app, context)
     account_id = uuid4()
     idempotency_key = uuid4()
 
@@ -117,30 +121,36 @@ def test_upload_returns_committed_document_target(monkeypatch) -> None:
     assert calls[0]["idempotency_key"] == idempotency_key
 
 
-def test_upload_rejects_viewer_and_requires_idempotency_key(monkeypatch) -> None:
-    viewer_app = upload_app(api_context(WorkspaceRole.VIEWER))
-    with TestClient(viewer_app) as client:
-        forbidden = client.post(
+def test_upload_rejects_viewer(app: FastAPI) -> None:
+    app = upload_app(app, api_context(WorkspaceRole.VIEWER))
+
+    with TestClient(app) as client:
+        response = client.post(
             "/api/v1/imports/documents",
             data={"account_id": str(uuid4())},
             files={"statement": ("statement.pdf", b"%PDF-1.4", "application/pdf")},
             headers={"Idempotency-Key": str(uuid4())},
         )
-    assert forbidden.status_code == 403
-    assert forbidden.json()["error"]["code"] == "import_management_forbidden"
 
-    owner_app = upload_app(api_context(WorkspaceRole.OWNER))
-    with TestClient(owner_app) as client:
-        missing_key = client.post(
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "import_management_forbidden"
+
+
+def test_upload_requires_idempotency_key(app: FastAPI) -> None:
+    app = upload_app(app, api_context(WorkspaceRole.OWNER))
+
+    with TestClient(app) as client:
+        response = client.post(
             "/api/v1/imports/documents",
             data={"account_id": str(uuid4())},
             files={"statement": ("statement.pdf", b"%PDF-1.4", "application/pdf")},
         )
-    assert missing_key.status_code == 422
-    assert "Idempotency-Key" in str(missing_key.json())
+
+    assert response.status_code == 422
+    assert "Idempotency-Key" in str(response.json())
 
 
-def test_upload_maps_idempotency_conflict_to_409(monkeypatch) -> None:
+def test_upload_maps_idempotency_conflict_to_409(app: FastAPI, monkeypatch) -> None:
     class ConflictingUploadUseCase:
         def __init__(self, _session, _settings) -> None:
             pass
@@ -153,7 +163,7 @@ def test_upload_maps_idempotency_conflict_to_409(monkeypatch) -> None:
         "StatementUploadUseCase",
         ConflictingUploadUseCase,
     )
-    app = upload_app(api_context(WorkspaceRole.OWNER))
+    app = upload_app(app, api_context(WorkspaceRole.OWNER))
     with TestClient(app) as client:
         response = client.post(
             "/api/v1/imports/documents",
@@ -166,8 +176,7 @@ def test_upload_maps_idempotency_conflict_to_409(monkeypatch) -> None:
     assert response.json()["error"]["code"] == "upload_idempotency_conflict"
 
 
-def upload_app(context: ApiRequestContext):
-    app = create_app()
+def upload_app(app: FastAPI, context: ApiRequestContext) -> FastAPI:
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_session] = lambda: object()
     app.dependency_overrides[get_settings] = lambda: Settings(statement_upload_max_bytes=1024)

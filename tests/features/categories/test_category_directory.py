@@ -80,7 +80,6 @@ class CategoryMutationSourceStub:
         return DeletedCategory(id=self.category.id, name=self.category.name)
 
 
-@pytest.mark.asyncio
 async def test_category_directory_preserves_identity_usage_and_kind_options() -> None:
     workspace_id = uuid4()
     source = CategoryManagementSourceStub(
@@ -112,7 +111,6 @@ async def test_category_directory_preserves_identity_usage_and_kind_options() ->
     assert directory.capabilities.can_create
 
 
-@pytest.mark.asyncio
 async def test_category_directory_blocks_archive_while_active_rules_exist() -> None:
     workspace_id = uuid4()
     source = CategoryManagementSourceStub(
@@ -137,8 +135,7 @@ async def test_category_directory_blocks_archive_while_active_rules_exist() -> N
     assert item.active_rule_count == 1
 
 
-@pytest.mark.asyncio
-async def test_system_category_is_immutable_and_viewer_has_no_write_capabilities() -> None:
+async def test_system_category_is_immutable_for_writer() -> None:
     workspace_id = uuid4()
     source = CategoryManagementSourceStub(
         [
@@ -147,7 +144,29 @@ async def test_system_category_is_immutable_and_viewer_has_no_write_capabilities
                 is_system=True,
                 system_key="expense",
             ),
-            category_row(workspace_id=workspace_id, name="Продукты"),
+        ]
+    )
+
+    directory = await CategoryDirectoryService(source, source).read(
+        workspace_id=workspace_id,
+        workspace_type=WorkspaceType.PERSONAL,
+        can_write=True,
+    )
+
+    assert directory.capabilities.can_create
+    capabilities = directory.items[0].capabilities
+    assert not capabilities.can_update
+    assert not capabilities.can_archive
+    assert not capabilities.can_restore
+    assert not capabilities.can_delete
+
+
+async def test_viewer_has_no_write_capabilities_for_active_or_archived_categories() -> None:
+    workspace_id = uuid4()
+    source = CategoryManagementSourceStub(
+        [
+            category_row(workspace_id=workspace_id, name="Активная"),
+            category_row(workspace_id=workspace_id, name="Архивная", is_active=False),
         ]
     )
 
@@ -166,7 +185,6 @@ async def test_system_category_is_immutable_and_viewer_has_no_write_capabilities
         assert not item.capabilities.can_delete
 
 
-@pytest.mark.asyncio
 async def test_category_directory_creates_committed_writable_summary() -> None:
     workspace_id = uuid4()
     category = Category(
@@ -202,7 +220,6 @@ async def test_category_directory_creates_committed_writable_summary() -> None:
     assert not result.capabilities.can_delete
 
 
-@pytest.mark.asyncio
 async def test_category_directory_updates_with_optimistic_token_and_usage_counts() -> None:
     workspace_id = uuid4()
     row = category_row(
@@ -241,8 +258,51 @@ async def test_category_directory_updates_with_optimistic_token_and_usage_counts
     assert result.rule_count == 3
 
 
-@pytest.mark.asyncio
-async def test_category_directory_lifecycle_and_delete_use_server_policy() -> None:
+@pytest.mark.parametrize(
+    ("current_active", "target_active"),
+    [
+        pytest.param(True, False, id="archive"),
+        pytest.param(False, True, id="restore"),
+    ],
+)
+async def test_category_directory_lifecycle_returns_policy_impact(
+    current_active: bool,
+    target_active: bool,
+) -> None:
+    workspace_id = uuid4()
+    row = category_row(workspace_id=workspace_id, is_active=current_active)
+    mutations = CategoryMutationSourceStub(row.category)
+    directory = CategoryDirectoryService(CategoryManagementSourceStub([row]), mutations)
+    command = CategoryLifecycleCommand(
+        expected_status=current_active,
+        expected_updated_at=row.category.updated_at,
+    )
+
+    lifecycle = await directory.set_active(
+        workspace_id=workspace_id,
+        category_id=row.category.id,
+        is_active=target_active,
+        command=command,
+    )
+
+    assert lifecycle.category.is_active is target_active
+    assert lifecycle.category.capabilities.can_archive is target_active
+    assert lifecycle.category.capabilities.can_restore is not target_active
+    assert lifecycle.impact.history_preserved
+    assert lifecycle.impact.rules_unchanged
+    assert lifecycle.impact.available_for_new_references is target_active
+    assert mutations.lifecycle_calls == [
+        {
+            "workspace_id": workspace_id,
+            "category_id": row.category.id,
+            "is_active": target_active,
+            "expected_status": current_active,
+            "expected_updated_at": row.category.updated_at,
+        }
+    ]
+
+
+async def test_category_directory_delete_dispatches_optimistic_token() -> None:
     workspace_id = uuid4()
     row = category_row(workspace_id=workspace_id, is_active=False)
     mutations = CategoryMutationSourceStub(row.category)
@@ -252,24 +312,13 @@ async def test_category_directory_lifecycle_and_delete_use_server_policy() -> No
         expected_updated_at=row.category.updated_at,
     )
 
-    lifecycle = await directory.set_active(
-        workspace_id=workspace_id,
-        category_id=row.category.id,
-        is_active=True,
-        command=command,
-    )
     deleted = await directory.delete(
         workspace_id=workspace_id,
         category_id=row.category.id,
         command=command,
     )
 
-    assert lifecycle.category.is_active
-    assert lifecycle.impact.history_preserved
-    assert lifecycle.impact.rules_unchanged
-    assert lifecycle.impact.available_for_new_references
     assert deleted.deleted_id == row.category.id
-    assert mutations.lifecycle_calls[0]["expected_status"] is False
     assert mutations.delete_calls[0]["expected_updated_at"] == row.category.updated_at
 
 

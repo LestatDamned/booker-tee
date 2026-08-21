@@ -4,6 +4,7 @@ from io import BytesIO
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi import FastAPI
 from manual_ledger_support import api_context
 from openpyxl import load_workbook
 
@@ -39,7 +40,6 @@ from app.features.reports.repository import (
     ReportUncategorizedPage,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
 class ReportingReaderStub:
@@ -184,24 +184,23 @@ class MonthlyReaderStub:
         )
 
 
-def test_reports_api_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_reports_api_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/reports")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_monthly_report_export_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_monthly_report_export_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/reports/export.xlsx?month=2026-07&currency=RUB")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_monthly_report_export_returns_private_workbook_for_viewer() -> None:
-    app = create_app()
+def test_monthly_report_export_returns_private_workbook_for_viewer(app: FastAPI) -> None:
     context = api_context(role=WorkspaceRole.VIEWER)
     context.workspace.workspace.name = "Личные финансы"
     reader = MonthlyReaderStub()
@@ -237,11 +236,11 @@ def test_monthly_report_export_returns_private_workbook_for_viewer() -> None:
     ],
 )
 def test_monthly_report_export_maps_bounded_errors(
+    app: FastAPI,
     failure: str,
     expected_status: int,
     expected_code: str,
 ) -> None:
-    app = create_app()
     context = api_context(role=WorkspaceRole.OWNER)
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_monthly_report_reader] = lambda: MonthlyReaderStub(failure=failure)
@@ -253,8 +252,7 @@ def test_monthly_report_export_maps_bounded_errors(
     assert response.json()["error"]["code"] == expected_code
 
 
-def test_monthly_report_export_rejects_unsafe_currency_before_reads() -> None:
-    app = create_app()
+def test_monthly_report_export_rejects_unsafe_currency_before_reads(app: FastAPI) -> None:
     context = api_context(role=WorkspaceRole.OWNER)
     reader = MonthlyReaderStub()
     app.dependency_overrides[get_api_request_context] = lambda: context
@@ -268,8 +266,7 @@ def test_monthly_report_export_rejects_unsafe_currency_before_reads() -> None:
     assert reader.calls == []
 
 
-def test_reports_api_returns_currency_safe_decimal_string_contract() -> None:
-    app = create_app()
+def test_reports_api_returns_currency_safe_decimal_string_contract(app: FastAPI) -> None:
     context = api_context(role=WorkspaceRole.VIEWER)
     context.workspace.workspace.name = "Личные финансы"
     context.workspace.workspace.default_currency = "RUB"
@@ -327,8 +324,7 @@ def test_reports_api_returns_currency_safe_decimal_string_contract() -> None:
     assert reader.calls[0][2].date_from == date(2026, 7, 1)
 
 
-def test_reports_api_rejects_inverted_period_without_repository_reads() -> None:
-    app = create_app()
+def test_reports_api_rejects_inverted_period_without_repository_reads(app: FastAPI) -> None:
     context = api_context(role=WorkspaceRole.OWNER)
     reader = ReportingReaderStub()
     app.dependency_overrides[get_api_request_context] = lambda: context
@@ -342,8 +338,7 @@ def test_reports_api_rejects_inverted_period_without_repository_reads() -> None:
     assert reader.calls == []
 
 
-def test_reports_api_rejects_foreign_reference_without_financial_reads() -> None:
-    app = create_app()
+def test_reports_api_rejects_foreign_reference_without_financial_reads(app: FastAPI) -> None:
     context = api_context(role=WorkspaceRole.OWNER)
     reader = ReportingReaderStub()
     app.dependency_overrides[get_api_request_context] = lambda: context
@@ -357,8 +352,7 @@ def test_reports_api_rejects_foreign_reference_without_financial_reads() -> None
     assert len(reader.calls) == 1
 
 
-def test_reports_api_rejects_invalid_query_shape() -> None:
-    app = create_app()
+def test_reports_api_rejects_invalid_query_shape(app: FastAPI) -> None:
     context = api_context(role=WorkspaceRole.OWNER)
     app.dependency_overrides[get_api_request_context] = lambda: context
 
@@ -369,8 +363,7 @@ def test_reports_api_rejects_invalid_query_shape() -> None:
     assert response.json()["error"]["code"] == "invalid_report_filter"
 
 
-def test_reports_api_accepts_bounded_uncategorized_pagination() -> None:
-    app = create_app()
+def test_reports_api_accepts_bounded_uncategorized_pagination(app: FastAPI) -> None:
     context = api_context(role=WorkspaceRole.OWNER)
     reader = ReportingReaderStub()
     app.dependency_overrides[get_api_request_context] = lambda: context
@@ -395,8 +388,10 @@ def test_reports_api_accepts_bounded_uncategorized_pagination() -> None:
         "uncategorized_page_size=26",
     ],
 )
-def test_reports_api_rejects_invalid_uncategorized_pagination(query: str) -> None:
-    app = create_app()
+def test_reports_api_rejects_invalid_uncategorized_pagination(
+    app: FastAPI,
+    query: str,
+) -> None:
     context = api_context(role=WorkspaceRole.OWNER)
     app.dependency_overrides[get_api_request_context] = lambda: context
 

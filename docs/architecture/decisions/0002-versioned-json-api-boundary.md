@@ -25,8 +25,14 @@ Legacy browser routes смешивают forms, redirects, presenters и HTML re
 
 ## Consequences
 
-- SSR auth/workspace dependencies сохраняются отдельно до удаления legacy routes.
+- На время migration SSR auth/workspace dependencies сохранялись отдельно до
+  удаления legacy routes.
 - Backend contract tests становятся обязательными до component work.
 - Breaking API change требует обновления OpenAPI artifact и frontend tests.
 - Generated DTO отображается в focused feature model на frontend boundary и не
   распространяется бездумно через component tree.
+
+## Outcome
+
+Migration завершена: React использует versioned JSON API, а historical browser
+GET routes ограничены compatibility redirects без legacy mutation surface.

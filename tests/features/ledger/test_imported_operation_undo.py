@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+from ledger_test_support import workspace_context
 
 from app.features.import_review.application.undo import ImportReviewUndoService
 from app.features.import_review.schemas.commands import UndoImportReviewPostingCommand
@@ -63,7 +64,6 @@ class LedgerRepositoryStub:
         return self.operation
 
 
-@pytest.mark.asyncio
 async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -140,7 +140,6 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
     service._activity.import_review_posting_undone.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_unlink_from_manual_transfer_preserves_manual_operation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -201,7 +200,6 @@ async def test_unlink_from_manual_transfer_preserves_manual_operation(
     service._activity.import_review_operation_unlinked.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_undo_replay_restores_cross_document_result() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
@@ -241,6 +239,10 @@ async def test_undo_replay_restores_cross_document_result() -> None:
     assert result.replayed is True
     assert result.updated_item_ids == frozenset({raw_transaction.id, matched_item_id})
     assert result.affected_document_ids == frozenset({document_id, matched_document_id})
+    assert operation.status is OperationStatus.IGNORED
+    assert raw_transaction.linked_operation_id is None
+    assert imports.document_statuses == {}
+    assert session.flushes == 0
     assert session.commits == 1
     assert session.rollbacks == 0
 
@@ -257,14 +259,4 @@ def raw_row(
         linked_operation_id=operation_id,
         status=RawTransactionStatus.CONFIRMED,
         suggested_by_rule_id=uuid4() if suggested else None,
-    )
-
-
-def workspace_context(workspace_id: UUID) -> Any:
-    return cast(
-        Any,
-        SimpleNamespace(
-            workspace=SimpleNamespace(id=workspace_id),
-            user=SimpleNamespace(id=uuid4()),
-        ),
     )

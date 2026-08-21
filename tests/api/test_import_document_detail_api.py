@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
+from fastapi import FastAPI
+
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import get_import_document_detail_reader
@@ -27,7 +29,6 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.models import Workspace, WorkspaceMember
 from app.features.workspaces.service import WorkspaceContext
-from app.main import create_app
 
 
 class DetailReaderStub:
@@ -51,11 +52,10 @@ class DetailReaderStub:
         )
 
 
-def test_import_document_detail_returns_bounded_safe_projection() -> None:
+def test_import_document_detail_returns_bounded_safe_projection(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     detail = document_snapshot()
     reader = DetailReaderStub(detail)
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_import_document_detail_reader] = lambda: cast(Any, reader)
 
@@ -77,10 +77,9 @@ def test_import_document_detail_returns_bounded_safe_projection() -> None:
     assert reader.workspace_ids == [context.workspace.workspace.id]
 
 
-def test_import_document_detail_masks_other_workspace_as_not_found() -> None:
+def test_import_document_detail_masks_other_workspace_as_not_found(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.OWNER)
     reader = DetailReaderStub(None)
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_import_document_detail_reader] = lambda: cast(Any, reader)
 
@@ -91,10 +90,9 @@ def test_import_document_detail_masks_other_workspace_as_not_found() -> None:
     assert response.json()["error"]["code"] == "import_document_not_found"
 
 
-def test_import_document_detail_viewer_keeps_data_but_loses_management() -> None:
+def test_import_document_detail_viewer_keeps_data_but_loses_management(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.VIEWER)
     detail = document_snapshot()
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_import_document_detail_reader] = lambda: cast(
         Any, DetailReaderStub(detail)
@@ -110,11 +108,10 @@ def test_import_document_detail_viewer_keeps_data_but_loses_management() -> None
     assert capabilities["delete"]["blockingReasonCodes"] == ["import_management_forbidden"]
 
 
-def test_import_document_detail_hides_raw_data_from_analyst() -> None:
+def test_import_document_detail_hides_raw_data_from_analyst(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.ANALYST)
     detail = document_snapshot()
     reader = DetailReaderStub(detail)
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_import_document_detail_reader] = lambda: cast(Any, reader)
 
@@ -126,9 +123,8 @@ def test_import_document_detail_hides_raw_data_from_analyst() -> None:
     assert reader.workspace_ids == []
 
 
-def test_document_mutation_is_forbidden_for_viewer_before_use_case() -> None:
+def test_document_mutation_is_forbidden_for_viewer_before_use_case(app: FastAPI) -> None:
     context = api_context(WorkspaceRole.VIEWER)
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_session] = lambda: cast(Any, object())
     app.dependency_overrides[get_settings] = lambda: cast(

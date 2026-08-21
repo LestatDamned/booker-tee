@@ -2,8 +2,6 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-import pytest
-
 from app.features.accounts.models import AccountType
 from app.features.accounts.repository import AccountDirectoryRow
 from app.features.dashboard.application.overview import DashboardOverviewReader
@@ -53,6 +51,7 @@ class AccountSourceStub:
 class DocumentSourceStub:
     def __init__(self) -> None:
         self.calls: list[tuple[UUID, ImportDocumentListFilters, ImportDocumentListPagination]] = []
+        self.summary_calls: list[UUID] = []
         self.attention = document_row(
             status=UploadedDocumentStatus.REQUIRES_REVIEW,
             total_row_count=0,
@@ -82,13 +81,13 @@ class DocumentSourceStub:
         self,
         workspace_id: UUID,
     ) -> ImportDocumentListSummaryDto:
+        self.summary_calls.append(workspace_id)
         return ImportDocumentListSummaryDto(
             total_document_count=2,
             attention_document_count=1,
         )
 
 
-@pytest.mark.asyncio
 async def test_dashboard_reader_builds_bounded_workspace_overview() -> None:
     workspace_id = uuid4()
     reports = ReportSourceStub()
@@ -130,11 +129,11 @@ async def test_dashboard_reader_builds_bounded_workspace_overview() -> None:
     assert overview.recent_documents[0].statement_period_end == date(2026, 8, 5)
     assert [call[2].per_page for call in documents.calls] == [3, 1]
     assert all(call[0] == workspace_id for call in documents.calls)
+    assert documents.summary_calls == [workspace_id]
     assert overview.onboarding.has_confirmed_activity is True
     assert overview.onboarding.is_complete is False
 
 
-@pytest.mark.asyncio
 async def test_dashboard_onboarding_requires_an_active_account() -> None:
     accounts = AccountSourceStub()
     accounts.rows = [account_row(1, is_active=False)]

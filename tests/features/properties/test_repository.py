@@ -1,40 +1,34 @@
-from typing import Any, cast
+from types import SimpleNamespace
+from typing import cast
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.properties.models import Property, PropertyStatus
 from app.features.properties.repository import PropertyRepository
 
 
-class ScalarRows:
-    def __init__(self, rows: list[Property]) -> None:
-        self.rows = rows
+async def test_property_lookup_is_workspace_scoped() -> None:
+    workspace_id = uuid4()
+    property_id = uuid4()
+    execute = AsyncMock(
+        return_value=SimpleNamespace(scalar_one_or_none=lambda: None),
+    )
 
-    def all(self) -> list[Property]:
-        return self.rows
+    result = await PropertyRepository(
+        cast(AsyncSession, SimpleNamespace(execute=execute))
+    ).get_for_workspace(workspace_id, property_id)
 
-
-class QueryResult:
-    def __init__(self, rows: list[Property]) -> None:
-        self.rows = rows
-
-    def scalars(self) -> ScalarRows:
-        return ScalarRows(self.rows)
-
-
-class SessionCapture:
-    def __init__(self, rows: list[Property]) -> None:
-        self.rows = rows
-        self.queries: list[Any] = []
-
-    async def execute(self, query: Any) -> QueryResult:
-        self.queries.append(query)
-        return QueryResult(self.rows)
+    assert result is None
+    assert execute.await_args is not None
+    compiled = execute.await_args.args[0].compile()
+    sql = str(compiled)
+    assert "properties.id" in sql
+    assert "properties.workspace_id" in sql
+    assert {workspace_id, property_id} <= set(compiled.params.values())
 
 
-@pytest.mark.asyncio
 async def test_active_property_options_are_workspace_and_status_scoped() -> None:
     workspace_id = uuid4()
     active = Property(
@@ -43,14 +37,20 @@ async def test_active_property_options_are_workspace_and_status_scoped() -> None
         name="Квартира",
         status=PropertyStatus.ACTIVE,
     )
-    session = SessionCapture([active])
+    execute = AsyncMock(
+        return_value=SimpleNamespace(
+            scalars=lambda: SimpleNamespace(all=lambda: [active]),
+        )
+    )
+    session = SimpleNamespace(execute=execute)
 
     rows = await PropertyRepository(cast(AsyncSession, session)).list_active_for_workspace(
         workspace_id
     )
 
     assert rows == [active]
-    compiled = session.queries[0].compile()
+    assert execute.await_args is not None
+    compiled = execute.await_args.args[0].compile()
     sql = str(compiled)
     assert "properties.workspace_id" in sql
     assert "properties.status" in sql

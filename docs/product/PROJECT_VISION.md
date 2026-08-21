@@ -98,10 +98,9 @@ with restrained rebellious creativity
 
 ## Текущий baseline
 
-Финансовое ядро, imports, manual ledger, reports, reference data, workspaces и
-Telegram groundwork реализованы. Manual Ledger и Import Review уже
-каноничны в React; остальные authenticated workflows мигрируют по
-[`frontend plan`](../frontend/plan/README.md).
+Финансовое ядро, imports, operations, reports, reference data, workspaces и
+Telegram integration реализованы. Все browser workflows каноничны в React;
+текущие приоритеты находятся в [`ROADMAP.md`](ROADMAP.md).
 
 ## Фильтр решений
 

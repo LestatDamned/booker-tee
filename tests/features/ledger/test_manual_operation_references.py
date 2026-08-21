@@ -1,8 +1,6 @@
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-import pytest
-
 from app.features.accounts.models import Account, AccountType
 from app.features.categories.models import Category, CategoryKind
 from app.features.ledger.application.manual_operations import (
@@ -41,7 +39,6 @@ class PropertyServiceStub:
         return self.records
 
 
-@pytest.mark.asyncio
 async def test_reference_reader_uses_read_only_workspace_scoped_services() -> None:
     workspace_id = uuid4()
     accounts = AccountServiceStub()
@@ -63,8 +60,7 @@ async def test_reference_reader_uses_read_only_workspace_scoped_services() -> No
     assert properties.workspace_ids == [workspace_id]
 
 
-@pytest.mark.asyncio
-async def test_reference_reader_returns_narrow_immutable_options() -> None:
+async def test_reference_reader_returns_narrow_options_with_account_capabilities() -> None:
     workspace_id = uuid4()
     account_id = uuid4()
     credit_card_id = uuid4()
@@ -116,14 +112,18 @@ async def test_reference_reader_returns_narrow_immutable_options() -> None:
 
     references = await reader.read(workspace_id)
 
-    assert references.accounts[0].id == account_id
-    assert references.accounts[0].currency == "RUB"
-    assert references.accounts[0].can_record_income is True
-    assert references.accounts[0].can_record_expense is True
-    assert references.accounts[0].can_transfer is True
-    assert references.accounts[1].id == credit_card_id
-    assert references.accounts[1].can_record_income is False
-    assert references.accounts[1].can_record_expense is True
-    assert references.accounts[1].can_transfer is False
+    assert [
+        (
+            option.id,
+            option.currency,
+            option.can_record_income,
+            option.can_record_expense,
+            option.can_transfer,
+        )
+        for option in references.accounts
+    ] == [
+        (account_id, "RUB", True, True, True),
+        (credit_card_id, "RUB", False, True, False),
+    ]
     assert references.categories[0].id == category_id
     assert references.properties[0].id == property_id

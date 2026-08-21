@@ -1,3 +1,4 @@
+from fastapi import FastAPI
 from manual_ledger_support import filter_references, manual_ledger_app, manual_operation
 
 from api_client import ApiTestClient as TestClient
@@ -5,8 +6,8 @@ from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.workspaces.domain.types import WorkspaceRole
 
 
-def test_manual_ledger_has_no_parallel_list_endpoint() -> None:
-    app, _, _, _ = manual_ledger_app([])
+def test_manual_ledger_has_no_parallel_list_endpoint(app: FastAPI) -> None:
+    app, _, _, _ = manual_ledger_app(app, [])
 
     with TestClient(app) as client:
         response = client.get("/api/v1/manual-ledger")
@@ -14,9 +15,9 @@ def test_manual_ledger_has_no_parallel_list_endpoint() -> None:
     assert response.status_code == 405
 
 
-def test_manual_operation_edit_loads_fresh_snapshot_and_references() -> None:
+def test_manual_operation_edit_loads_fresh_snapshot_and_references(app: FastAPI) -> None:
     operation = manual_operation(OperationType.EXPENSE)
-    app, service, reference_reader, workspace_id = manual_ledger_app([operation])
+    app, service, reference_reader, workspace_id = manual_ledger_app(app, [operation])
     reference_reader.references = filter_references()
 
     with TestClient(app) as client:
@@ -30,9 +31,10 @@ def test_manual_operation_edit_loads_fresh_snapshot_and_references() -> None:
     assert reference_reader.workspace_ids == [workspace_id]
 
 
-def test_manual_operation_edit_requires_write_permission() -> None:
+def test_manual_operation_edit_requires_write_permission(app: FastAPI) -> None:
     operation = manual_operation(OperationType.EXPENSE)
     app, service, reference_reader, _ = manual_ledger_app(
+        app,
         [operation],
         role=WorkspaceRole.VIEWER,
     )
@@ -45,11 +47,11 @@ def test_manual_operation_edit_requires_write_permission() -> None:
     assert reference_reader.workspace_ids == []
 
 
-def test_manual_operation_edit_rejects_non_editable_state() -> None:
+def test_manual_operation_edit_rejects_non_editable_state(app: FastAPI) -> None:
     operation = manual_operation(OperationType.INCOME).model_copy(
         update={"status": OperationStatus.IGNORED},
     )
-    app, service, reference_reader, _ = manual_ledger_app([operation])
+    app, service, reference_reader, _ = manual_ledger_app(app, [operation])
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/manual-ledger/{operation.id}/edit")

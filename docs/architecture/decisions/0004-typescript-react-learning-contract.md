@@ -21,11 +21,10 @@ maintainable.
   модных frontend practices.
 - Каждый нетривиальный slice сопровождается объяснением request/state/render
   flow, использованных concepts, Python-аналогии и места, где аналогия ломается.
-- `frontend/README.md` содержит запуск и один end-to-end code walkthrough.
-- `frontend/docs/typescript-for-python.md` является живым справочником только по
-  используемым в проекте concepts.
-- Production comments объясняют причины и ограничения; учебник синтаксиса живет
-  в focused docs и handoff.
+- `frontend/README.md` содержит запуск и устойчивые code boundaries.
+- После завершения migration код, tests и UI foundation заменяют отдельный
+  учебный TypeScript walkthrough.
+- Production comments объясняют только причины и ограничения.
 
 ## Consequences
 

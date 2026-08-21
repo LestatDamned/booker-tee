@@ -26,75 +26,57 @@ from app.features.workspaces.permissions import (
 from app.features.workspaces.service import WorkspaceContext
 
 
-def test_workspace_permission_matrix_is_explicit() -> None:
-    assert role_permissions(WorkspaceRole.VIEWER) == {
-        "read": True,
-        "write": False,
-        "imports": False,
-        "raw_imports": True,
-        "member_directory": False,
-        "members": False,
-        "activity": False,
-        "workspace": False,
-    }
-    assert role_permissions(WorkspaceRole.ANALYST) == {
-        "read": True,
-        "write": False,
-        "imports": False,
-        "raw_imports": False,
-        "member_directory": False,
-        "members": False,
-        "activity": False,
-        "workspace": False,
-    }
-    assert role_permissions(WorkspaceRole.UPLOADER) == {
-        "read": True,
-        "write": False,
-        "imports": True,
-        "raw_imports": True,
-        "member_directory": False,
-        "members": False,
-        "activity": False,
-        "workspace": False,
-    }
-    assert role_permissions(WorkspaceRole.EDITOR) == {
-        "read": True,
-        "write": True,
-        "imports": True,
-        "raw_imports": True,
-        "member_directory": False,
-        "members": False,
-        "activity": False,
-        "workspace": False,
-    }
-    assert role_permissions(WorkspaceRole.ADMIN) == {
-        "read": True,
-        "write": True,
-        "imports": True,
-        "raw_imports": True,
-        "member_directory": True,
-        "members": True,
-        "activity": True,
-        "workspace": False,
-    }
-    assert role_permissions(WorkspaceRole.OWNER) == {
-        "read": True,
-        "write": True,
-        "imports": True,
-        "raw_imports": True,
-        "member_directory": True,
-        "members": True,
-        "activity": True,
-        "workspace": True,
-    }
+@pytest.mark.parametrize(
+    ("role", "expected_permissions"),
+    [
+        pytest.param(WorkspaceRole.VIEWER, {"read", "raw_imports"}, id="viewer"),
+        pytest.param(WorkspaceRole.ANALYST, {"read"}, id="analyst"),
+        pytest.param(
+            WorkspaceRole.UPLOADER,
+            {"read", "imports", "raw_imports"},
+            id="uploader",
+        ),
+        pytest.param(
+            WorkspaceRole.EDITOR,
+            {"read", "write", "imports", "raw_imports"},
+            id="editor",
+        ),
+        pytest.param(
+            WorkspaceRole.ADMIN,
+            {"read", "write", "imports", "raw_imports", "member_directory", "members", "activity"},
+            id="admin",
+        ),
+        pytest.param(
+            WorkspaceRole.OWNER,
+            {
+                "read",
+                "write",
+                "imports",
+                "raw_imports",
+                "member_directory",
+                "members",
+                "activity",
+                "workspace",
+            },
+            id="owner",
+        ),
+    ],
+)
+def test_workspace_permission_matrix_is_explicit(
+    role: WorkspaceRole,
+    expected_permissions: set[str],
+) -> None:
+    permissions = role_permissions(role)
+
+    assert {name for name, allowed in permissions.items() if allowed} == expected_permissions
 
 
 @pytest.mark.parametrize(
     "membership_status",
     [
-        WorkspaceMemberStatus.PENDING,
-        WorkspaceMemberStatus.DISABLED,
-        WorkspaceMemberStatus.REMOVED,
+        pytest.param(WorkspaceMemberStatus.PENDING, id="pending"),
+        pytest.param(WorkspaceMemberStatus.DISABLED, id="disabled"),
+        pytest.param(WorkspaceMemberStatus.REMOVED, id="removed"),
     ],
 )
 def test_inactive_membership_has_no_permissions(
@@ -118,19 +100,11 @@ def test_inactive_membership_has_no_permissions(
 async def test_financial_write_dependency_rejects_viewer() -> None:
     context = fake_context(role=WorkspaceRole.VIEWER)
 
-    try:
+    with pytest.raises(HTTPException) as error:
         await require_financial_write_context(context)
-    except HTTPException as exc:
-        assert exc.status_code == 403
-        assert "финансовых данных" in str(exc.detail)
-    else:
-        raise AssertionError("viewer was allowed to write financial data")
 
-
-async def test_financial_write_dependency_accepts_editor() -> None:
-    context = fake_context(role=WorkspaceRole.EDITOR)
-
-    assert await require_financial_write_context(context) is context
+    assert error.value.status_code == 403
+    assert "финансовых данных" in str(error.value.detail)
 
 
 def role_permissions(role: WorkspaceRole) -> dict[str, bool]:

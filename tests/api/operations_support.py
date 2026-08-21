@@ -26,7 +26,6 @@ from app.features.ledger.schemas.operations import (
     SystemOperationProvenanceDto,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
 class OperationsReaderStub:
@@ -62,6 +61,7 @@ class OperationsReaderStub:
 
 
 def operations_app(
+    app: FastAPI,
     operations: list[OperationReadDto],
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
@@ -71,7 +71,6 @@ def operations_app(
     ManualLedgerReferenceReaderStub,
     UUID,
 ]:
-    app = create_app()
     context = api_context(role=role)
     reader = OperationsReaderStub(operations)
     references = ManualLedgerReferenceReaderStub()

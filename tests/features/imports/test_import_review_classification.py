@@ -66,58 +66,92 @@ def test_classification_priority(
     assert classification.source is expected_source
 
 
-def test_income_expense_requires_real_category() -> None:
+@pytest.mark.parametrize(
+    ("has_category", "is_uncategorized", "expected_reasons"),
+    [
+        (False, False, (ReviewBlockingReasonCode.MISSING_CATEGORY,)),
+        (True, True, (ReviewBlockingReasonCode.UNCATEGORIZED_CATEGORY,)),
+        (True, False, ()),
+    ],
+    ids=("missing", "uncategorized", "categorized"),
+)
+def test_income_expense_requires_real_category(
+    has_category: bool,
+    is_uncategorized: bool,
+    expected_reasons: tuple[ReviewBlockingReasonCode, ...],
+) -> None:
     classification = resolve_review_classification(
         explicit_operation_type=OperationType.EXPENSE,
         suggested_operation_type=None,
         amount=Decimal("-10.00"),
     )
 
-    missing = evaluate_review_confirmability(facts(classification, category_id=None))
-    uncategorized = evaluate_review_confirmability(
-        facts(classification, category_id=uuid4(), category_is_uncategorized=True)
+    result = evaluate_review_confirmability(
+        facts(
+            classification,
+            category_id=uuid4() if has_category else None,
+            category_is_uncategorized=is_uncategorized,
+        )
     )
-    categorized = evaluate_review_confirmability(facts(classification, category_id=uuid4()))
 
-    assert missing.blocking_reason_codes == (ReviewBlockingReasonCode.MISSING_CATEGORY,)
-    assert uncategorized.blocking_reason_codes == (ReviewBlockingReasonCode.UNCATEGORIZED_CATEGORY,)
-    assert categorized.can_confirm is True
+    assert result.blocking_reason_codes == expected_reasons
+    assert result.can_confirm is (not bool(expected_reasons))
 
 
-def test_rule_suggestion_status_does_not_block_but_possible_duplicate_does() -> None:
+@pytest.mark.parametrize(
+    ("status", "expected_reasons"),
+    [
+        (RawTransactionStatus.SUGGESTED, ()),
+        (
+            RawTransactionStatus.POSSIBLE_DUPLICATE,
+            (ReviewBlockingReasonCode.DUPLICATE_REVIEW_REQUIRED,),
+        ),
+    ],
+    ids=("suggested", "possible-duplicate"),
+)
+def test_review_status_controls_confirmability(
+    status: RawTransactionStatus,
+    expected_reasons: tuple[ReviewBlockingReasonCode, ...],
+) -> None:
     classification = resolve_review_classification(
         explicit_operation_type=None,
         suggested_operation_type=OperationType.EXPENSE,
         amount=Decimal("-10.00"),
     )
 
-    suggestion = evaluate_review_confirmability(
+    result = evaluate_review_confirmability(
         facts(
             classification,
             category_id=uuid4(),
-            status=RawTransactionStatus.SUGGESTED,
-        )
-    )
-    duplicate = evaluate_review_confirmability(
-        facts(
-            classification,
-            category_id=uuid4(),
-            status=RawTransactionStatus.POSSIBLE_DUPLICATE,
+            status=status,
         )
     )
 
-    assert suggestion.can_confirm is True
-    assert duplicate.blocking_reason_codes == (ReviewBlockingReasonCode.DUPLICATE_REVIEW_REQUIRED,)
+    assert result.blocking_reason_codes == expected_reasons
+    assert result.can_confirm is (not bool(expected_reasons))
 
 
-def test_explicit_income_expense_must_match_normalized_amount_sign() -> None:
-    income = resolve_review_classification(
-        explicit_operation_type=OperationType.INCOME,
+@pytest.mark.parametrize(
+    ("operation_type", "amount"),
+    [
+        (OperationType.INCOME, Decimal("-10.00")),
+        (OperationType.EXPENSE, Decimal("10.00")),
+    ],
+    ids=("income-with-outflow", "expense-with-inflow"),
+)
+def test_explicit_income_expense_must_match_normalized_amount_sign(
+    operation_type: OperationType,
+    amount: Decimal,
+) -> None:
+    classification = resolve_review_classification(
+        explicit_operation_type=operation_type,
         suggested_operation_type=None,
-        amount=Decimal("-10.00"),
+        amount=amount,
     )
 
-    result = evaluate_review_confirmability(facts(income, category_id=uuid4()))
+    result = evaluate_review_confirmability(
+        facts(classification, category_id=uuid4(), amount=amount)
+    )
 
     assert result.blocking_reason_codes == (
         ReviewBlockingReasonCode.OPERATION_TYPE_AMOUNT_MISMATCH,
@@ -130,13 +164,14 @@ def facts(
     category_id=None,
     category_is_uncategorized: bool = False,
     status: RawTransactionStatus = RawTransactionStatus.MATCHED,
+    amount: Decimal = Decimal("-10.00"),
 ) -> ReviewConfirmabilityInput:
     return ReviewConfirmabilityInput(
         status=status,
         normalization_error=None,
         operation_date=date(2026, 7, 21),
         operation_date_raw=None,
-        amount=Decimal("-10.00"),
+        amount=amount,
         currency="RUB",
         source_account_id=uuid4(),
         counterparty_account_id=None,

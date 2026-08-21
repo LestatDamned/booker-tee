@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 from uuid import uuid4
 
 import pytest
@@ -16,6 +16,7 @@ from app.features.transaction_rules.application.rule_management import (
 )
 from app.features.transaction_rules.application.target_resolution import (
     ResolvedTransactionRuleTargets,
+    TransactionRuleTargetResolver,
 )
 from app.features.transaction_rules.errors import (
     TransactionRuleDeleteBlockedError,
@@ -30,22 +31,22 @@ from app.features.transaction_rules.models import (
     TransactionRuleApplicationMode,
     TransactionRuleMatchType,
 )
+from app.features.transaction_rules.repository import TransactionRuleRepository
 
 
-@pytest.mark.asyncio
 async def test_caller_owned_create_flushes_distinct_rules_without_commit() -> None:
     session = SimpleNamespace(
         commit=AsyncMock(),
         rollback=AsyncMock(),
         refresh=AsyncMock(),
     )
-    repository = SimpleNamespace(create=AsyncMock(side_effect=lambda rule: rule))
-    targets = SimpleNamespace(
-        resolve_for_create=AsyncMock(return_value=ResolvedTransactionRuleTargets(None, None, None))
-    )
+    repository = create_autospec(TransactionRuleRepository, instance=True)
+    repository.create.side_effect = lambda rule: rule
+    targets = create_autospec(TransactionRuleTargetResolver, instance=True)
+    targets.resolve_for_create.return_value = ResolvedTransactionRuleTargets(None, None, None)
     service = TransactionRuleManagementUseCase(cast(AsyncSession, session))
-    service.rules = cast(Any, repository)
-    service.targets = cast(Any, targets)
+    service.rules = repository
+    service.targets = targets
     context = workspace_context(uuid4())
     command = CreateTransactionRuleCommand(
         name="OZON",
@@ -66,12 +67,8 @@ async def test_caller_owned_create_flushes_distinct_rules_without_commit() -> No
     session.rollback.assert_not_awaited()
 
 
-@pytest.mark.asyncio
-async def test_update_rejects_stale_snapshot_and_preserves_dormant_fields() -> None:
-    rule, service, session, repository, targets = management_service(is_active=True)
-    original_account_id = rule.account_id
-    original_description = rule.auto_description
-    original_affects_profit = rule.affects_profit
+async def test_update_rejects_stale_snapshot_before_resolving_targets() -> None:
+    rule, service, session, _repository, targets = management_service(is_active=True)
 
     with pytest.raises(TransactionRuleUpdateConflictError):
         await service.update_rule(
@@ -86,7 +83,13 @@ async def test_update_rejects_stale_snapshot_and_preserves_dormant_fields() -> N
     targets.resolve_for_update.assert_not_awaited()
     session.rollback.assert_awaited_once()
 
-    session.rollback.reset_mock()
+
+async def test_update_preserves_fields_outside_the_command() -> None:
+    rule, service, session, _repository, _targets = management_service(is_active=True)
+    original_account_id = rule.account_id
+    original_description = rule.auto_description
+    original_affects_profit = rule.affects_profit
+
     updated = await service.update_rule(
         context=workspace_context(rule.workspace_id),
         command=update_command(rule, expected_updated_at=rule.updated_at),
@@ -96,92 +99,108 @@ async def test_update_rejects_stale_snapshot_and_preserves_dormant_fields() -> N
     assert rule.account_id == original_account_id
     assert rule.auto_description == original_description
     assert rule.affects_profit == original_affects_profit
-    repository.delete.assert_not_awaited()
     session.commit.assert_awaited_once()
     session.refresh.assert_awaited_once_with(rule)
 
 
-@pytest.mark.asyncio
-async def test_lifecycle_rejects_wrong_state_stale_and_missing_rule() -> None:
+@pytest.mark.parametrize(
+    ("expected_active", "updated_at_delta"),
+    [
+        pytest.param(False, timedelta(0), id="wrong-state"),
+        pytest.param(True, timedelta(seconds=-1), id="stale-snapshot"),
+    ],
+)
+async def test_lifecycle_rejects_conflicting_snapshot(
+    expected_active: bool,
+    updated_at_delta: timedelta,
+) -> None:
+    rule, service, session, _repository, _targets = management_service(is_active=True)
+
+    with pytest.raises(TransactionRuleLifecycleConflictError):
+        await service.set_rule_active(
+            workspace_id=rule.workspace_id,
+            rule_id=rule.id,
+            is_active=False,
+            expected_active=expected_active,
+            expected_updated_at=rule.updated_at + updated_at_delta,
+        )
+
+    assert rule.is_active is True
+    session.commit.assert_not_awaited()
+    session.rollback.assert_awaited_once()
+
+
+async def test_lifecycle_masks_rule_outside_workspace_as_not_found() -> None:
     rule, service, session, repository, _targets = management_service(is_active=True)
-
-    with pytest.raises(TransactionRuleLifecycleConflictError):
-        await service.set_rule_active(
-            workspace_id=rule.workspace_id,
-            rule_id=rule.id,
-            is_active=False,
-            expected_active=False,
-            expected_updated_at=rule.updated_at,
-        )
-    with pytest.raises(TransactionRuleLifecycleConflictError):
-        await service.set_rule_active(
-            workspace_id=rule.workspace_id,
-            rule_id=rule.id,
-            is_active=False,
-            expected_active=True,
-            expected_updated_at=rule.updated_at - timedelta(seconds=1),
-        )
-
     repository.get_for_workspace_for_update.return_value = None
+
     with pytest.raises(TransactionRuleNotFoundError):
         await service.set_rule_active(
             workspace_id=uuid4(),
             rule_id=rule.id,
             is_active=False,
         )
+
     session.commit.assert_not_awaited()
+    session.rollback.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_enable_revalidates_targets_and_disable_does_not_rewrite_suggestions() -> None:
-    rule, service, session, _repository, targets = management_service(is_active=True)
+@pytest.mark.parametrize(
+    ("initial_active", "target_active"),
+    [
+        pytest.param(True, False, id="disable"),
+        pytest.param(False, True, id="enable"),
+    ],
+)
+async def test_lifecycle_revalidates_targets_only_when_enabling(
+    initial_active: bool,
+    target_active: bool,
+) -> None:
+    rule, service, session, _repository, targets = management_service(is_active=initial_active)
 
-    disabled = await service.set_rule_active(
+    changed = await service.set_rule_active(
         workspace_id=rule.workspace_id,
         rule_id=rule.id,
-        is_active=False,
-        expected_active=True,
+        is_active=target_active,
+        expected_active=initial_active,
         expected_updated_at=rule.updated_at,
     )
 
-    assert disabled.is_active is False
-    targets.validate_for_activation.assert_not_awaited()
-
-    enabled = await service.set_rule_active(
-        workspace_id=rule.workspace_id,
-        rule_id=rule.id,
-        is_active=True,
-        expected_active=False,
-        expected_updated_at=rule.updated_at,
-    )
-
-    assert enabled.is_active is True
-    targets.validate_for_activation.assert_awaited_once_with(
-        workspace_id=rule.workspace_id,
-        rule=rule,
-    )
-    assert session.commit.await_count == 2
+    assert changed.is_active is target_active
+    if target_active:
+        targets.validate_for_activation.assert_awaited_once_with(
+            workspace_id=rule.workspace_id,
+            rule=rule,
+        )
+    else:
+        targets.validate_for_activation.assert_not_awaited()
+    session.commit.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_delete_blocks_active_and_referenced_rules() -> None:
-    rule, service, session, repository, _targets = management_service(is_active=True)
+@pytest.mark.parametrize(
+    ("is_active", "suggestion_count", "dependency_field", "expected_value"),
+    [
+        pytest.param(True, 0, "is_active", True, id="active-rule"),
+        pytest.param(False, 3, "raw_suggestion_count", 3, id="import-history"),
+    ],
+)
+async def test_delete_blocks_rules_with_dependencies(
+    is_active: bool,
+    suggestion_count: int,
+    dependency_field: str,
+    expected_value: bool | int,
+) -> None:
+    rule, service, session, repository, _targets = management_service(is_active=is_active)
+    repository.count_direct_raw_suggestions.return_value = suggestion_count
 
-    with pytest.raises(TransactionRuleDeleteBlockedError) as active_blocked:
+    with pytest.raises(TransactionRuleDeleteBlockedError) as blocked:
         await service.delete_rule(workspace_id=rule.workspace_id, rule_id=rule.id)
-    assert active_blocked.value.dependencies.is_active is True
-    repository.delete.assert_not_awaited()
 
-    rule.is_active = False
-    repository.count_direct_raw_suggestions.return_value = 3
-    with pytest.raises(TransactionRuleDeleteBlockedError) as referenced_blocked:
-        await service.delete_rule(workspace_id=rule.workspace_id, rule_id=rule.id)
-    assert referenced_blocked.value.dependencies.raw_suggestion_count == 3
+    assert getattr(blocked.value.dependencies, dependency_field) == expected_value
     repository.delete.assert_not_awaited()
     session.commit.assert_not_awaited()
 
 
-@pytest.mark.asyncio
 async def test_delete_removes_only_unused_disabled_workspace_rule() -> None:
     rule, service, session, repository, _targets = management_service(is_active=False)
 
@@ -198,7 +217,6 @@ async def test_delete_removes_only_unused_disabled_workspace_rule() -> None:
     session.commit.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_delete_rejects_stale_state_before_dependency_check() -> None:
     rule, service, session, repository, _targets = management_service(is_active=False)
 
@@ -239,18 +257,14 @@ def management_service(
         rollback=AsyncMock(),
         refresh=AsyncMock(),
     )
-    repository = SimpleNamespace(
-        get_for_workspace_for_update=AsyncMock(return_value=rule),
-        count_direct_raw_suggestions=AsyncMock(return_value=0),
-        delete=AsyncMock(),
-    )
-    targets = SimpleNamespace(
-        resolve_for_update=AsyncMock(return_value=ResolvedTransactionRuleTargets(None, None, None)),
-        validate_for_activation=AsyncMock(),
-    )
+    repository = create_autospec(TransactionRuleRepository, instance=True)
+    repository.get_for_workspace_for_update.return_value = rule
+    repository.count_direct_raw_suggestions.return_value = 0
+    targets = create_autospec(TransactionRuleTargetResolver, instance=True)
+    targets.resolve_for_update.return_value = ResolvedTransactionRuleTargets(None, None, None)
     service = TransactionRuleManagementUseCase(cast(AsyncSession, session))
-    service.rules = cast(Any, repository)
-    service.targets = cast(Any, targets)
+    service.rules = repository
+    service.targets = targets
     return rule, service, session, repository, targets
 
 

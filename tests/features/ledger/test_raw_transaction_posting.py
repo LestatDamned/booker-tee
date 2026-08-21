@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-import pytest
+from ledger_test_support import workspace_context
 
 from app.features.accounts.models import Account, AccountType
 from app.features.import_review.application.transfers import (
@@ -131,10 +131,10 @@ class DocumentStatusStub:
         return False
 
 
-@pytest.mark.asyncio
 async def test_post_imported_income_expense_creates_ledger_records_without_commit() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
+    raw_transaction_id = uuid4()
     account = Account(
         id=uuid4(),
         workspace_id=workspace_id,
@@ -143,26 +143,14 @@ async def test_post_imported_income_expense_creates_ledger_records_without_commi
         currency="RUB",
         initial_balance=Decimal("0.00"),
     )
-    raw_transaction = SimpleNamespace(
-        id=uuid4(),
-        workspace_id=workspace_id,
-        uploaded_document_id=document_id,
-        uploaded_document=SimpleNamespace(account_id=account.id),
-        linked_operation_id=None,
-        account_id=None,
-        status=RawTransactionStatus.NORMALIZED,
+    plan = LedgerPostingPlan(
+        operation_type=OperationType.INCOME,
         amount=Decimal("100.00"),
         currency="RUB",
         operation_date=date(2026, 7, 21),
         posting_date=None,
-        description_normalized="Пополнение",
-        description_raw="Пополнение",
+        description="Пополнение",
         balance_after=Decimal("100.00"),
-        dedupe_hash=None,
-        raw_payload={},
-        suggested_category_id=None,
-        suggested_property_id=None,
-        suggested_by_rule_id=None,
     )
     session = SessionStub()
     ledger = LedgerRepositoryStub()
@@ -179,17 +167,9 @@ async def test_post_imported_income_expense_creates_ledger_records_without_commi
             ),
         ),
         document_id=document_id,
-        raw_transaction_id=raw_transaction.id,
+        raw_transaction_id=raw_transaction_id,
         account=account,
-        plan=LedgerPostingPlan(
-            operation_type=OperationType.INCOME,
-            amount=raw_transaction.amount,
-            currency=raw_transaction.currency,
-            operation_date=raw_transaction.operation_date,
-            posting_date=raw_transaction.posting_date,
-            description=raw_transaction.description_normalized,
-            balance_after=raw_transaction.balance_after,
-        ),
+        plan=plan,
         category=cast(Any, SimpleNamespace(id=uuid4())),
         property_=None,
         idempotency_key=idempotency_key,
@@ -202,15 +182,19 @@ async def test_post_imported_income_expense_creates_ledger_records_without_commi
     assert operation.idempotency_fingerprint == "confirm-fingerprint"
     assert operation.extra_metadata == {
         "source": "raw_transaction",
-        "raw_transaction_id": str(raw_transaction.id),
+        "raw_transaction_id": str(raw_transaction_id),
         "uploaded_document_id": str(document_id),
     }
     assert len(ledger.entries) == 1
+    entry = ledger.entries[0]
+    assert entry.account is account
+    assert entry.amount == plan.amount
+    assert entry.balance_after == plan.balance_after
+    assert entry.extra_metadata == {"source": "bank_pdf"}
     assert session.committed is False
     assert session.rolled_back is False
 
 
-@pytest.mark.asyncio
 async def test_post_raw_transaction_as_transfer_builds_balanced_entries_without_commit() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
@@ -265,7 +249,6 @@ async def test_post_raw_transaction_as_transfer_builds_balanced_entries_without_
     assert session.committed is False
 
 
-@pytest.mark.asyncio
 async def test_post_paired_raw_transactions_links_both_rows_to_one_transfer() -> None:
     workspace_id = uuid4()
     source_document_id = uuid4()
@@ -324,7 +307,6 @@ async def test_post_paired_raw_transactions_links_both_rows_to_one_transfer() ->
     assert session.committed is False
 
 
-@pytest.mark.asyncio
 async def test_link_raw_transaction_to_existing_manual_transfer_creates_no_entries() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
@@ -405,18 +387,6 @@ def raw_row(
         suggested_property_id=None,
         suggested_by_rule_id=None,
     )
-
-
-def workspace_context(workspace_id: UUID) -> Any:
-    return cast(
-        Any,
-        SimpleNamespace(
-            workspace=SimpleNamespace(id=workspace_id),
-            user=SimpleNamespace(id=uuid4()),
-        ),
-    )
-
-
 def transfer_actor(
     *,
     session: SessionStub,

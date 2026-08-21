@@ -39,29 +39,46 @@ class SessionCapture:
         self.flush_count += 1
 
 
-@pytest.mark.asyncio
-async def test_debt_repository_lookups_are_workspace_scoped() -> None:
+@pytest.mark.parametrize(
+    "method_name",
+    [
+        "get_for_workspace",
+        "get_for_workspace_for_update",
+        "get_by_creation_idempotency_key",
+        "get_payment_for_workspace",
+        "get_payment_for_workspace_for_update",
+        "get_payment_by_idempotency_key",
+    ],
+)
+async def test_debt_repository_lookup_is_workspace_scoped(method_name: str) -> None:
     workspace_id = uuid4()
     session = SessionCapture()
     repository = DebtRepository(cast(AsyncSession, session))
 
-    await repository.get_for_workspace(workspace_id, uuid4())
-    await repository.get_by_creation_idempotency_key(workspace_id, uuid4())
-    await repository.get_payment_for_workspace(workspace_id, uuid4())
-    await repository.get_payment_by_idempotency_key(workspace_id, uuid4())
+    await getattr(repository, method_name)(workspace_id, uuid4())
 
-    assert len(session.queries) == 4
-    for query in session.queries:
-        compiled = query.compile()
-        assert "workspace_id" in str(compiled)
-        assert workspace_id in compiled.params.values()
+    assert len(session.queries) == 1
+    compiled = session.queries[0].compile()
+    assert "workspace_id" in str(compiled)
+    assert workspace_id in compiled.params.values()
 
 
-@pytest.mark.asyncio
-async def test_debt_repository_create_actions_only_add_and_flush() -> None:
+async def test_debt_repository_create_adds_and_flushes_debt() -> None:
     workspace_id = uuid4()
     account_id = uuid4()
     debt = debt_record(workspace_id=workspace_id, account_id=account_id)
+    session = SessionCapture()
+    repository = DebtRepository(cast(AsyncSession, session))
+
+    assert await repository.create(debt) is debt
+
+    assert session.added == [debt]
+    assert session.flush_count == 1
+
+
+async def test_debt_repository_create_payment_adds_and_flushes_payment() -> None:
+    workspace_id = uuid4()
+    account_id = uuid4()
     payment = DebtPayment(
         id=uuid4(),
         workspace_id=workspace_id,
@@ -74,11 +91,10 @@ async def test_debt_repository_create_actions_only_add_and_flush() -> None:
     session = SessionCapture()
     repository = DebtRepository(cast(AsyncSession, session))
 
-    assert await repository.create(debt) is debt
     assert await repository.create_payment(payment) is payment
 
-    assert session.added == [debt, payment]
-    assert session.flush_count == 2
+    assert session.added == [payment]
+    assert session.flush_count == 1
 
 
 def test_debt_models_keep_money_as_decimal_and_register_constraints() -> None:

@@ -8,7 +8,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
-from app.features.chat_integrations import service as chat_service
 from app.features.chat_integrations.actions.review import (
     ChatReviewCategorySelection,
     ChatReviewRuleSuggestionSelection,
@@ -21,18 +20,7 @@ from app.features.chat_integrations.handlers import review_queue as chat_review_
 from app.features.chat_integrations.handlers import (
     review_rule_suggestion as chat_review_rule_suggestion_handler,
 )
-from app.features.chat_integrations.schemas import (
-    ChatConversation,
-    ChatConversationType,
-    ChatProviderCode,
-    ChatUser,
-    InboundChatEvent,
-    InboundChatEventType,
-)
 from app.features.chat_integrations.service import ChatEventService
-from app.features.chat_integrations.use_cases import (
-    workspace as chat_workspace,
-)
 from app.features.chat_integrations.use_cases.review import (
     dto as chat_review_dto,
 )
@@ -40,6 +28,13 @@ from app.features.chat_integrations.use_cases.review.rules import (
     ChatReviewRuleSuggestionService,
 )
 from app.features.workspaces.service import WorkspaceContext
+
+from .chat_test_support import (
+    bound_chat_workspace,
+    callback_event,
+    message_event,
+    patch_bound_workspace,
+)
 
 
 def _build_chat_review_queue_item(
@@ -88,7 +83,6 @@ def _patch_next_review_item_after_action(
     )
 
 
-@pytest.mark.asyncio
 async def test_chat_rule_claims_action_and_uses_shared_creator_before_commit() -> None:
     events: list[str] = []
     calls: list[dict[str, object]] = []
@@ -171,27 +165,11 @@ async def test_chat_rule_claims_action_and_uses_shared_creator_before_commit() -
     )
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_shows_rule_suggestion_after_manual_category(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
+    bound_workspace = bound_chat_workspace(workspace_id)
 
     class FakeChatReviewConfirmationService:
         def __init__(self, _session: object, _settings: Settings) -> None:
@@ -218,26 +196,14 @@ async def test_chat_event_service_shows_rule_suggestion_after_manual_category(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_confirmation_handler,
         "ChatReviewConfirmationService",
         FakeChatReviewConfirmationService,
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rvc:categorytoken:1",
-    )
+    event = callback_event("rvc:categorytoken:1")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -251,28 +217,12 @@ async def test_chat_event_service_shows_rule_suggestion_after_manual_category(
     assert response.buttons[1][0].callback_data == "rvr:ruletoken:pick"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_saves_review_rule_suggestion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
     saved_tokens: list[str] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatReviewRuleSuggestionService:
         def __init__(self, _session: object) -> None:
@@ -290,7 +240,7 @@ async def test_chat_event_service_saves_review_rule_suggestion(
                 action_label="правило сохранено",
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_rule_suggestion_handler,
         "ChatReviewRuleSuggestionService",
@@ -298,19 +248,7 @@ async def test_chat_event_service_saves_review_rule_suggestion(
     )
     _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rvr:ruletoken:save",
-    )
+    event = callback_event("rvr:ruletoken:save")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -323,27 +261,11 @@ async def test_chat_event_service_saves_review_rule_suggestion(
     assert "NEXT ROW" in response.text
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_starts_manual_rule_pattern_input(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
+    bound_workspace = bound_chat_workspace(workspace_id)
 
     class FakeChatReviewRuleSuggestionService:
         def __init__(self, _session: object) -> None:
@@ -362,26 +284,14 @@ async def test_chat_event_service_starts_manual_rule_pattern_input(
                 category_name="Продукты",
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_review_rule_suggestion_handler,
         "ChatReviewRuleSuggestionService",
         FakeChatReviewRuleSuggestionService,
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="rvr:ruletoken:type",
-    )
+    event = callback_event("rvr:ruletoken:type")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -393,28 +303,12 @@ async def test_chat_event_service_starts_manual_rule_pattern_input(
     assert response.buttons[0][0].callback_data == "rvr:manualruletoken:skip"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_saves_manual_rule_pattern_message(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
     saved_texts: list[str | None] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatReviewRuleSuggestionService:
         def __init__(self, _session: object) -> None:
@@ -446,7 +340,7 @@ async def test_chat_event_service_saves_manual_rule_pattern_message(
             assert text == "KRASNOE&BELOE"
             return None
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_manual_handler,
         "ChatManualOperationService",
@@ -459,19 +353,7 @@ async def test_chat_event_service_saves_manual_rule_pattern_message(
     )
     _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.MESSAGE,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        text="KRASNOE&BELOE",
-    )
+    event = message_event("KRASNOE&BELOE")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),

@@ -23,7 +23,6 @@ class AccountRepositoryStub:
         return None
 
 
-@pytest.mark.asyncio
 async def test_account_lifecycle_checks_expected_snapshot_before_commit() -> None:
     workspace_id = uuid4()
     updated_at = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
@@ -52,7 +51,6 @@ async def test_account_lifecycle_checks_expected_snapshot_before_commit() -> Non
     session.refresh.assert_awaited_once_with(account)
 
 
-@pytest.mark.asyncio
 async def test_account_lifecycle_rejects_stale_timestamp_without_commit() -> None:
     workspace_id = uuid4()
     updated_at = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)

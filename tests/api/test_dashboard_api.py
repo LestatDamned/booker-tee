@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+from fastapi import FastAPI
 from manual_ledger_support import api_context
 
 from api_client import ApiTestClient as TestClient
@@ -20,7 +21,6 @@ from app.features.imports.documents.dto import (
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.reports.repository import ReportMoneySummaryRow
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
 class DashboardReaderStub:
@@ -88,16 +88,17 @@ class DashboardReaderStub:
         )
 
 
-def test_dashboard_api_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_dashboard_api_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/dashboard")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_dashboard_api_returns_workspace_scoped_decimal_string_contract() -> None:
-    app = create_app()
+def test_dashboard_api_returns_workspace_scoped_decimal_string_contract(
+    app: FastAPI,
+) -> None:
     context = api_context(role=WorkspaceRole.VIEWER)
     context.workspace.workspace.name = "Личные финансы"
     context.workspace.workspace.default_currency = "RUB"

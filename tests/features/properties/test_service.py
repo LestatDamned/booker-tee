@@ -15,8 +15,7 @@ from app.features.properties.service import (
 )
 
 
-@pytest.mark.asyncio
-async def test_property_update_rejects_foreign_or_missing_identity() -> None:
+async def test_property_update_rejects_invisible_identity() -> None:
     property_ = existing_property()
     service = property_service(property_)
 
@@ -33,7 +32,6 @@ async def test_property_update_rejects_foreign_or_missing_identity() -> None:
     assert property_.name == "Квартира"
 
 
-@pytest.mark.asyncio
 async def test_property_update_rejects_stale_write_before_mutation() -> None:
     property_ = existing_property()
     service = property_service(property_)
@@ -51,7 +49,6 @@ async def test_property_update_rejects_stale_write_before_mutation() -> None:
     assert property_.name == "Квартира"
 
 
-@pytest.mark.asyncio
 async def test_property_update_normalizes_commits_and_returns_refreshed_snapshot() -> None:
     property_ = existing_property()
     refreshed_at = property_.updated_at + timedelta(seconds=1)
@@ -90,41 +87,54 @@ async def test_property_update_normalizes_commits_and_returns_refreshed_snapshot
     assert events == ["commit", "refresh"]
 
 
-@pytest.mark.asyncio
-async def test_property_lifecycle_rejects_missing_stale_and_wrong_status() -> None:
+@pytest.mark.parametrize(
+    ("workspace_matches", "expected_status", "timestamp_delta", "error_type"),
+    [
+        pytest.param(
+            False,
+            PropertyStatus.ACTIVE,
+            timedelta(0),
+            PropertyNotFoundError,
+            id="not-visible",
+        ),
+        pytest.param(
+            True,
+            PropertyStatus.ARCHIVED,
+            timedelta(0),
+            PropertyLifecycleConflictError,
+            id="wrong-status",
+        ),
+        pytest.param(
+            True,
+            PropertyStatus.ACTIVE,
+            timedelta(seconds=-1),
+            PropertyLifecycleConflictError,
+            id="stale-timestamp",
+        ),
+    ],
+)
+async def test_property_lifecycle_rejects_invalid_snapshot(
+    workspace_matches: bool,
+    expected_status: PropertyStatus,
+    timestamp_delta: timedelta,
+    error_type: type[Exception],
+) -> None:
     property_ = existing_property()
     service = property_service(property_)
 
-    with pytest.raises(PropertyNotFoundError):
+    with pytest.raises(error_type):
         await service.set_status(
-            workspace_id=uuid4(),
+            workspace_id=property_.workspace_id if workspace_matches else uuid4(),
             property_id=property_.id,
             status=PropertyStatus.ARCHIVED,
-            expected_status=PropertyStatus.ACTIVE,
-            expected_updated_at=property_.updated_at,
-        )
-    with pytest.raises(PropertyLifecycleConflictError):
-        await service.set_status(
-            workspace_id=property_.workspace_id,
-            property_id=property_.id,
-            status=PropertyStatus.ARCHIVED,
-            expected_status=PropertyStatus.ARCHIVED,
-            expected_updated_at=property_.updated_at,
-        )
-    with pytest.raises(PropertyLifecycleConflictError):
-        await service.set_status(
-            workspace_id=property_.workspace_id,
-            property_id=property_.id,
-            status=PropertyStatus.ARCHIVED,
-            expected_status=PropertyStatus.ACTIVE,
-            expected_updated_at=property_.updated_at - timedelta(seconds=1),
+            expected_status=expected_status,
+            expected_updated_at=property_.updated_at + timestamp_delta,
         )
 
     assert property_.status == PropertyStatus.ACTIVE
 
 
-@pytest.mark.asyncio
-async def test_property_lifecycle_archives_and_restores_without_changing_identity() -> None:
+async def test_property_lifecycle_archives_without_changing_identity() -> None:
     property_ = existing_property()
     service = property_service(property_)
 
@@ -139,7 +149,13 @@ async def test_property_lifecycle_archives_and_restores_without_changing_identit
     assert archived is property_
     assert archived.status == PropertyStatus.ARCHIVED
     assert archived.archived_at is not None
-    archived_at = archived.archived_at
+
+
+async def test_property_lifecycle_restores_without_changing_identity() -> None:
+    property_ = existing_property()
+    property_.status = PropertyStatus.ARCHIVED
+    property_.archived_at = datetime(2026, 8, 2, 8, 30, tzinfo=UTC)
+    service = property_service(property_)
 
     restored = await service.set_status(
         workspace_id=property_.workspace_id,
@@ -150,13 +166,10 @@ async def test_property_lifecycle_archives_and_restores_without_changing_identit
     )
 
     assert restored is property_
-    assert restored.id == archived.id
     assert restored.status == PropertyStatus.ACTIVE
     assert restored.archived_at is None
-    assert archived_at is not None
 
 
-@pytest.mark.asyncio
 async def test_archived_property_remains_resolvable_for_existing_links_and_rules() -> None:
     property_ = existing_property()
     property_.status = PropertyStatus.ARCHIVED

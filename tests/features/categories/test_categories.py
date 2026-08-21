@@ -1,16 +1,18 @@
 from datetime import date
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.categories.models import CategoryKind
+from app.features.categories.repository import CategoryRepository
 from app.features.categories.service import (
     DEFAULT_CATEGORY_SEEDS,
     PROPERTY_MANAGEMENT_CATEGORY_SEEDS,
     SYSTEM_CATEGORY_SEEDS,
-    CategoryDeleteBlockedError,
     CategoryError,
     CategoryService,
     clean_optional_text,
@@ -62,13 +64,42 @@ def test_property_management_categories_are_seeded_only_for_property_workspace()
     assert property_only_names <= property_names
 
 
-def test_clean_optional_text_normalizes_blank_category_notes() -> None:
-    assert clean_optional_text("  супермаркеты   и доставка  ") == "супермаркеты и доставка"
-    assert clean_optional_text("   ") is None
-    assert clean_optional_text(None) is None
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param(
+            "  супермаркеты   и доставка  ",
+            "супермаркеты и доставка",
+            id="normalized",
+        ),
+        pytest.param("   ", None, id="blank"),
+        pytest.param(None, None, id="missing"),
+    ],
+)
+def test_clean_optional_text(value: str | None, expected: str | None) -> None:
+    assert clean_optional_text(value) == expected
 
 
-@pytest.mark.asyncio
+async def test_category_lookup_is_workspace_scoped() -> None:
+    workspace_id = uuid4()
+    category_id = uuid4()
+    execute = AsyncMock(
+        return_value=SimpleNamespace(scalar_one_or_none=lambda: None),
+    )
+
+    result = await CategoryRepository(
+        cast(AsyncSession, SimpleNamespace(execute=execute))
+    ).get_for_workspace(workspace_id, category_id)
+
+    assert result is None
+    assert execute.await_args is not None
+    compiled = execute.await_args.args[0].compile()
+    sql = str(compiled)
+    assert "categories.id" in sql
+    assert "categories.workspace_id" in sql
+    assert {workspace_id, category_id} <= set(compiled.params.values())
+
+
 async def test_category_detail_forwards_currency_and_flow_to_ledger() -> None:
     category = SimpleNamespace(id=uuid4())
     captured: dict[str, object] = {}
@@ -111,7 +142,6 @@ async def test_category_detail_forwards_currency_and_flow_to_ledger() -> None:
     }
 
 
-@pytest.mark.asyncio
 async def test_category_name_uniqueness_is_case_insensitive() -> None:
     category_id = uuid4()
     service = CategoryService(cast(Any, SimpleNamespace(commit=noop_async)))
@@ -129,29 +159,6 @@ async def test_category_name_uniqueness_is_case_insensitive() -> None:
         )
 
 
-@pytest.mark.asyncio
-async def test_archived_category_without_links_can_be_deleted() -> None:
-    category_id = uuid4()
-    category = SimpleNamespace(
-        id=category_id,
-        name="Продукты",
-        is_active=False,
-        is_system=False,
-    )
-    repository = FakeCategoryRepository(category=category)
-    service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
-    service.categories = cast(Any, repository)
-
-    await service.delete_archived_custom(
-        workspace_id=uuid4(),
-        category_id=category_id,
-    )
-
-    assert repository.deleted == category
-    assert repository.committed
-
-
-@pytest.mark.asyncio
 async def test_active_category_must_be_archived_before_delete() -> None:
     category_id = uuid4()
     category = SimpleNamespace(
@@ -160,8 +167,12 @@ async def test_active_category_must_be_archived_before_delete() -> None:
         is_active=True,
         is_system=False,
     )
-    repository = FakeCategoryRepository(category=category)
-    service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
+    repository = SimpleNamespace(
+        get_for_workspace=AsyncMock(return_value=category),
+        delete=AsyncMock(),
+    )
+    session = SimpleNamespace(commit=AsyncMock())
+    service = CategoryService(cast(Any, session))
     service.categories = cast(Any, repository)
 
     with pytest.raises(CategoryError, match="Сначала перенесите категорию в архив"):
@@ -170,66 +181,8 @@ async def test_active_category_must_be_archived_before_delete() -> None:
             category_id=category_id,
         )
 
-    assert repository.deleted is None
-
-
-@pytest.mark.asyncio
-async def test_archived_category_with_operations_cannot_be_deleted() -> None:
-    category_id = uuid4()
-    category = SimpleNamespace(
-        id=category_id,
-        name="Продукты",
-        is_active=False,
-        is_system=False,
-    )
-    repository = FakeCategoryRepository(category=category, operation_count=1)
-    service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
-    service.categories = cast(Any, repository)
-
-    with pytest.raises(CategoryDeleteBlockedError) as blocked:
-        await service.delete_archived_custom(
-            workspace_id=uuid4(),
-            category_id=category_id,
-        )
-
-    assert blocked.value.dependencies.operation_count == 1
-    assert repository.deleted is None
-
-
-class FakeCategoryRepository:
-    def __init__(
-        self,
-        *,
-        category: Any,
-        operation_count: int = 0,
-        rule_count: int = 0,
-    ) -> None:
-        self.category = category
-        self.operation_count = operation_count
-        self.rule_count = rule_count
-        self.deleted: object | None = None
-        self.committed = False
-
-    async def get_for_workspace(self, _workspace_id: object, _category_id: object) -> object:
-        return self.category
-
-    async def count_all_operations_by_category(self, _workspace_id: object) -> dict[object, int]:
-        return {self.category.id: self.operation_count}
-
-    async def count_rules_by_category(self, _workspace_id: object) -> dict[object, int]:
-        return {self.category.id: self.rule_count}
-
-    async def count_raw_suggestions_by_category(self, _workspace_id: object) -> dict[object, int]:
-        return {}
-
-    async def count_child_categories_by_parent(self, _workspace_id: object) -> dict[object, int]:
-        return {}
-
-    async def delete(self, category: object) -> None:
-        self.deleted = category
-
-    async def commit(self) -> None:
-        self.committed = True
+    repository.delete.assert_not_awaited()
+    session.commit.assert_not_awaited()
 
 
 async def noop_async() -> None:

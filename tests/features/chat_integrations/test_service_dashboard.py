@@ -1,80 +1,39 @@
 from datetime import date
 from decimal import Decimal
-from types import SimpleNamespace
-from typing import Any, cast
+from typing import cast
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
-from app.features.chat_integrations import service as chat_service
 from app.features.chat_integrations.actions.workspace import ChatWorkspaceSelection
 from app.features.chat_integrations.handlers import dashboard as chat_dashboard_handler
 from app.features.chat_integrations.handlers import workspace as chat_workspace_handler
-from app.features.chat_integrations.schemas import (
-    ChatConversation,
-    ChatConversationType,
-    ChatProviderCode,
-    ChatUser,
-    InboundChatEvent,
-    InboundChatEventType,
-)
 from app.features.chat_integrations.service import ChatEventService
 from app.features.chat_integrations.use_cases import dashboard as chat_dashboard
 from app.features.chat_integrations.use_cases import workspace as chat_workspace
 from app.features.workspaces.service import WorkspaceContext
 
+from .chat_test_support import (
+    bound_chat_workspace,
+    callback_event,
+    message_event,
+    patch_bound_workspace,
+    patch_private_status,
+)
 
-@pytest.mark.asyncio
+
 async def test_chat_event_service_returns_bound_menu_for_linked_start(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
 
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
+    patch_bound_workspace(monkeypatch, bound_workspace)
+    patch_private_status(monkeypatch, documents=2, rows=3)
 
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
-
-    class FakeChatPrivateStatusReader:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def read_status(self, _context: WorkspaceContext) -> chat_dashboard.ChatPrivateStatus:
-            return chat_dashboard.ChatPrivateStatus(
-                documents_needing_attention=2,
-                raw_transactions_needing_attention=3,
-            )
-
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
-    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
-
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    actor = ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42")
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.MESSAGE,
-        conversation=conversation,
-        actor=actor,
-        text="/start",
-    )
+    event = message_event("/start")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -90,54 +49,16 @@ async def test_chat_event_service_returns_bound_menu_for_linked_start(
     assert response.buttons[2][1].callback_data == "workspace:choose"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_adds_review_link_when_public_base_url_exists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
 
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
+    patch_bound_workspace(monkeypatch, bound_workspace)
+    patch_private_status(monkeypatch, documents=2, rows=3)
 
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
-
-    class FakeChatPrivateStatusReader:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def read_status(self, _context: WorkspaceContext) -> chat_dashboard.ChatPrivateStatus:
-            return chat_dashboard.ChatPrivateStatus(
-                documents_needing_attention=2,
-                raw_transactions_needing_attention=3,
-            )
-
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
-    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
-
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="status:show",
-    )
+    event = callback_event("status:show")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),
@@ -153,55 +74,16 @@ async def test_chat_event_service_adds_review_link_when_public_base_url_exists(
     assert response.buttons[3][0].callback_data == "main:menu"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_returns_private_status_for_bound_callback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
 
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
+    patch_bound_workspace(monkeypatch, bound_workspace)
+    patch_private_status(monkeypatch, documents=1, rows=4)
 
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
-
-    class FakeChatPrivateStatusReader:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def read_status(self, _context: WorkspaceContext) -> chat_dashboard.ChatPrivateStatus:
-            return chat_dashboard.ChatPrivateStatus(
-                documents_needing_attention=1,
-                raw_transactions_needing_attention=4,
-            )
-
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
-    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
-
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    actor = ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42")
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=actor,
-        callback_data="status:show",
-    )
+    event = callback_event("status:show")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -215,41 +97,13 @@ async def test_chat_event_service_returns_private_status_for_bound_callback(
     assert response.buttons[2][0].callback_data == "main:menu"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_returns_monthly_summary_for_bound_callback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(
-            Any,
-            SimpleNamespace(id=workspace_id, name="Family", default_currency="RUB"),
-        ),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
+    context = bound_workspace.context
     summary_contexts: list[WorkspaceContext] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
-
-    class FakeChatPrivateStatusReader:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def read_status(self, _context: WorkspaceContext) -> chat_dashboard.ChatPrivateStatus:
-            return chat_dashboard.ChatPrivateStatus(
-                documents_needing_attention=0,
-                raw_transactions_needing_attention=0,
-            )
 
     class FakeChatMonthlySummaryReader:
         def __init__(self, _session: object) -> None:
@@ -268,25 +122,13 @@ async def test_chat_event_service_returns_monthly_summary_for_bound_callback(
                 raw_transactions_needing_attention=2,
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
-    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
+    patch_bound_workspace(monkeypatch, bound_workspace)
+    patch_private_status(monkeypatch, documents=0, rows=0)
     monkeypatch.setattr(
         chat_dashboard_handler, "ChatMonthlySummaryReader", FakeChatMonthlySummaryReader
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="summary:show",
-    )
+    event = callback_event("summary:show")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -298,28 +140,12 @@ async def test_chat_event_service_returns_monthly_summary_for_bound_callback(
     assert "К проверке: 2" in response.text
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_returns_monthly_summary_for_selected_month(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
     requested_months: list[date] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatMonthlySummaryReader:
         def __init__(self, _session: object) -> None:
@@ -344,24 +170,12 @@ async def test_chat_event_service_returns_monthly_summary_for_selected_month(
                 raw_transactions_needing_attention=1,
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_dashboard_handler, "ChatMonthlySummaryReader", FakeChatMonthlySummaryReader
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="sum:2026-06",
-    )
+    event = callback_event("sum:2026-06")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -371,28 +185,12 @@ async def test_chat_event_service_returns_monthly_summary_for_selected_month(
     assert "Доход: 200.00 RUB" in response.text
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_returns_category_summary_for_selected_month(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
     requested_months: list[date] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
 
     class FakeChatMonthlySummaryReader:
         def __init__(self, _session: object) -> None:
@@ -420,24 +218,12 @@ async def test_chat_event_service_returns_category_summary_for_selected_month(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, bound_workspace)
     monkeypatch.setattr(
         chat_dashboard_handler, "ChatMonthlySummaryReader", FakeChatMonthlySummaryReader
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="sumc:2026-06",
-    )
+    event = callback_event("sumc:2026-06")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -447,38 +233,13 @@ async def test_chat_event_service_returns_category_summary_for_selected_month(
     assert "Продукты: -50.00 RUB" in response.text
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_returns_account_balances_for_bound_callback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
+    bound_workspace = bound_chat_workspace(workspace_id)
+    context = bound_workspace.context
     balance_contexts: list[WorkspaceContext] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
-
-    class FakeChatPrivateStatusReader:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def read_status(self, _context: WorkspaceContext) -> chat_dashboard.ChatPrivateStatus:
-            return chat_dashboard.ChatPrivateStatus(
-                documents_needing_attention=0,
-                raw_transactions_needing_attention=0,
-            )
 
     class FakeChatAccountBalanceReader:
         def __init__(self, _session: object) -> None:
@@ -502,25 +263,13 @@ async def test_chat_event_service_returns_account_balances_for_bound_callback(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
-    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
+    patch_bound_workspace(monkeypatch, bound_workspace)
+    patch_private_status(monkeypatch, documents=0, rows=0)
     monkeypatch.setattr(
         chat_dashboard_handler, "ChatAccountBalanceReader", FakeChatAccountBalanceReader
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="balances:show",
-    )
+    event = callback_event("balances:show")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -530,37 +279,11 @@ async def test_chat_event_service_returns_account_balances_for_bound_callback(
     assert "Карта: 25000.00 RUB" in response.text
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_starts_workspace_selection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
-    context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=context,
-    )
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return bound_workspace
-
-    class FakeChatPrivateStatusReader:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def read_status(self, _context: WorkspaceContext) -> chat_dashboard.ChatPrivateStatus:
-            return chat_dashboard.ChatPrivateStatus(
-                documents_needing_attention=0,
-                raw_transactions_needing_attention=0,
-            )
+    bound_workspace = bound_chat_workspace(workspace_id)
 
     class FakeChatWorkspaceSwitcher:
         def __init__(self, _session: object) -> None:
@@ -587,23 +310,11 @@ async def test_chat_event_service_starts_workspace_selection(
                 ),
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
-    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
+    patch_bound_workspace(monkeypatch, bound_workspace)
+    patch_private_status(monkeypatch, documents=0, rows=0)
     monkeypatch.setattr(chat_workspace_handler, "ChatWorkspaceSwitcher", FakeChatWorkspaceSwitcher)
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="workspace:choose",
-    )
+    event = callback_event("workspace:choose")
 
     response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
 
@@ -613,40 +324,20 @@ async def test_chat_event_service_starts_workspace_selection(
     assert response.buttons[1][0].callback_data == "wsp:worktoken:1"
 
 
-@pytest.mark.asyncio
 async def test_chat_event_service_switches_workspace(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     old_workspace_id = uuid4()
     new_workspace_id = uuid4()
-    user_id = uuid4()
-    old_context = WorkspaceContext(
-        user=cast(Any, SimpleNamespace(id=user_id, name="Anna", email="anna@example.test")),
-        workspace=cast(Any, SimpleNamespace(id=old_workspace_id, name="Family")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    old_bound_workspace = bound_chat_workspace(old_workspace_id)
+    new_bound_workspace = bound_chat_workspace(
+        new_workspace_id,
+        workspace_name="Business",
+        user=old_bound_workspace.context.user,
     )
-    new_context = WorkspaceContext(
-        user=old_context.user,
-        workspace=cast(Any, SimpleNamespace(id=new_workspace_id, name="Business")),
-        membership=cast(Any, SimpleNamespace(id=uuid4())),
-    )
-    old_bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=old_context,
-    )
-    new_bound_workspace = chat_workspace.BoundChatWorkspace(
-        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
-        context=new_context,
-    )
+    new_context = new_bound_workspace.context
     selected_indexes: list[int] = []
     status_contexts: list[WorkspaceContext] = []
-
-    class FakeWorkspaceChatResolver:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def require_bound_workspace(self, _event: InboundChatEvent):
-            return old_bound_workspace
 
     class FakeChatWorkspaceSwitcher:
         def __init__(self, _session: object) -> None:
@@ -673,25 +364,13 @@ async def test_chat_event_service_switches_workspace(
                 raw_transactions_needing_attention=2,
             )
 
-    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    patch_bound_workspace(monkeypatch, old_bound_workspace)
     monkeypatch.setattr(chat_workspace_handler, "ChatWorkspaceSwitcher", FakeChatWorkspaceSwitcher)
     monkeypatch.setattr(
         chat_workspace_handler, "ChatPrivateStatusReader", FakeChatPrivateStatusReader
     )
 
-    conversation = ChatConversation(
-        provider=ChatProviderCode.TELEGRAM,
-        external_chat_id="42",
-        conversation_type=ChatConversationType.PRIVATE,
-    )
-    event = InboundChatEvent(
-        provider=ChatProviderCode.TELEGRAM,
-        event_id="1",
-        event_type=InboundChatEventType.CALLBACK_QUERY,
-        conversation=conversation,
-        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
-        callback_data="wsp:worktoken:1",
-    )
+    event = callback_event("wsp:worktoken:1")
 
     response = await ChatEventService(
         cast(AsyncSession, object()),

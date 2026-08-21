@@ -90,7 +90,6 @@ def directory_service(
     )
 
 
-@pytest.mark.asyncio
 async def test_property_directory_preserves_uuid_identity_and_server_capabilities() -> None:
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 1, 8, 30, tzinfo=UTC)
@@ -134,7 +133,6 @@ async def test_property_directory_preserves_uuid_identity_and_server_capabilitie
     assert directory.capabilities.readonly_reason_code is None
 
 
-@pytest.mark.asyncio
 async def test_property_directory_is_explicitly_readonly_without_write_permission() -> None:
     workspace_id = uuid4()
     service, _, _ = directory_service(
@@ -161,7 +159,6 @@ async def test_property_directory_is_explicitly_readonly_without_write_permissio
     assert not directory.items[0].capabilities.can_restore
 
 
-@pytest.mark.asyncio
 async def test_property_directory_create_dispatches_workspace_scoped_command() -> None:
     workspace_id = uuid4()
     property_ = Property(
@@ -191,7 +188,6 @@ async def test_property_directory_create_dispatches_workspace_scoped_command() -
     assert created.capabilities.can_archive
 
 
-@pytest.mark.asyncio
 async def test_property_directory_update_dispatches_identity_and_optimistic_token() -> None:
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 1, 8, 30, tzinfo=UTC)
@@ -228,15 +224,24 @@ async def test_property_directory_update_dispatches_identity_and_optimistic_toke
     assert committed.id == property_.id
 
 
-@pytest.mark.asyncio
-async def test_property_lifecycle_dispatches_token_and_returns_policy_impact() -> None:
+@pytest.mark.parametrize(
+    ("current_status", "target_status"),
+    [
+        pytest.param(PropertyStatus.ACTIVE, PropertyStatus.ARCHIVED, id="archive"),
+        pytest.param(PropertyStatus.ARCHIVED, PropertyStatus.ACTIVE, id="restore"),
+    ],
+)
+async def test_property_lifecycle_dispatches_token_and_returns_policy_impact(
+    current_status: PropertyStatus,
+    target_status: PropertyStatus,
+) -> None:
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 1, 8, 30, tzinfo=UTC)
     property_ = Property(
         id=uuid4(),
         workspace_id=workspace_id,
         name="Квартира",
-        status=PropertyStatus.ACTIVE,
+        status=current_status,
         updated_at=updated_at,
     )
     service, _, mutations = directory_service([property_])
@@ -244,9 +249,9 @@ async def test_property_lifecycle_dispatches_token_and_returns_policy_impact() -
     committed = await service.set_status(
         workspace_id=workspace_id,
         property_id=property_.id,
-        status=PropertyStatus.ARCHIVED,
+        status=target_status,
         command=PropertyLifecycleCommand(
-            expected_status=PropertyStatus.ACTIVE,
+            expected_status=current_status,
             expected_updated_at=updated_at,
         ),
     )
@@ -255,13 +260,20 @@ async def test_property_lifecycle_dispatches_token_and_returns_policy_impact() -
         (
             workspace_id,
             property_.id,
-            PropertyStatus.ARCHIVED,
-            PropertyStatus.ACTIVE,
+            target_status,
+            current_status,
             updated_at,
         )
     ]
-    assert committed.property.status == PropertyStatus.ARCHIVED
-    assert committed.property.capabilities.can_restore
+    assert committed.property.status == target_status
+    assert committed.property.capabilities.can_archive is (
+        target_status == PropertyStatus.ACTIVE
+    )
+    assert committed.property.capabilities.can_restore is (
+        target_status == PropertyStatus.ARCHIVED
+    )
     assert committed.impact.history_preserved
     assert committed.impact.active_rules_unchanged
-    assert not committed.impact.available_for_new_references
+    assert committed.impact.available_for_new_references is (
+        target_status == PropertyStatus.ACTIVE
+    )

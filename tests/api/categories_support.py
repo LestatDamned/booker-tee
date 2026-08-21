@@ -40,7 +40,6 @@ from app.features.categories.schemas import (
 )
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.features.workspaces.models import WorkspaceType
-from app.main import create_app
 
 
 class CategoryDirectoryServiceStub:
@@ -157,6 +156,7 @@ class CategoryDetailReaderStub:
 
 
 def categories_app(
+    app: FastAPI,
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, CategoryDirectoryServiceStub, UUID, WorkspaceType]:
@@ -167,7 +167,6 @@ def categories_app(
         WorkspaceRole.EDITOR,
     }
     service = CategoryDirectoryServiceStub(category_directory(can_write=can_write))
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_category_directory_service] = lambda: service
     return (
@@ -179,7 +178,9 @@ def categories_app(
 
 
 def category_detail_app(
-    *, role: WorkspaceRole = WorkspaceRole.OWNER
+    app: FastAPI,
+    *,
+    role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, CategoryDirectoryServiceStub, CategoryDetailReaderStub, UUID, UUID]:
     context = api_context(role=role)
     category_id = uuid4()
@@ -228,7 +229,6 @@ def category_detail_app(
             rules=CategoryRulePreviewDto(items=[], total=0, active_count=0),
         )
     )
-    app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_category_directory_service] = lambda: service
     app.dependency_overrides[get_category_detail_reader] = lambda: reader

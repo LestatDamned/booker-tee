@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+import pytest
+from fastapi import FastAPI
 from operations_support import operation, operations_app
 
 from api_client import ApiTestClient as TestClient
@@ -11,10 +13,10 @@ from app.features.ledger.schemas.operations import ImportOperationProvenanceDto
 from app.features.workspaces.domain.types import WorkspaceRole
 
 
-def test_operations_returns_all_sources_and_target_outside_page_contract() -> None:
+def test_operations_returns_all_sources_and_target_outside_page_contract(app: FastAPI) -> None:
     operations = [operation(source) for source in OperationSource]
     target = operations[1]
-    app, reader, references, workspace_id = operations_app(operations)
+    app, reader, references, workspace_id = operations_app(app, operations)
 
     with TestClient(app) as client:
         response = client.get(
@@ -86,8 +88,8 @@ def test_operations_returns_all_sources_and_target_outside_page_contract() -> No
     assert references.workspace_ids == [workspace_id]
 
 
-def test_operations_masks_unknown_target_and_normalizes_invalid_filters() -> None:
-    app, reader, _, workspace_id = operations_app([])
+def test_operations_masks_unknown_target_and_normalizes_invalid_filters(app: FastAPI) -> None:
+    app, reader, _, workspace_id = operations_app(app, [])
     foreign_operation_id = uuid4()
 
     with TestClient(app) as client:
@@ -109,21 +111,31 @@ def test_operations_masks_unknown_target_and_normalizes_invalid_filters() -> Non
     assert reader.get_calls == [(workspace_id, foreign_operation_id, True)]
 
 
-def test_operations_shows_confirmed_by_default_and_all_statuses_explicitly() -> None:
-    app, reader, _, _ = operations_app([])
+@pytest.mark.parametrize(
+    ("query", "expected_status"),
+    [
+        pytest.param("", OperationStatus.CONFIRMED, id="confirmed-by-default"),
+        pytest.param("?status=all", None, id="all-statuses"),
+    ],
+)
+def test_operations_normalizes_status_filter(
+    app: FastAPI,
+    query: str,
+    expected_status: OperationStatus | None,
+) -> None:
+    app, reader, _, _ = operations_app(app, [])
 
     with TestClient(app) as client:
-        default_response = client.get("/api/v1/operations")
-        all_response = client.get("/api/v1/operations?status=all")
+        response = client.get(f"/api/v1/operations{query}")
 
-    assert default_response.status_code == 200
-    assert all_response.status_code == 200
-    assert reader.list_calls[0][2].status is OperationStatus.CONFIRMED
-    assert reader.list_calls[1][2].status is None
+    assert response.status_code == 200
+    assert len(reader.list_calls) == 1
+    assert reader.list_calls[0][2].status is expected_status
 
 
-def test_operations_exposes_readonly_collection_capability_for_viewer() -> None:
+def test_operations_exposes_readonly_collection_capability_for_viewer(app: FastAPI) -> None:
     app, reader, _, _ = operations_app(
+        app,
         [operation(OperationSource.MANUAL)],
         role=WorkspaceRole.VIEWER,
     )
@@ -139,8 +151,8 @@ def test_operations_exposes_readonly_collection_capability_for_viewer() -> None:
     assert reader.list_calls[0][1] is False
 
 
-def test_operations_rejects_reversed_date_range_before_reading() -> None:
-    app, reader, references, _ = operations_app([])
+def test_operations_rejects_reversed_date_range_before_reading(app: FastAPI) -> None:
+    app, reader, references, _ = operations_app(app, [])
 
     with TestClient(app) as client:
         response = client.get("/api/v1/operations?date_from=2026-08-12&date_to=2026-08-01")
@@ -151,8 +163,8 @@ def test_operations_rejects_reversed_date_range_before_reading() -> None:
     assert references.workspace_ids == []
 
 
-def test_operations_requires_authentication() -> None:
-    app, reader, references, _ = operations_app([])
+def test_operations_requires_authentication(app: FastAPI) -> None:
+    app, reader, references, _ = operations_app(app, [])
 
     async def unauthorized() -> None:
         raise ApiError(

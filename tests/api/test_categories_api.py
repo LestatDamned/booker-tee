@@ -1,6 +1,8 @@
 from datetime import date
 
+import pytest
 from categories_support import categories_app, category_detail_app
+from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
 from app.features.categories.application.detail import CategoryDetailFilterError
@@ -21,19 +23,18 @@ from app.features.categories.service import (
 )
 from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.main import create_app
 
 
-def test_category_directory_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_category_directory_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get("/api/v1/categories")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_category_directory_returns_workspace_snapshot_and_capabilities() -> None:
-    app, service, workspace_id, workspace_type = categories_app()
+def test_category_directory_returns_workspace_snapshot_and_capabilities(app: FastAPI) -> None:
+    app, service, workspace_id, workspace_type = categories_app(app)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/categories")
@@ -84,8 +85,8 @@ def test_category_directory_returns_workspace_snapshot_and_capabilities() -> Non
     assert service.read_calls == [(workspace_id, workspace_type, True)]
 
 
-def test_category_directory_is_readonly_for_viewer() -> None:
-    app, service, workspace_id, workspace_type = categories_app(role=WorkspaceRole.VIEWER)
+def test_category_directory_is_readonly_for_viewer(app: FastAPI) -> None:
+    app, service, workspace_id, workspace_type = categories_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.get("/api/v1/categories")
@@ -99,95 +100,158 @@ def test_category_directory_is_readonly_for_viewer() -> None:
     assert service.read_calls == [(workspace_id, workspace_type, False)]
 
 
-def test_category_archive_and_restore_return_committed_policy_impact() -> None:
-    app, service, _, workspace_id, category_id = category_detail_app()
+@pytest.mark.parametrize(
+    ("action", "expected_status", "is_active"),
+    [
+        pytest.param("archive", True, False, id="archive"),
+        pytest.param("restore", False, True, id="restore"),
+    ],
+)
+def test_category_lifecycle_returns_committed_policy_impact(
+    app: FastAPI,
+    action: str,
+    expected_status: bool,
+    is_active: bool,
+) -> None:
+    app, service, _, workspace_id, category_id = category_detail_app(app)
     category = service.directory.items[0]
 
     with TestClient(app) as client:
-        archived = client.post(
+        response = client.post(
+            f"/api/v1/categories/{category_id}/{action}",
+            json={
+                "expectedStatus": expected_status,
+                "expectedUpdatedAt": category.updated_at.isoformat(),
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["category"]["isActive"] is is_active
+    assert response.json()["impact"] == {
+        "historyPreserved": True,
+        "rulesUnchanged": True,
+        "availableForNewReferences": is_active,
+    }
+    assert service.lifecycle_calls == [
+        (
+            workspace_id,
+            category_id,
+            is_active,
+            CategoryLifecycleCommand(
+                expected_status=expected_status,
+                expected_updated_at=category.updated_at,
+            ),
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("action", "wrong_expected_status"),
+    [
+        pytest.param("archive", False, id="archive"),
+        pytest.param("restore", True, id="restore"),
+    ],
+)
+def test_category_lifecycle_rejects_wrong_expected_state_before_dispatch(
+    app: FastAPI,
+    action: str,
+    wrong_expected_status: bool,
+) -> None:
+    app, service, _, _, category_id = category_detail_app(app)
+    category = service.directory.items[0]
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/categories/{category_id}/{action}",
+            json={
+                "expectedStatus": wrong_expected_status,
+                "expectedUpdatedAt": category.updated_at.isoformat(),
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "category_lifecycle_conflict"
+    assert service.lifecycle_calls == []
+
+
+@pytest.mark.parametrize(
+    ("service_error", "status_code", "expected_error"),
+    [
+        pytest.param(
+            CategoryLifecycleConflictError("stale"),
+            409,
+            {
+                "code": "category_lifecycle_conflict",
+                "message": "Категория уже изменена. Загрузите актуальные данные.",
+            },
+            id="stale-snapshot",
+        ),
+        pytest.param(
+            CategoryArchiveBlockedError(2),
+            422,
+            {
+                "code": "category_archive_blocked",
+                "message": "Сначала отключите активные правила категории.",
+                "details": {"activeRuleCount": 2},
+            },
+            id="active-rules",
+        ),
+    ],
+)
+def test_category_lifecycle_maps_service_error(
+    app: FastAPI,
+    service_error: ValueError,
+    status_code: int,
+    expected_error: dict[str, object],
+) -> None:
+    app, service, _, _, category_id = category_detail_app(app)
+    category = service.directory.items[0]
+    service.lifecycle_error = service_error
+
+    with TestClient(app) as client:
+        response = client.post(
             f"/api/v1/categories/{category_id}/archive",
             json={
                 "expectedStatus": True,
                 "expectedUpdatedAt": category.updated_at.isoformat(),
             },
         )
-        restored = client.post(
-            f"/api/v1/categories/{category_id}/restore",
+
+    assert response.status_code == status_code
+    assert response.json()["error"] == expected_error
+
+
+@pytest.mark.parametrize(
+    ("action", "expected_status"),
+    [
+        pytest.param("archive", True, id="archive"),
+        pytest.param("restore", False, id="restore"),
+    ],
+)
+def test_category_lifecycle_is_forbidden_for_viewer(
+    app: FastAPI,
+    action: str,
+    expected_status: bool,
+) -> None:
+    app, service, _, _, category_id = category_detail_app(app, role=WorkspaceRole.VIEWER)
+    category = service.directory.items[0]
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/categories/{category_id}/{action}",
             json={
-                "expectedStatus": False,
+                "expectedStatus": expected_status,
                 "expectedUpdatedAt": category.updated_at.isoformat(),
             },
         )
 
-    assert archived.status_code == 200
-    assert archived.json()["category"]["isActive"] is False
-    assert archived.json()["impact"] == {
-        "historyPreserved": True,
-        "rulesUnchanged": True,
-        "availableForNewReferences": False,
-    }
-    assert restored.status_code == 200
-    assert restored.json()["category"]["isActive"] is True
-    assert service.lifecycle_calls == [
-        (
-            workspace_id,
-            category_id,
-            False,
-            CategoryLifecycleCommand(
-                expected_status=True,
-                expected_updated_at=category.updated_at,
-            ),
-        ),
-        (
-            workspace_id,
-            category_id,
-            True,
-            CategoryLifecycleCommand(
-                expected_status=False,
-                expected_updated_at=category.updated_at,
-            ),
-        ),
-    ]
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "financial_write_forbidden"
+    assert service.lifecycle_calls == []
 
 
-def test_category_lifecycle_maps_conflict_archive_blocker_and_permission() -> None:
-    app, service, _, _, category_id = category_detail_app()
-    category = service.directory.items[0]
-    payload = {
-        "expectedStatus": True,
-        "expectedUpdatedAt": category.updated_at.isoformat(),
-    }
-
-    with TestClient(app) as client:
-        wrong_state = client.post(f"/api/v1/categories/{category_id}/restore", json=payload)
-        service.lifecycle_error = CategoryLifecycleConflictError("stale")
-        conflict = client.post(f"/api/v1/categories/{category_id}/archive", json=payload)
-        service.lifecycle_error = CategoryArchiveBlockedError(2)
-        blocked = client.post(f"/api/v1/categories/{category_id}/archive", json=payload)
-
-    assert wrong_state.status_code == 409
-    assert conflict.json()["error"]["code"] == "category_lifecycle_conflict"
-    assert blocked.status_code == 422
-    assert blocked.json()["error"] == {
-        "code": "category_archive_blocked",
-        "message": "Сначала отключите активные правила категории.",
-        "details": {"activeRuleCount": 2},
-    }
-
-    viewer_app, viewer_service, _, _, viewer_category_id = category_detail_app(
-        role=WorkspaceRole.VIEWER
-    )
-    with TestClient(viewer_app) as client:
-        forbidden = client.post(
-            f"/api/v1/categories/{viewer_category_id}/archive",
-            json=payload,
-        )
-    assert forbidden.status_code == 403
-    assert viewer_service.lifecycle_calls == []
-
-
-def test_category_delete_returns_identity_and_full_blocker_details() -> None:
-    app, service, _, workspace_id, category_id = category_detail_app()
+def test_category_delete_dispatches_snapshot_and_returns_identity(app: FastAPI) -> None:
+    app, service, _, workspace_id, category_id = category_detail_app(app)
     category = service.directory.items[0]
     payload = {
         "expectedStatus": False,
@@ -195,39 +259,64 @@ def test_category_delete_returns_identity_and_full_blocker_details() -> None:
     }
 
     with TestClient(app) as client:
-        deleted = client.request(
-            "DELETE",
-            f"/api/v1/categories/{category_id}",
-            json=payload,
-        )
-        service.delete_error = CategoryDeleteBlockedError(
-            CategoryDeleteDependencies(
-                operation_count=2,
-                rule_count=3,
-                raw_suggestion_count=4,
-                child_category_count=1,
-            )
-        )
-        blocked = client.request(
+        response = client.request(
             "DELETE",
             f"/api/v1/categories/{category_id}",
             json=payload,
         )
 
-    assert deleted.status_code == 200
-    assert deleted.json() == {"deletedId": str(category_id), "name": "Продукты"}
-    assert service.delete_calls[0][0] == workspace_id
-    assert blocked.status_code == 422
-    assert blocked.json()["error"]["details"] == {
-        "operationCount": 2,
-        "ruleCount": 3,
-        "rawSuggestionCount": 4,
-        "childCategoryCount": 1,
+    assert response.status_code == 200
+    assert response.json() == {"deletedId": str(category_id), "name": "Продукты"}
+    assert service.delete_calls == [
+        (
+            workspace_id,
+            category_id,
+            CategoryLifecycleCommand(
+                expected_status=False,
+                expected_updated_at=category.updated_at,
+            ),
+        )
+    ]
+
+
+def test_category_delete_returns_full_blocker_details(app: FastAPI) -> None:
+    app, service, _, _, category_id = category_detail_app(app)
+    category = service.directory.items[0]
+    service.delete_error = CategoryDeleteBlockedError(
+        CategoryDeleteDependencies(
+            operation_count=2,
+            rule_count=3,
+            raw_suggestion_count=4,
+            child_category_count=1,
+        )
+    )
+
+    with TestClient(app) as client:
+        response = client.request(
+            "DELETE",
+            f"/api/v1/categories/{category_id}",
+            json={
+                "expectedStatus": False,
+                "expectedUpdatedAt": category.updated_at.isoformat(),
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"] == {
+        "code": "category_delete_blocked",
+        "message": "Категория используется и не может быть удалена.",
+        "details": {
+            "operationCount": 2,
+            "ruleCount": 3,
+            "rawSuggestionCount": 4,
+            "childCategoryCount": 1,
+        },
     }
+    assert len(service.delete_calls) == 1
 
 
-def test_category_create_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_category_create_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.post(
             "/api/v1/categories",
             json={"name": "Продукты", "kind": "expense"},
@@ -237,8 +326,8 @@ def test_category_create_requires_authentication() -> None:
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_category_create_normalizes_and_dispatches_workspace_command() -> None:
-    app, service, workspace_id, _ = categories_app()
+def test_category_create_normalizes_and_dispatches_workspace_command(app: FastAPI) -> None:
+    app, service, workspace_id, _ = categories_app(app)
 
     with TestClient(app) as client:
         response = client.post(
@@ -264,8 +353,8 @@ def test_category_create_normalizes_and_dispatches_workspace_command() -> None:
     ]
 
 
-def test_category_create_normalizes_empty_notes_to_null() -> None:
-    app, service, workspace_id, _ = categories_app()
+def test_category_create_normalizes_empty_notes_to_null(app: FastAPI) -> None:
+    app, service, workspace_id, _ = categories_app(app)
 
     with TestClient(app) as client:
         response = client.post(
@@ -286,8 +375,8 @@ def test_category_create_normalizes_empty_notes_to_null() -> None:
     ]
 
 
-def test_category_create_returns_stable_field_errors() -> None:
-    app, service, _, _ = categories_app()
+def test_category_create_returns_stable_field_errors(app: FastAPI) -> None:
+    app, service, _, _ = categories_app(app)
 
     with TestClient(app) as client:
         response = client.post(
@@ -303,8 +392,8 @@ def test_category_create_returns_stable_field_errors() -> None:
     assert service.create_calls == []
 
 
-def test_category_create_rejects_oversized_name_and_unknown_kind() -> None:
-    app, service, _, _ = categories_app()
+def test_category_create_rejects_oversized_name_and_unknown_kind(app: FastAPI) -> None:
+    app, service, _, _ = categories_app(app)
 
     with TestClient(app) as client:
         response = client.post(
@@ -320,8 +409,8 @@ def test_category_create_rejects_oversized_name_and_unknown_kind() -> None:
     assert service.create_calls == []
 
 
-def test_category_create_maps_duplicate_name_to_name_field() -> None:
-    app, service, _, _ = categories_app()
+def test_category_create_maps_duplicate_name_to_name_field(app: FastAPI) -> None:
+    app, service, _, _ = categories_app(app)
     service.create_error = CategoryError("Категория с таким названием уже есть.")
 
     with TestClient(app) as client:
@@ -338,8 +427,8 @@ def test_category_create_maps_duplicate_name_to_name_field() -> None:
     }
 
 
-def test_category_create_is_forbidden_for_viewer() -> None:
-    app, service, _, _ = categories_app(role=WorkspaceRole.VIEWER)
+def test_category_create_is_forbidden_for_viewer(app: FastAPI) -> None:
+    app, service, _, _ = categories_app(app, role=WorkspaceRole.VIEWER)
 
     with TestClient(app) as client:
         response = client.post(
@@ -352,16 +441,16 @@ def test_category_create_is_forbidden_for_viewer() -> None:
     assert service.create_calls == []
 
 
-def test_category_detail_requires_authentication() -> None:
-    with TestClient(create_app()) as client:
+def test_category_detail_requires_authentication(app: FastAPI) -> None:
+    with TestClient(app) as client:
         response = client.get(f"/api/v1/categories/{service_category_id()}")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_category_detail_dispatches_filters_and_returns_money_strings() -> None:
-    app, _, reader, workspace_id, category_id = category_detail_app()
+def test_category_detail_dispatches_filters_and_returns_money_strings(app: FastAPI) -> None:
+    app, _, reader, workspace_id, category_id = category_detail_app(app)
 
     with TestClient(app) as client:
         response = client.get(
@@ -402,32 +491,30 @@ def test_category_detail_dispatches_filters_and_returns_money_strings() -> None:
     ]
 
 
-def test_category_detail_rejects_invalid_parameters_before_reader() -> None:
-    app, _, reader, _, category_id = category_detail_app()
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param({"type": "transfer"}, id="operation-type"),
+        pytest.param({"operations_page_size": "101"}, id="page-size"),
+        pytest.param({"search": "x" * 201}, id="search"),
+    ],
+)
+def test_category_detail_rejects_invalid_parameter_before_reader(
+    app: FastAPI,
+    params: dict[str, str],
+) -> None:
+    app, _, reader, _, category_id = category_detail_app(app)
 
     with TestClient(app) as client:
-        invalid_type = client.get(
-            f"/api/v1/categories/{category_id}",
-            params={"type": "transfer"},
-        )
-        invalid_page_size = client.get(
-            f"/api/v1/categories/{category_id}",
-            params={"operations_page_size": "101"},
-        )
-        invalid_search = client.get(
-            f"/api/v1/categories/{category_id}",
-            params={"search": "x" * 201},
-        )
+        response = client.get(f"/api/v1/categories/{category_id}", params=params)
 
-    assert invalid_type.status_code == 400
-    assert invalid_type.json()["error"]["code"] == "invalid_category_filter"
-    assert invalid_page_size.status_code == 400
-    assert invalid_search.status_code == 400
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_category_filter"
     assert reader.calls == []
 
 
-def test_category_detail_returns_same_not_found_contract() -> None:
-    app, _, reader, _, category_id = category_detail_app()
+def test_category_detail_returns_same_not_found_contract(app: FastAPI) -> None:
+    app, _, reader, _, category_id = category_detail_app(app)
     reader.not_found = True
 
     with TestClient(app) as client:
@@ -440,8 +527,10 @@ def test_category_detail_returns_same_not_found_contract() -> None:
     }
 
 
-def test_category_update_dispatches_optimistic_command_and_returns_fresh_detail() -> None:
-    app, service, reader, workspace_id, category_id = category_detail_app()
+def test_category_update_dispatches_optimistic_command_and_returns_fresh_detail(
+    app: FastAPI,
+) -> None:
+    app, service, reader, workspace_id, category_id = category_detail_app(app)
     expected_updated_at = service.directory.items[0].updated_at
 
     with TestClient(app) as client:
@@ -479,29 +568,51 @@ def test_category_update_dispatches_optimistic_command_and_returns_fresh_detail(
     }
 
 
-def test_category_update_returns_stable_conflict_and_immutable_errors() -> None:
-    app, service, reader, _, category_id = category_detail_app()
+@pytest.mark.parametrize(
+    ("service_error", "status_code", "error_code"),
+    [
+        pytest.param(
+            CategoryUpdateConflictError("stale"),
+            409,
+            "category_update_conflict",
+            id="stale-snapshot",
+        ),
+        pytest.param(
+            CategorySystemImmutableError("system"),
+            422,
+            "category_system_immutable",
+            id="system-category",
+        ),
+    ],
+)
+def test_category_update_returns_stable_service_error(
+    app: FastAPI,
+    service_error: ValueError,
+    status_code: int,
+    error_code: str,
+) -> None:
+    app, service, reader, _, category_id = category_detail_app(app)
     request = {
         "name": "Еда",
         "kind": "expense",
         "expectedUpdatedAt": "2026-08-01T08:30:00Z",
     }
-    service.update_error = CategoryUpdateConflictError("stale")
+    service.update_error = service_error
 
     with TestClient(app) as client:
-        conflict = client.put(f"/api/v1/categories/{category_id}", json=request)
-        service.update_error = CategorySystemImmutableError("system")
-        immutable = client.put(f"/api/v1/categories/{category_id}", json=request)
+        response = client.put(f"/api/v1/categories/{category_id}", json=request)
 
-    assert conflict.status_code == 409
-    assert conflict.json()["error"]["code"] == "category_update_conflict"
-    assert immutable.status_code == 422
-    assert immutable.json()["error"]["code"] == "category_system_immutable"
-    assert len(reader.calls) == 2
+    assert response.status_code == status_code
+    assert response.json()["error"]["code"] == error_code
+    assert len(reader.calls) == 1
+    assert len(service.update_calls) == 1
 
 
-def test_category_update_is_forbidden_for_viewer() -> None:
-    app, service, reader, _, category_id = category_detail_app(role=WorkspaceRole.VIEWER)
+def test_category_update_is_forbidden_for_viewer(app: FastAPI) -> None:
+    app, service, reader, _, category_id = category_detail_app(
+        app,
+        role=WorkspaceRole.VIEWER,
+    )
 
     with TestClient(app) as client:
         response = client.put(
@@ -519,8 +630,8 @@ def test_category_update_is_forbidden_for_viewer() -> None:
     assert reader.calls == []
 
 
-def test_category_update_validates_detail_context_before_mutation() -> None:
-    app, service, reader, _, category_id = category_detail_app()
+def test_category_update_validates_detail_context_before_mutation(app: FastAPI) -> None:
+    app, service, reader, _, category_id = category_detail_app(app)
     reader.filter_error = CategoryDetailFilterError(
         "invalid_category_currency",
         "Эта валюта недоступна в текущем workspace.",

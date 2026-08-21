@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import cast
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -27,11 +29,26 @@ def test_normalize_currency_rejects_invalid_code() -> None:
         normalize_currency("rouble")
 
 
-def test_decimal_initial_balance_can_be_quantized_without_float() -> None:
-    assert Decimal("10").quantize(Decimal("0.01")) == Decimal("10.00")
+async def test_account_lookup_is_workspace_scoped() -> None:
+    workspace_id = uuid4()
+    account_id = uuid4()
+    execute = AsyncMock(
+        return_value=SimpleNamespace(scalar_one_or_none=lambda: None),
+    )
+
+    result = await AccountRepository(
+        cast(AsyncSession, SimpleNamespace(execute=execute))
+    ).get_for_workspace(workspace_id, account_id)
+
+    assert result is None
+    assert execute.await_args is not None
+    compiled = execute.await_args.args[0].compile()
+    sql = str(compiled)
+    assert "accounts.id" in sql
+    assert "accounts.workspace_id" in sql
+    assert {workspace_id, account_id} <= set(compiled.params.values())
 
 
-@pytest.mark.asyncio
 async def test_generic_account_service_rejects_debt_account_creation() -> None:
     service = account_service(existing_account(), has_entries=False)
 
@@ -45,8 +62,7 @@ async def test_generic_account_service_rejects_debt_account_creation() -> None:
         )
 
 
-@pytest.mark.asyncio
-async def test_generic_account_service_rejects_debt_account_changes() -> None:
+async def test_generic_account_service_rejects_debt_account_update() -> None:
     account = existing_account()
     account.type = AccountType.DEBT
     service = account_service(account, has_entries=False)
@@ -61,6 +77,12 @@ async def test_generic_account_service_rejects_debt_account_changes() -> None:
             initial_balance=account.initial_balance,
         )
 
+
+async def test_generic_account_service_rejects_debt_account_lifecycle_change() -> None:
+    account = existing_account()
+    account.type = AccountType.DEBT
+    service = account_service(account, has_entries=False)
+
     with pytest.raises(AccountError):
         await service.set_active(
             workspace_id=account.workspace_id,
@@ -69,7 +91,6 @@ async def test_generic_account_service_rejects_debt_account_changes() -> None:
         )
 
 
-@pytest.mark.asyncio
 async def test_update_rejects_currency_change_when_account_has_entries() -> None:
     account = existing_account()
     service = account_service(account, has_entries=True)
@@ -88,7 +109,6 @@ async def test_update_rejects_currency_change_when_account_has_entries() -> None
     assert account.currency == "RUB"
 
 
-@pytest.mark.asyncio
 async def test_update_rejects_stale_write_before_mutating_account() -> None:
     account = existing_account()
     service = account_service(account, has_entries=False)
@@ -107,7 +127,6 @@ async def test_update_rejects_stale_write_before_mutating_account() -> None:
     assert account.name == "Основной"
 
 
-@pytest.mark.asyncio
 async def test_update_rejects_foreign_workspace_before_mutating_account() -> None:
     account = existing_account()
     service = account_service(account, has_entries=False)

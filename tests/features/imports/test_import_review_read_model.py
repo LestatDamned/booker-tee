@@ -4,8 +4,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-import pytest
-
 from app.features.import_review.application.review import ImportReviewReader
 from app.features.import_review.domain.classification import (
     ReviewBlockingReasonCode,
@@ -90,7 +88,6 @@ class DuplicateSourceStub:
         return self.candidates
 
 
-@pytest.mark.asyncio
 async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
@@ -154,7 +151,6 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
     )
 
 
-@pytest.mark.asyncio
 async def test_import_review_reader_returns_none_for_unknown_document() -> None:
     source = DocumentSourceStub(None)
 
@@ -172,7 +168,6 @@ async def test_import_review_reader_returns_none_for_unknown_document() -> None:
     assert result is None
 
 
-@pytest.mark.asyncio
 async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candidate() -> None:
     from app.features.import_review.application.review import (
         ImportReviewDuplicateReader,
@@ -222,7 +217,6 @@ async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candid
     assert duplicate_source.exclude_document_ids == [document_id]
 
 
-@pytest.mark.asyncio
 async def test_exact_duplicate_evidence_points_to_original_import() -> None:
     from app.features.import_review.application.review import ImportReviewDuplicateReader
 
@@ -266,7 +260,6 @@ async def test_exact_duplicate_evidence_points_to_original_import() -> None:
     assert evidence.candidate.operation_id == candidate.linked_operation_id
 
 
-@pytest.mark.asyncio
 async def test_confirmed_row_uses_linked_operation_instead_of_rule_suggestion() -> None:
     workspace_id = uuid4()
     document_id = uuid4()

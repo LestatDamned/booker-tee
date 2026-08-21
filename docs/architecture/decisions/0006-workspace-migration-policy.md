@@ -80,14 +80,20 @@ API schemas и тестах.
 - Single-owner invariant должен быть защищён транзакционно, а не только
   `count → write` проверкой.
 - Workspace switch является cache/session boundary для всех React features.
-- Legacy public invitation adapter сохраняется до отдельного replacement gate.
-- Existing SSR CSRF form-token contract остаётся действующим до удаления
-  authenticated legacy routes. Versioned API использует `X-CSRF-Token`.
+- Public invitation adapter и SSR CSRF contract сохранялись только до
+  соответствующих replacement gates. Versioned API использует `X-CSRF-Token`.
 - Generic CRUD abstraction для Workspaces не вводится: directory, switching,
   settings, membership, invitation и lifecycle имеют разные authority и
   consistency contracts.
 
+## Outcome
+
+Wave C и public invitation cutover завершены. React routes и versioned API
+являются действующим runtime; historical GET compatibility не возвращает legacy
+mutation presentation.
+
 ## References
 
 - [`features/workspaces/README.md`](../../../src/app/features/workspaces/README.md)
-- [`frontend plan completion record`](../../frontend/plan/README.md#workspaces-completion-record)
+- Completion record хранится в Git history; действующий runtime описан в
+  [`REACT_FRONTEND_DESIGN.md`](../../design/REACT_FRONTEND_DESIGN.md).
