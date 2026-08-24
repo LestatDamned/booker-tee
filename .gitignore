@@ -201,7 +201,10 @@ cython_debug/
 
 # Local agent/tooling state
 .agents/
-.codex/
+.codex/*
+!.codex/agents/
+.codex/agents/*
+!.codex/agents/*.toml
 
 # Abstra
 #   Abstra is an AI-powered process automation framework.

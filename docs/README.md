@@ -14,6 +14,7 @@
 | Приоритеты       | [`ROADMAP.md`](product/ROADMAP.md)                            |
 | Финансы          | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)                   |
 | Архитектура      | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)             |
+| Стиль кода       | [`CODE_STYLE.md`](CODE_STYLE.md)                               |
 | Тестирование     | [`TESTING.md`](TESTING.md)                                    |
 | Принятые решения | [`architecture/decisions`](architecture/decisions/README.md)  |
 | UI/UX            | [`DESIGN.md`](design/DESIGN.md)                               |

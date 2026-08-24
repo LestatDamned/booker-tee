@@ -10,6 +10,8 @@ ledger workflows. Prefer small changes that preserve financial correctness.
 3. One task-specific document named there.
 4. Relevant code and tests; they are the final behavior reference.
 
+For tasks that change code, also read [`docs/CODE_STYLE.md`](docs/CODE_STYLE.md).
+
 Do not load the whole documentation tree for one task.
 
 ## Stack and commands
@@ -80,6 +82,48 @@ React renders server contracts and does not infer these rules from raw fields.
 Do not expand Booker Tee into ERP, CRM, tax software, asset management, SaaS
 billing, broad AI/RAG or a second app unless explicitly requested. Chat remains
 a narrow integration over the same workspace-scoped use cases.
+
+## Agent workflow
+
+The primary chat acts as Orchestrator. Run the project workflow only when the
+user explicitly asks for the full workflow, for example: `Запусти полный
+workflow для задачи: ...`. A request for one named agent runs only that agent.
+
+For one task, run the project agents sequentially, never in parallel:
+
+```text
+planner requirements -> user confirmation -> planner plan -> user approval
+-> executor -> reviewer -> qa
+```
+
+1. Start `planner` with the user's request. Present its requirements card to the
+   user and wait for explicit confirmation; do not confirm on the user's behalf.
+2. Send the confirmed requirements back to `planner`. Present the resulting
+   `READY` plan to the user and wait for explicit approval. Only then save it at
+   the proposed `docs/tasks/<name>.md` path.
+3. Before `executor`, record the baseline, initial `git status` and any existing
+   user changes. Send the exact approved plan path and explicit approval.
+4. Send the complete Executor report, original baseline and exact review target
+   to `reviewer`.
+5. Run `qa` only after `reviewer` returns `APPROVED`. Send the plan, Executor and
+   Reviewer reports, target, test environment and test-data instructions.
+
+Keep requirements, approvals and handoffs in the primary thread. Do not create
+separate report files. Agents may not skip gates or substitute their own
+requirements.
+
+On `CHANGES_REQUESTED`, return all blocking findings to `executor`, then run a
+full review again from the original baseline. On QA `FAILED`, return the
+reproducible defects to `executor`, then repeat Reviewer and full QA. Fixes that
+stay inside the approved plan do not require a new product decision.
+
+On `NEEDS_CLARIFICATION`, stop and ask the user. If the answer changes approved
+requirements or scope, rerun Planner and obtain approval for the revised plan.
+On `BLOCKED`, report the exact blocker and do not bypass the failed gate.
+
+After QA `PASSED`, remove the completed task plan unless the user explicitly
+asked to retain it. Do not create a commit unless the user explicitly requests
+one.
 
 ## Finish
 
