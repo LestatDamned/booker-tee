@@ -27,6 +27,7 @@ from app.features.imports.mapping.commands.import_rows import (
     StatementMappingImportService,
 )
 from app.features.imports.mapping.coordinate_dto import (
+    CoordinateControlRegion,
     CoordinateFieldRole,
     CoordinateMappingSpec,
     CoordinatePageLayout,
@@ -513,6 +514,7 @@ async def _coordinate_words(
     _self: CoordinateMappingService,
     _document: object,
     _spec: CoordinateMappingSpec,
+    _control_regions: tuple[CoordinateControlRegion, ...] = (),
 ) -> list[tuple[float, float, list[CoordinateWord]]]:
     return [
         (
@@ -531,8 +533,9 @@ async def _coordinate_words_two(
     _self: CoordinateMappingService,
     _document: object,
     _spec: CoordinateMappingSpec,
+    control_regions: tuple[CoordinateControlRegion, ...] = (),
 ) -> list[tuple[float, float, list[CoordinateWord]]]:
-    page = (await _coordinate_words(_self, _document, _spec))[0]
+    page = (await _coordinate_words(_self, _document, _spec, control_regions))[0]
     return [
         (
             page[0],
