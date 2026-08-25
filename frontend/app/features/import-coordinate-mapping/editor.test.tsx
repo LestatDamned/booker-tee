@@ -7,16 +7,78 @@ import { CoordinateEditor } from "./editor";
 import { completeLayouts, withAmountMode, withOptionalRole } from "./page";
 
 describe("CoordinateEditor", () => {
+  it("keeps exact coordinates hidden until requested", async () => {
+    const user = userEvent.setup();
+    render(
+      <CoordinateEditor
+        controlRegions={[]}
+        disabled={false}
+        imageUrl="blob:coordinate-page"
+        layoutName="first"
+        onChange={vi.fn()}
+        onControlRegionsChange={vi.fn()}
+        onPageChange={vi.fn()}
+        pageNumber={1}
+        spec={coordinateSpec()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("heading", { name: "Точные координаты областей" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Показать точные координаты" }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Точные координаты областей" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Закрыть панель" }));
+    expect(
+      screen.queryByRole("heading", { name: "Точные координаты областей" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("adds a page-bound visual control total region", async () => {
+    const user = userEvent.setup();
+    const onControlRegionsChange = vi.fn();
+    render(
+      <CoordinateEditor
+        controlRegions={[]}
+        disabled={false}
+        imageUrl="blob:coordinate-page"
+        layoutName="first"
+        onChange={vi.fn()}
+        onControlRegionsChange={onControlRegionsChange}
+        onPageChange={vi.fn()}
+        pageNumber={3}
+        spec={coordinateSpec()}
+      />,
+    );
+
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Добавить на этой странице",
+      })[0]!,
+    );
+
+    expect(onControlRegionsChange).toHaveBeenCalledWith([
+      expect.objectContaining({ kind: "opening_balance", pageNumber: 3 }),
+    ]);
+  });
+
   it("moves a normalized field with the keyboard without depending on image size", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const spec = coordinateSpec();
     render(
       <CoordinateEditor
+        controlRegions={[]}
         disabled={false}
         imageUrl="blob:coordinate-page"
         layoutName="first"
         onChange={onChange}
+        onControlRegionsChange={vi.fn()}
+        onPageChange={vi.fn()}
         pageNumber={1}
         spec={spec}
       />,
@@ -53,10 +115,13 @@ describe("CoordinateEditor", () => {
     const onChange = vi.fn();
     render(
       <CoordinateEditor
+        controlRegions={[]}
         disabled={false}
         imageUrl="blob:coordinate-page"
         layoutName="first"
         onChange={onChange}
+        onControlRegionsChange={vi.fn()}
+        onPageChange={vi.fn()}
         pageNumber={1}
         spec={coordinateSpec()}
       />,

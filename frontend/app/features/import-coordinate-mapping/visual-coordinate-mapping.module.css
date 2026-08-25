@@ -11,43 +11,12 @@
   justify-content: space-between;
   gap: var(--space-3);
 }
-.page header h1 {
-  margin: var(--space-1) 0;
-  font-size: var(--font-size-xl);
-}
-.page header p {
-  max-width: 70ch;
-  color: var(--color-text-secondary);
-}
-.eyebrow {
-  margin: 0;
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-}
 .notice,
-.preview,
 .settings {
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
   background: var(--color-bg-secondary-pane);
   padding: var(--space-4);
-}
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.tabs button {
-  min-height: var(--control-height);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-pill);
-  background: var(--color-bg-secondary-pane);
-  padding-inline: var(--space-4);
-}
-.tabs button[aria-pressed="true"] {
-  border-color: var(--color-brand);
-  color: var(--color-brand);
 }
 .settings {
   display: grid;
@@ -151,6 +120,12 @@
   outline: var(--focus-ring-width) solid var(--color-focus-ring);
   outline-offset: 2px;
 }
+.overlay.controlOverlay {
+  z-index: 2;
+  border-color: var(--color-information);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--color-information) 18%, transparent);
+}
 .controls {
   display: grid;
   gap: var(--space-3);
@@ -175,12 +150,44 @@
   color: var(--color-text-secondary);
   padding-left: var(--space-3);
 }
-.preview ol {
-  max-height: 24rem;
-  overflow: auto;
-  padding-left: var(--space-5);
+.pagePager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
 }
-.preview li span,
+.controlRegions {
+  display: grid;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-3);
+}
+.controlRegions h2,
+.controlRegions p {
+  margin: 0;
+}
+.controlRegions p {
+  color: var(--color-text-secondary);
+}
+.controlRegionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+  align-items: center;
+  gap: var(--space-2);
+}
+.controlRegionRow button {
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-sm);
+  background: var(--color-action-secondary);
+  color: var(--color-on-action-secondary);
+  padding-inline: var(--space-3);
+}
+.coordinateHint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
 .error {
   color: var(--color-status-danger);
 }

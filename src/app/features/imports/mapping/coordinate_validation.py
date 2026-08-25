@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.features.imports.mapping.coordinate_dto import (
+    CoordinateControlRegion,
     CoordinateFieldRole,
     CoordinateMappingSpec,
     CoordinatePageLayout,
@@ -23,6 +24,7 @@ class CoordinateMappingValidator:
         spec: CoordinateMappingSpec,
         *,
         page_aspect_ratios: list[float],
+        control_regions: tuple[CoordinateControlRegion, ...] = (),
     ) -> list[CoordinateValidationIssue]:
         issues: list[CoordinateValidationIssue] = []
         required_layouts = {"first"}
@@ -42,6 +44,27 @@ class CoordinateMappingValidator:
                     CoordinateValidationIssue(
                         f"layouts.{name}.pageAspectRatio",
                         "Page aspect ratio does not match the saved layout.",
+                    )
+                )
+        seen = set()
+        for index, region in enumerate(control_regions):
+            if region.kind in seen:
+                issues.append(
+                    CoordinateValidationIssue(
+                        f"controlRegions.{index}.kind", "Control total kind must be unique."
+                    )
+                )
+            seen.add(region.kind)
+            if region.page_number > len(page_aspect_ratios):
+                issues.append(
+                    CoordinateValidationIssue(
+                        f"controlRegions.{index}.pageNumber", "Page does not exist."
+                    )
+                )
+            if not _valid_rect(region.rect):
+                issues.append(
+                    CoordinateValidationIssue(
+                        f"controlRegions.{index}.rect", "Rectangle is invalid."
                     )
                 )
         return issues

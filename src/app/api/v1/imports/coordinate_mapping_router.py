@@ -107,6 +107,7 @@ async def preview_coordinate_mapping(
             workspace_id=context.workspace.workspace.id,
             document_id=document_id,
             spec=request.spec,
+            control_regions=request.control_regions,
         )
     except (CoordinatePdfError, MappingImportUnavailableError) as error:
         raise _conflict(str(error)) from error
@@ -143,6 +144,7 @@ async def import_coordinate_mapping(
             workspace_id=context.workspace.workspace.id,
             document_id=document_id,
             spec=request.spec,
+            control_regions=request.control_regions,
             idempotency_key=idempotency_key,
             template_name=request.template_name,
         )

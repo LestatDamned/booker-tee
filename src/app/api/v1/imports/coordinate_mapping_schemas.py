@@ -3,15 +3,20 @@ from uuid import UUID
 
 from app.api.schemas import ApiModel, ApiRequestModel
 from app.features.imports.documents.types import UploadedDocumentStatus
-from app.features.imports.mapping.coordinate_dto import CoordinateMappingSpec
+from app.features.imports.mapping.coordinate_dto import (
+    CoordinateControlRegion,
+    CoordinateMappingSpec,
+)
 
 
 class CoordinatePreviewApiRequest(ApiRequestModel):
     spec: CoordinateMappingSpec
+    control_regions: tuple[CoordinateControlRegion, ...] = ()
 
 
 class CoordinateImportApiRequest(ApiRequestModel):
     spec: CoordinateMappingSpec
+    control_regions: tuple[CoordinateControlRegion, ...] = ()
     template_name: str | None = None
 
 

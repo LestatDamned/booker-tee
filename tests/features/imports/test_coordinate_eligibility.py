@@ -86,7 +86,7 @@ async def test_preview_is_bounded_and_has_no_persistence_side_effects() -> None:
     service = object.__new__(CoordinateMappingService)
     service._documents = SimpleNamespace(get_document_for_workspace=_async_result(document))
 
-    async def words(_document, _spec):
+    async def words(_document, _spec, _control_regions=()):
         values = []
         for index in range(25):
             top = 120 + index * 30

@@ -1,5 +1,6 @@
 import hashlib
 import json
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,8 @@ from app.features.imports.documents.validation_report import StoredValidationRep
 from app.features.imports.mapping.commands.import_rows import MappedStatementRowImporter
 from app.features.imports.mapping.coordinate_dto import (
     CoordinateCapability,
+    CoordinateControlRegion,
+    CoordinateControlTotalKind,
     CoordinateMappingOverview,
     CoordinateMappingSpec,
     CoordinatePreview,
@@ -37,6 +40,7 @@ from app.features.imports.mapping.errors import (
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.mapping.templates import clean_template_name
 from app.features.imports.models import ImportMappingExecution
+from app.features.imports.statements.dto import StatementControlTotals
 from app.features.imports.statements.repository import StatementRepository
 from app.features.imports.statements.types import RawTransactionStatus
 
@@ -86,12 +90,14 @@ class CoordinateMappingService:
         workspace_id: UUID,
         document_id: UUID,
         spec: CoordinateMappingSpec,
+        control_regions: tuple[CoordinateControlRegion, ...] = (),
     ) -> CoordinatePreview | None:
         document = await self._documents.get_document_for_workspace(workspace_id, document_id)
         if document is None:
             return None
-        words = await self._validated_words(document, spec)
+        words = await self._validated_words(document, spec, control_regions)
         result = CoordinateMappingEngine.apply(words, spec)
+        control_totals = CoordinateMappingEngine.resolve_control_totals(words, control_regions)
         rows = tuple(
             CoordinatePreviewRow(
                 page_number=row.page_number,
@@ -123,8 +129,11 @@ class CoordinateMappingService:
             row_limit=MAX_COORDINATE_PREVIEW_ROWS,
             rows_truncated=len(result.rows) > len(rows),
             warnings=tuple(result.warnings),
+            control_totals=control_totals,
+            reconciliation=CoordinateMappingEngine.reconcile(result.rows, control_totals),
             can_import=valid_count > 0
-            and not any(warning.severity == "error" for warning in result.warnings),
+            and not any(warning.severity == "error" for warning in result.warnings)
+            and not any(item.error for item in control_totals),
         )
 
     async def render_page(
@@ -138,7 +147,12 @@ class CoordinateMappingService:
             raise MappingImportUnavailableError(reasons[0])
         return await self._pdf.render_page(document.storage_key, page_number)
 
-    async def _validated_words(self, document, spec: CoordinateMappingSpec):
+    async def _validated_words(
+        self,
+        document,
+        spec: CoordinateMappingSpec,
+        control_regions: tuple[CoordinateControlRegion, ...] = (),
+    ):
         _require_coordinate_eligible(document)
         try:
             pages = await self._pdf.inspect(document.storage_key)
@@ -147,7 +161,9 @@ class CoordinateMappingService:
         if not pages or not all(page.has_text_layer for page in pages):
             raise MappingImportUnavailableError("PDF text layer is required.")
         issues = CoordinateMappingValidator.validate(
-            spec, page_aspect_ratios=[page.aspect_ratio for page in pages]
+            spec,
+            page_aspect_ratios=[page.aspect_ratio for page in pages],
+            control_regions=control_regions,
         )
         if issues:
             raise UnknownStatementMappingError(issues[0].message)
@@ -166,9 +182,10 @@ class CoordinateMappingImportService(CoordinateMappingService):
         spec: CoordinateMappingSpec,
         idempotency_key: UUID,
         template_name: str | None,
+        control_regions: tuple[CoordinateControlRegion, ...] = (),
     ) -> StatementMappingImportResult:
         name = clean_template_name(template_name) if template_name is not None else None
-        fingerprint = _fingerprint(spec, name)
+        fingerprint = _fingerprint(spec, control_regions, name)
         document = await self._documents.get_document_for_workspace_for_update(
             workspace_id, document_id
         )
@@ -193,10 +210,43 @@ class CoordinateMappingImportService(CoordinateMappingService):
         attempt = latest_parse_attempt(document)
         if attempt is None:
             raise MappingImportUnavailableError("Parse attempt is unavailable.")
-        words = await self._validated_words(document, spec)
+        words = await self._validated_words(document, spec, control_regions)
         extraction = CoordinateMappingEngine.apply(words, spec)
+        control_totals = CoordinateMappingEngine.resolve_control_totals(words, control_regions)
         if not extraction.rows or not any(row.status == "valid" for row in extraction.rows):
             raise MappingImportUnavailableError("Refresh preview and fix blocking errors.")
+        if any(item.error for item in control_totals):
+            raise MappingImportUnavailableError("Refresh preview and fix control total areas.")
+        if control_totals:
+            previous = (
+                StatementControlTotals.model_validate(attempt.control_totals_json)
+                if attempt.control_totals_json is not None
+                else StatementControlTotals(currency=spec.default_currency)
+            )
+            values = {
+                item.kind: Decimal(item.amount)
+                for item in control_totals
+                if item.amount is not None
+            }
+            attempt.control_totals_json = StatementControlTotals(
+                currency=previous.currency or spec.default_currency,
+                opening_balance=values.get(
+                    CoordinateControlTotalKind.OPENING_BALANCE,
+                    previous.opening_balance,
+                ),
+                closing_balance=values.get(
+                    CoordinateControlTotalKind.CLOSING_BALANCE,
+                    previous.closing_balance,
+                ),
+                total_inflow=values.get(
+                    CoordinateControlTotalKind.TOTAL_INFLOW,
+                    previous.total_inflow,
+                ),
+                total_outflow=values.get(
+                    CoordinateControlTotalKind.TOTAL_OUTFLOW,
+                    previous.total_outflow,
+                ),
+            ).model_dump(mode="json")
         raw_transactions = await MappedStatementRowImporter(
             self._session,
             self._documents,
@@ -208,6 +258,17 @@ class CoordinateMappingImportService(CoordinateMappingService):
             rows=extraction.rows,
             exclude_duplicate_document_id=document.id,
         )
+        if control_regions:
+            attempt.control_totals_json = {
+                **(attempt.control_totals_json or {}),
+                "visual_coordinate_sources": {
+                    region.kind.value: {
+                        "page_number": region.page_number,
+                        "rect": region.rect.model_dump(mode="json"),
+                    }
+                    for region in control_regions
+                },
+            }
         attempt.validation_report_json = {
             **(attempt.validation_report_json or {}),
             "source": "visual_coordinate_mapping",
@@ -278,11 +339,16 @@ def _require_coordinate_eligible(document) -> None:
         raise MappingImportUnavailableError(reasons[0])
 
 
-def _fingerprint(spec: CoordinateMappingSpec, template_name: str | None) -> str:
+def _fingerprint(
+    spec: CoordinateMappingSpec,
+    control_regions: tuple[CoordinateControlRegion, ...],
+    template_name: str | None,
+) -> str:
     payload = {
         "kind": "visual_coordinates",
         "version": 1,
         "spec": spec.model_dump(mode="json"),
+        "control_regions": [region.model_dump(mode="json") for region in control_regions],
         "template_name": template_name,
     }
     return hashlib.sha256(

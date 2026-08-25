@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 from app.features.imports.mapping.coordinate_dto import (
+    CoordinateControlRegion,
+    CoordinateControlTotalKind,
     CoordinateFieldRole,
     CoordinateMappingSpec,
     CoordinatePageLayout,
@@ -70,6 +72,43 @@ def test_coordinate_engine_extracts_rows_multiline_description_and_signed_amount
     assert result.rows[0].amount == Decimal("-250.50")
     assert result.rows[1].amount == Decimal("1000")
     assert result.layouts == ["first", "first"]
+
+
+def test_coordinate_engine_resolves_and_reconciles_visual_control_totals() -> None:
+    page = (
+        1000,
+        1000,
+        [
+            _word("1 000,00 ₽", 100, 50),
+            _word("850,00 ₽", 300, 50),
+            _word("0,00 ₽", 500, 50),
+            _word("150,00 ₽", 700, 50),
+            _word("01.08.2026", 100, 220),
+            _word("Purchase", 300, 220),
+            _word("-150,00", 800, 220),
+        ],
+    )
+    regions = tuple(
+        CoordinateControlRegion(
+            kind=kind,
+            page_number=1,
+            rect=NormalizedRect(x0=x0, y0=0.02, x1=x1, y1=0.08),
+        )
+        for kind, x0, x1 in (
+            (CoordinateControlTotalKind.OPENING_BALANCE, 0.05, 0.2),
+            (CoordinateControlTotalKind.CLOSING_BALANCE, 0.25, 0.4),
+            (CoordinateControlTotalKind.TOTAL_INFLOW, 0.45, 0.6),
+            (CoordinateControlTotalKind.TOTAL_OUTFLOW, 0.65, 0.8),
+        )
+    )
+
+    extraction = CoordinateMappingEngine.apply([page], _spec())
+    controls = CoordinateMappingEngine.resolve_control_totals([page], regions)
+    checks = CoordinateMappingEngine.reconcile(extraction.rows, controls)
+
+    assert [control.amount for control in controls] == ["1000.00", "850.00", "0.00", "150.00"]
+    assert {check.kind for check in checks} == {"balance", "total_inflow", "total_outflow"}
+    assert all(check.matches for check in checks)
 
 
 def test_coordinate_engine_warns_when_page_has_no_date_anchor() -> None:

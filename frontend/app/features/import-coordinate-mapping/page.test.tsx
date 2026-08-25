@@ -119,6 +119,24 @@ describe("VisualCoordinateMappingPage capability", () => {
         rowLimit: 20,
         rowsTruncated: false,
         warnings: [],
+        controlTotals: [
+          {
+            kind: "total_inflow",
+            pageNumber: 1,
+            rawValue: "1000,00 ₽",
+            amount: "1000.00",
+            error: null,
+          },
+        ],
+        reconciliation: [
+          {
+            kind: "total_inflow",
+            expected: "1000.00",
+            actual: "1000.00",
+            difference: "0.00",
+            matches: true,
+          },
+        ],
         canImport: true,
       },
     });
@@ -131,6 +149,10 @@ describe("VisualCoordinateMappingPage capability", () => {
     await user.click(
       screen.getByRole("button", { name: "Обновить предпросмотр" }),
     );
+    expect(
+      screen.getByRole("heading", { name: "Контрольные значения" }),
+    ).toBeVisible();
+    expect(screen.getByText(/Итого поступлений/)).toBeVisible();
     const importButton = screen.getByRole("button", {
       name: "Импортировать в проверку",
     });
@@ -141,9 +163,8 @@ describe("VisualCoordinateMappingPage capability", () => {
     );
 
     await user.click(screen.getByRole("checkbox", { name: "Валюта" }));
-    expect(
-      screen.getByRole("heading", { name: "Предпросмотр устарел" }),
-    ).toBeVisible();
+    expect(screen.getByText("Нужно обновить")).toBeVisible();
+    expect(screen.getByText(/Настройка изменилась/)).toBeVisible();
     expect(importButton).toBeDisabled();
   });
 
@@ -191,6 +212,8 @@ describe("VisualCoordinateMappingPage capability", () => {
             affectedRowCount: null,
           },
         ],
+        controlTotals: [],
+        reconciliation: [],
         canImport: true,
       },
     });
@@ -200,14 +223,12 @@ describe("VisualCoordinateMappingPage capability", () => {
       screen.getByRole("button", { name: "Обновить предпросмотр" }),
     );
 
-    const warnings = screen.getByRole("list", {
-      name: "Предупреждения предпросмотра",
-    });
-    expect(warnings).toHaveTextContent(
-      "На странице не найдены строки с датами",
-    );
-    expect(warnings).toHaveTextContent("затронуто: 1");
-    expect(warnings).toHaveTextContent("Много строк требуют проверки");
+    expect(
+      screen.getByText("На части страниц не найдены строки с датами."),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Много строк не удалось нормализовать/),
+    ).toBeVisible();
     expect(screen.getByText(/Первая страница/)).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Импортировать в проверку" }),
@@ -225,6 +246,8 @@ describe("VisualCoordinateMappingPage capability", () => {
         rowLimit: 20,
         rowsTruncated: false,
         warnings: [],
+        controlTotals: [],
+        reconciliation: [],
         canImport: true,
       },
     });
@@ -337,6 +360,8 @@ describe("VisualCoordinateMappingPage capability", () => {
           rowLimit: 20,
           rowsTruncated: false,
           warnings: [],
+          controlTotals: [],
+          reconciliation: [],
           canImport: true,
         },
       });
@@ -411,6 +436,8 @@ describe("VisualCoordinateMappingPage capability", () => {
         rowLimit: 20,
         rowsTruncated: false,
         warnings: [],
+        controlTotals: [],
+        reconciliation: [],
         canImport: true,
       },
     });

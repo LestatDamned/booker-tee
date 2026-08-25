@@ -1,16 +1,27 @@
 import re
 from dataclasses import dataclass
+from decimal import Decimal
+from typing import Literal
 
 from app.features.imports.mapping.coordinate_dto import (
+    CoordinateControlRegion,
+    CoordinateControlTotalKind,
     CoordinateExtractionResult,
     CoordinateFieldRole,
     CoordinateMappingSpec,
     CoordinatePageLayout,
+    CoordinateReconciliationCheck,
+    CoordinateResolvedControlTotal,
 )
 from app.features.imports.mapping.coordinate_validation import layout_name
-from app.features.imports.mapping.dto import StatementMappingSpec, UnknownStatementMappingWarning
+from app.features.imports.mapping.dto import (
+    MappedStatementRow,
+    StatementMappingSpec,
+    UnknownStatementMappingWarning,
+)
 from app.features.imports.mapping.engine import mapping_warnings
 from app.features.imports.mapping.rows import map_row
+from app.features.imports.parsers.support.normalization import parse_money_amount
 
 _DATE_ANCHOR = re.compile(r"^\s*\d{1,4}[./-]\d{1,2}[./-]\d{1,4}(?:\s|$)")
 
@@ -63,6 +74,67 @@ class CoordinateMappingEngine:
                 )
             )
         return CoordinateExtractionResult(rows=rows, layouts=layouts, warnings=warnings)
+
+    @staticmethod
+    def resolve_control_totals(
+        pages: list[tuple[float, float, list[CoordinateWord]]],
+        regions: tuple[CoordinateControlRegion, ...],
+    ) -> tuple[CoordinateResolvedControlTotal, ...]:
+        resolved = []
+        for region in regions:
+            width, height, words = pages[region.page_number - 1]
+            raw_value = _join_words(
+                [
+                    word
+                    for word in words
+                    if region.rect.x0 <= _center_x(word, width) <= region.rect.x1
+                    and region.rect.y0 <= _center_y(word, height) <= region.rect.y1
+                ]
+            )[:1000]
+            try:
+                amount = parse_money_amount(raw_value)
+            except ValueError:
+                amount = None
+            if amount is not None and region.kind in {
+                CoordinateControlTotalKind.TOTAL_INFLOW,
+                CoordinateControlTotalKind.TOTAL_OUTFLOW,
+            }:
+                amount = abs(amount)
+            resolved.append(
+                CoordinateResolvedControlTotal(
+                    kind=region.kind,
+                    page_number=region.page_number,
+                    raw_value=raw_value,
+                    amount=str(amount) if amount is not None else None,
+                    error=None if amount is not None else "control_total_amount_invalid",
+                )
+            )
+        return tuple(resolved)
+
+    @staticmethod
+    def reconcile(
+        rows: list[MappedStatementRow],
+        control_totals: tuple[CoordinateResolvedControlTotal, ...],
+    ) -> tuple[CoordinateReconciliationCheck, ...]:
+        values = {
+            item.kind: Decimal(item.amount) for item in control_totals if item.amount is not None
+        }
+        amounts = [row.amount for row in rows if row.status == "valid" and row.amount is not None]
+        inflow = sum((amount for amount in amounts if amount > 0), Decimal("0.00"))
+        outflow = sum((abs(amount) for amount in amounts if amount < 0), Decimal("0.00"))
+        checks = []
+        for kind, actual in (
+            (CoordinateControlTotalKind.TOTAL_INFLOW, inflow),
+            (CoordinateControlTotalKind.TOTAL_OUTFLOW, outflow),
+        ):
+            expected = values.get(kind)
+            if expected is not None:
+                checks.append(_reconciliation_check(kind.value, expected, actual))
+        opening = values.get(CoordinateControlTotalKind.OPENING_BALANCE)
+        closing = values.get(CoordinateControlTotalKind.CLOSING_BALANCE)
+        if opening is not None and closing is not None:
+            checks.append(_reconciliation_check("balance", closing, opening + inflow - outflow))
+        return tuple(checks)
 
 
 def _page_rows(
@@ -216,3 +288,18 @@ def _center_x(word: CoordinateWord, width: float) -> float:
 
 def _center_y(word: CoordinateWord, height: float) -> float:
     return (word.top + word.bottom) / 2 / height
+
+
+def _reconciliation_check(
+    kind: Literal["balance", "total_inflow", "total_outflow"],
+    expected: Decimal,
+    actual: Decimal,
+):
+    difference = (actual - expected).quantize(Decimal("0.01"))
+    return CoordinateReconciliationCheck(
+        kind=kind,
+        expected=str(expected.quantize(Decimal("0.01"))),
+        actual=str(actual.quantize(Decimal("0.01"))),
+        difference=str(difference),
+        matches=abs(difference) <= Decimal("0.01"),
+    )

@@ -25,6 +25,13 @@ class CoordinateFieldRole(StrEnum):
     BALANCE = "balance"
 
 
+class CoordinateControlTotalKind(StrEnum):
+    OPENING_BALANCE = "opening_balance"
+    CLOSING_BALANCE = "closing_balance"
+    TOTAL_INFLOW = "total_inflow"
+    TOTAL_OUTFLOW = "total_outflow"
+
+
 class CoordinateModel(ApplicationModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
@@ -63,6 +70,28 @@ class CoordinateMappingSpec(CoordinateModel):
             return value
         currency = value.strip().upper()
         return currency
+
+
+class CoordinateControlRegion(CoordinateModel):
+    kind: CoordinateControlTotalKind
+    page_number: int = Field(ge=1)
+    rect: NormalizedRect
+
+
+class CoordinateResolvedControlTotal(CoordinateModel):
+    kind: CoordinateControlTotalKind
+    page_number: int
+    raw_value: str
+    amount: str | None
+    error: str | None = None
+
+
+class CoordinateReconciliationCheck(CoordinateModel):
+    kind: Literal["balance", "total_inflow", "total_outflow"]
+    expected: str
+    actual: str
+    difference: str
+    matches: bool
 
 
 class CoordinateTemplateSnapshot(CoordinateModel):
@@ -122,6 +151,8 @@ class CoordinatePreview(CoordinateModel):
     row_limit: int
     rows_truncated: bool
     warnings: tuple[UnknownStatementMappingWarning, ...]
+    control_totals: tuple[CoordinateResolvedControlTotal, ...] = ()
+    reconciliation: tuple[CoordinateReconciliationCheck, ...] = ()
     can_import: bool
 
 

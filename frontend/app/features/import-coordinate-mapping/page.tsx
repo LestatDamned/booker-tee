@@ -8,7 +8,14 @@ import { BackLink } from "../../ui/back-link/back-link";
 import { Button, RouterButtonLink } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
 import { Fieldset } from "../../ui/field/fieldset";
+import { PageHeader } from "../../ui/page-header/page-header";
+import {
+  SelectionTabButton,
+  SelectionTabs,
+} from "../../ui/selection-tabs/selection-tabs";
+import { MappingPreview } from "../import-mapping/mapping-preview";
 import type {
+  CoordinateControlRegion,
   CoordinateOverview,
   CoordinatePreview,
   CoordinateSpec,
@@ -32,7 +39,10 @@ export function VisualCoordinateMappingPage({
 }) {
   const navigate = useNavigate();
   const [spec, setSpec] = useState(() => initialSpec(overview));
-  const [layout, setLayout] = useState<LayoutName>("first");
+  const [activePage, setActivePage] = useState(1);
+  const [controlRegions, setControlRegions] = useState<
+    CoordinateControlRegion[]
+  >([]);
   const [preview, setPreview] = useState<{
     fingerprint: string;
     value: CoordinatePreview;
@@ -47,10 +57,10 @@ export function VisualCoordinateMappingPage({
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageRetry, setImageRetry] = useState(0);
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null);
-  const fingerprint = spec ? JSON.stringify(spec) : "";
+  const previewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const fingerprint = spec ? JSON.stringify([spec, controlRegions]) : "";
   const stale = preview !== null && preview.fingerprint !== fingerprint;
-  const activePage =
-    layout === "first" ? 1 : layout === "last" ? overview.pageCount : 2;
+  const layout = layoutForPage(activePage, overview.pageCount);
   const canLoadImage =
     overview.capability.allowed && spec !== null && overview.pages.length > 0;
 
@@ -96,6 +106,7 @@ export function VisualCoordinateMappingPage({
     const result = await previewCoordinates(
       overview.documentId,
       spec,
+      controlRegions,
       session.csrfToken,
     );
     setPending(false);
@@ -122,6 +133,7 @@ export function VisualCoordinateMappingPage({
     const result = await importCoordinates(
       overview.documentId,
       spec,
+      controlRegions,
       templateName.trim() || null,
       session.csrfToken,
       current.key,
@@ -156,14 +168,11 @@ export function VisualCoordinateMappingPage({
             Настройка колонок
           </RouterButtonLink>
         </nav>
-        <header>
-          <p className={styles.eyebrow}>Визуальная настройка PDF</p>
-          <h1>{overview.filename}</h1>
-          <p>
-            Выберите одну типичную операцию и отметьте в ней нужные поля. По
-            этому примеру система распознает остальные строки выписки.
-          </p>
-        </header>
+        <PageHeader
+          description="Выберите одну типичную операцию и отметьте в ней нужные поля. По этому примеру система распознает остальные строки выписки."
+          eyebrow="Визуальная настройка PDF"
+          title={overview.filename}
+        />
         {!overview.capability.allowed || !spec ? (
           <section role="status" className={styles.notice}>
             <h2>Визуальная настройка недоступна</h2>
@@ -171,24 +180,24 @@ export function VisualCoordinateMappingPage({
           </section>
         ) : (
           <>
-            <nav aria-label="Layouts страниц" className={styles.tabs}>
+            <SelectionTabs as="nav" aria-label="Макеты страниц">
               {availableLayouts(overview.pageCount).map((name) => (
-                <button
-                  aria-pressed={layout === name}
+                <SelectionTabButton
                   key={name}
                   onClick={() => {
-                    if (name !== layout) {
+                    const page = representativePage(name, overview.pageCount);
+                    if (page !== activePage) {
                       setImage(null);
                       setImageError(null);
                     }
-                    setLayout(name);
+                    setActivePage(page);
                   }}
-                  type="button"
+                  selected={layout === name}
                 >
                   {layoutLabel(name)}
-                </button>
+                </SelectionTabButton>
               ))}
-            </nav>
+            </SelectionTabs>
             <section
               className={styles.settings}
               aria-labelledby="coordinate-settings-title"
@@ -296,11 +305,11 @@ export function VisualCoordinateMappingPage({
                           : initialSpec(overview);
                         if (next) change(next);
                         setError(null);
-                        if (layout !== "first") {
+                        if (activePage !== 1) {
                           setImage(null);
                           setImageError(null);
                         }
-                        setLayout("first");
+                        setActivePage(1);
                       }}
                       value={selectedTemplateId}
                     >
@@ -332,12 +341,51 @@ export function VisualCoordinateMappingPage({
                 </div>
               </div>
             </section>
+            <nav aria-label="Страницы PDF" className={styles.pagePager}>
+              <Button
+                disabled={pending || activePage === 1}
+                onClick={() => {
+                  setImage(null);
+                  setImageError(null);
+                  setActivePage((page) => page - 1);
+                }}
+                tone="secondary"
+                type="button"
+              >
+                Предыдущая
+              </Button>
+              <span>
+                Страница {activePage} из {overview.pageCount}
+              </span>
+              <Button
+                disabled={pending || activePage === overview.pageCount}
+                onClick={() => {
+                  setImage(null);
+                  setImageError(null);
+                  setActivePage((page) => page + 1);
+                }}
+                tone="secondary"
+                type="button"
+              >
+                Следующая
+              </Button>
+            </nav>
             {image?.page === activePage ? (
               <CoordinateEditor
+                controlRegions={controlRegions}
                 disabled={pending}
                 imageUrl={image.url}
                 layoutName={layout}
                 onChange={change}
+                onControlRegionsChange={(regions) => {
+                  setControlRegions(regions);
+                  attempt.current = null;
+                }}
+                onPageChange={(page) => {
+                  setImage(null);
+                  setImageError(null);
+                  setActivePage(page);
+                }}
                 pageNumber={activePage}
                 spec={spec}
               />
@@ -364,46 +412,13 @@ export function VisualCoordinateMappingPage({
                 {error}
               </p>
             ) : null}
-            {preview ? (
-              <section aria-live="polite" className={styles.preview}>
-                <h2>
-                  {stale
-                    ? "Предпросмотр устарел"
-                    : `${preview.value.validRowCount} корректных строк`}
-                </h2>
-                <p>
-                  Всего: {preview.value.totalRowCount}; требуют проверки:{" "}
-                  {preview.value.invalidRowCount}.
-                </p>
-                {preview.value.warnings.length ? (
-                  <ul aria-label="Предупреждения предпросмотра">
-                    {preview.value.warnings.map((warning, index) => (
-                      <li key={`${warning.code}:${index}`}>
-                        <strong>{warningLabel(warning.code)}</strong>
-                        {` — ${warning.severity === "error" ? "ошибка" : "предупреждение"}`}
-                        {warning.affectedRowCount == null
-                          ? null
-                          : `; затронуто: ${warning.affectedRowCount}`}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                <ol>
-                  {preview.value.rows.map((row) => (
-                    <li key={`${row.pageNumber}:${row.sourceRowNumber}`}>
-                      <strong>
-                        {row.operationDateRaw || "Дата не распознана"}
-                      </strong>{" "}
-                      · {row.description || "Нет описания"} ·{" "}
-                      {(row.amount ?? row.amountRaw) || "Нет суммы"}
-                      {row.errors.length ? (
-                        <span> — {row.errors.join("; ")}</span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
+            <MappingPreview
+              currency={spec.defaultCurrency}
+              headingRef={previewHeadingRef}
+              preview={preview?.value ?? null}
+              sourceMetric={{ label: "Страниц", value: overview.pageCount }}
+              stale={stale}
+            />
             <footer className={styles.actions}>
               <Button
                 disabled={pending}
@@ -562,23 +577,16 @@ function availableLayouts(pageCount: number): LayoutName[] {
       ? ["first", "last"]
       : ["first", "middle", "last"];
 }
+function layoutForPage(page: number, pageCount: number): LayoutName {
+  return page === 1 ? "first" : page === pageCount ? "last" : "middle";
+}
+function representativePage(name: LayoutName, pageCount: number) {
+  return name === "first" ? 1 : name === "last" ? pageCount : 2;
+}
 function layoutLabel(name: LayoutName) {
   return name === "first"
     ? "Первая"
     : name === "middle"
       ? "Промежуточная"
       : "Последняя";
-}
-function warningLabel(code: string) {
-  return (
-    {
-      coordinate_date_anchors_missing: "На странице не найдены строки с датами",
-      coordinate_date_candidates_unanchored:
-        "Часть строк не распознана как строки с датами",
-      high_error_rate: "Много строк требуют проверки",
-      unsigned_amount_direction_required:
-        "Для сумм без знака требуется направление",
-      no_valid_rows: "Нет корректных строк",
-    }[code] ?? code
-  );
 }

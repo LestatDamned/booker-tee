@@ -4,6 +4,8 @@ import { parseApiError, requestBlob, requestJson } from "../../api/transport";
 export type CoordinateOverview =
   components["schemas"]["CoordinateMappingOverview"];
 export type CoordinateSpec = components["schemas"]["CoordinateMappingSpec"];
+export type CoordinateControlRegion =
+  components["schemas"]["CoordinateControlRegion"];
 export type CoordinatePreview = components["schemas"]["CoordinatePreview"];
 export type CoordinateImport =
   components["schemas"]["CoordinateImportApiResponse"];
@@ -31,6 +33,7 @@ export async function loadCoordinateOverview(
 export async function previewCoordinates(
   documentId: string,
   spec: CoordinateSpec,
+  controlRegions: CoordinateControlRegion[],
   csrfToken: string,
 ): Promise<Result<CoordinatePreview>> {
   const response = await requestJson(
@@ -41,7 +44,7 @@ export async function previewCoordinates(
         "Content-Type": "application/json",
         "X-CSRF-Token": csrfToken,
       },
-      body: JSON.stringify({ spec }),
+      body: JSON.stringify({ spec, controlRegions }),
     },
   );
   return parseResult<CoordinatePreview>(response);
@@ -50,6 +53,7 @@ export async function previewCoordinates(
 export async function importCoordinates(
   documentId: string,
   spec: CoordinateSpec,
+  controlRegions: CoordinateControlRegion[],
   templateName: string | null,
   csrfToken: string,
   idempotencyKey: string,
@@ -63,7 +67,7 @@ export async function importCoordinates(
         "X-CSRF-Token": csrfToken,
         "Idempotency-Key": idempotencyKey,
       },
-      body: JSON.stringify({ spec, templateName }),
+      body: JSON.stringify({ spec, controlRegions, templateName }),
     },
   );
   return parseResult<CoordinateImport>(response);

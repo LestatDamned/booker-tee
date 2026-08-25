@@ -2266,6 +2266,18 @@ export interface components {
             /** Blockingreasoncodes */
             blockingReasonCodes: string[];
         };
+        /** CoordinateControlRegion */
+        CoordinateControlRegion: {
+            kind: components["schemas"]["CoordinateControlTotalKind"];
+            /** Pagenumber */
+            pageNumber: number;
+            rect: components["schemas"]["NormalizedRect"];
+        };
+        /**
+         * CoordinateControlTotalKind
+         * @enum {string}
+         */
+        CoordinateControlTotalKind: "opening_balance" | "closing_balance" | "total_inflow" | "total_outflow";
         /**
          * CoordinateFieldRole
          * @enum {string}
@@ -2274,6 +2286,11 @@ export interface components {
         /** CoordinateImportApiRequest */
         CoordinateImportApiRequest: {
             spec: components["schemas"]["CoordinateMappingSpec"];
+            /**
+             * Controlregions
+             * @default []
+             */
+            controlRegions: components["schemas"]["CoordinateControlRegion"][];
             /** Templatename */
             templateName?: string | null;
         };
@@ -2385,12 +2402,27 @@ export interface components {
             rowsTruncated: boolean;
             /** Warnings */
             warnings: components["schemas"]["UnknownStatementMappingWarning"][];
+            /**
+             * Controltotals
+             * @default []
+             */
+            controlTotals: components["schemas"]["CoordinateResolvedControlTotal"][];
+            /**
+             * Reconciliation
+             * @default []
+             */
+            reconciliation: components["schemas"]["CoordinateReconciliationCheck"][];
             /** Canimport */
             canImport: boolean;
         };
         /** CoordinatePreviewApiRequest */
         CoordinatePreviewApiRequest: {
             spec: components["schemas"]["CoordinateMappingSpec"];
+            /**
+             * Controlregions
+             * @default []
+             */
+            controlRegions: components["schemas"]["CoordinateControlRegion"][];
         };
         /** CoordinatePreviewRow */
         CoordinatePreviewRow: {
@@ -2434,6 +2466,34 @@ export interface components {
             status: "valid" | "error";
             /** Errors */
             errors: string[];
+        };
+        /** CoordinateReconciliationCheck */
+        CoordinateReconciliationCheck: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "balance" | "total_inflow" | "total_outflow";
+            /** Expected */
+            expected: string;
+            /** Actual */
+            actual: string;
+            /** Difference */
+            difference: string;
+            /** Matches */
+            matches: boolean;
+        };
+        /** CoordinateResolvedControlTotal */
+        CoordinateResolvedControlTotal: {
+            kind: components["schemas"]["CoordinateControlTotalKind"];
+            /** Pagenumber */
+            pageNumber: number;
+            /** Rawvalue */
+            rawValue: string;
+            /** Amount */
+            amount: string | null;
+            /** Error */
+            error?: string | null;
         };
         /** CoordinateTemplateSnapshot */
         CoordinateTemplateSnapshot: {

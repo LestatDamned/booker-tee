@@ -149,6 +149,13 @@ Preview bounded и ничего не сохраняет. Import повторяе
 создаёт только reviewable `RawTransaction` через общий dedupe/rules path и
 использует `ImportMappingExecution` для replay protection.
 
+Для конкретного документа browser также может передать четыре необязательные
+page-bound области: входящий остаток, исходящий остаток, итого поступлений и
+итого списаний. Server повторно читает число внутри каждой области, включает
+геометрию в replay fingerprint и сверяет итоги с движением распознанных строк.
+Эти области не входят в visual template, потому что итоги могут находиться на
+других страницах следующей выписки.
+
 Page projection доступна только как bounded PNG с `Cache-Control: private,
 no-store`; `storage_key` и filesystem path не входят в API. Visual templates
 хранятся в существующем JSONB payload с envelope

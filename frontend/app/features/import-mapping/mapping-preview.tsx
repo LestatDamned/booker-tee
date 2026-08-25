@@ -8,16 +8,21 @@ import {
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { ReadOnlyFinancialRow } from "../../ui/read-only-financial-row/read-only-financial-row";
 import { StatusLabel } from "../../ui/status-label/status-label";
+import type { CoordinatePreview } from "../import-coordinate-mapping/api";
 import type { ImportMappingPreviewDto } from "./api/import-mapping-api";
 import styles from "./import-mapping-page.module.css";
 
 export function MappingPreview({
   headingRef,
   preview,
+  sourceMetric,
   stale,
+  currency = "RUB",
 }: {
-  headingRef: RefObject<HTMLHeadingElement | null>;
-  preview: ImportMappingPreviewDto | null;
+  currency?: string;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  preview: ImportMappingPreviewDto | CoordinatePreview | null;
+  sourceMetric?: { label: string; value: number };
   stale: boolean;
 }) {
   if (!preview) {
@@ -55,7 +60,7 @@ export function MappingPreview({
 
       {stale ? (
         <div className={styles.staleNotice} role="status">
-          Настройка колонок изменилась. Строки ниже относятся к предыдущему
+          Настройка изменилась. Строки ниже относятся к предыдущему
           предпросмотру.
         </div>
       ) : null}
@@ -69,7 +74,7 @@ export function MappingPreview({
               key={warning.code}
             >
               <p>{mappingWarningMessage(warning)}</p>
-              {warning.fields.includes("unsignedAmountDirection") ? (
+              {warning.fields?.includes("unsignedAmountDirection") ? (
                 <button
                   type="button"
                   onClick={() => focusMappingField("unsignedAmountDirection")}
@@ -96,148 +101,166 @@ export function MappingPreview({
           <dd>{preview.invalidRowCount}</dd>
         </div>
         <div>
-          <dt>Таблиц</dt>
-          <dd>{preview.compatibleTables.length}</dd>
+          <dt>{sourceMetric?.label ?? "Таблиц"}</dt>
+          <dd>
+            {sourceMetric?.value ??
+              (isCoordinatePreview(preview)
+                ? new Set(preview.rows.map((row) => row.pageNumber)).size
+                : preview.compatibleTables.length)}
+          </dd>
         </div>
       </dl>
 
       {preview.controlTotals.length > 0 ? (
-        <section
-          aria-labelledby="balance-reconciliation-title"
-          className={styles.balanceReconciliation}
-        >
-          <header>
-            <div>
-              <span className={styles.sectionLabel}>Контроль</span>
-              <h3 id="balance-reconciliation-title">Цепочка остатков</h3>
-            </div>
-            <StatusLabel
-              tone={
-                preview.reconciliation?.matches === true
-                  ? "success"
+        isCoordinatePreview(preview) ? (
+          <CoordinateControlTotals preview={preview} currency={currency} />
+        ) : (
+          <section
+            aria-labelledby="balance-reconciliation-title"
+            className={styles.balanceReconciliation}
+          >
+            <header>
+              <div>
+                <span className={styles.sectionLabel}>Контроль</span>
+                <h3 id="balance-reconciliation-title">Цепочка остатков</h3>
+              </div>
+              <StatusLabel
+                tone={
+                  preview.reconciliation?.matches === true
+                    ? "success"
+                    : preview.reconciliation
+                      ? "warning"
+                      : "neutral"
+                }
+                variant="soft"
+              >
+                {preview.reconciliation?.matches === true
+                  ? "Совпадает"
                   : preview.reconciliation
-                    ? "warning"
-                    : "neutral"
-              }
-              variant="soft"
-            >
-              {preview.reconciliation?.matches === true
-                ? "Совпадает"
-                : preview.reconciliation
-                  ? "Есть расхождение"
-                  : "Нужны оба остатка"}
-            </StatusLabel>
-          </header>
-          {preview.reconciliation ? (
-            <dl>
-              <div>
-                <dt>Баланс на начало выписки</dt>
-                <dd>
-                  {formatMoneyWithCurrency(
-                    preview.reconciliation.openingBalance,
-                    preview.controlTotals[0]?.currency ?? "RUB",
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt>Изменение баланса по операциям</dt>
-                <dd>
-                  {formatMoneyWithCurrency(
-                    preview.reconciliation.movement,
-                    preview.controlTotals[0]?.currency ?? "RUB",
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt>Баланс на конец по расчёту</dt>
-                <dd>
-                  {formatMoneyWithCurrency(
-                    preview.reconciliation.calculatedClosingBalance,
-                    preview.controlTotals[0]?.currency ?? "RUB",
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt>Баланс на конец выписки</dt>
-                <dd>
-                  {formatMoneyWithCurrency(
-                    preview.reconciliation.statementClosingBalance,
-                    preview.controlTotals[0]?.currency ?? "RUB",
-                  )}
-                </dd>
-              </div>
-            </dl>
-          ) : (
-            <p>
-              Выбран один контрольный остаток. Для полной сверки укажите второй,
-              если он есть в выписке.
-            </p>
-          )}
-          {preview.reconciliation && !preview.reconciliation.matches ? (
-            <p className={styles.reconciliationWarning} role="status">
-              Расхождение{" "}
-              {formatMoneyWithCurrency(
-                preview.reconciliation.difference,
-                preview.controlTotals[0]?.currency ?? "RUB",
-              )}
-              . Проверьте выбранные остатки и направление сумм.
-            </p>
-          ) : null}
-        </section>
+                    ? "Есть расхождение"
+                    : "Нужны оба остатка"}
+              </StatusLabel>
+            </header>
+            {preview.reconciliation ? (
+              <dl>
+                <div>
+                  <dt>Баланс на начало выписки</dt>
+                  <dd>
+                    {formatMoneyWithCurrency(
+                      preview.reconciliation.openingBalance,
+                      preview.controlTotals[0]?.currency ?? "RUB",
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Изменение баланса по операциям</dt>
+                  <dd>
+                    {formatMoneyWithCurrency(
+                      preview.reconciliation.movement,
+                      preview.controlTotals[0]?.currency ?? "RUB",
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Баланс на конец по расчёту</dt>
+                  <dd>
+                    {formatMoneyWithCurrency(
+                      preview.reconciliation.calculatedClosingBalance,
+                      preview.controlTotals[0]?.currency ?? "RUB",
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Баланс на конец выписки</dt>
+                  <dd>
+                    {formatMoneyWithCurrency(
+                      preview.reconciliation.statementClosingBalance,
+                      preview.controlTotals[0]?.currency ?? "RUB",
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <p>
+                Выбран один контрольный остаток. Для полной сверки укажите
+                второй, если он есть в выписке.
+              </p>
+            )}
+            {preview.reconciliation && !preview.reconciliation.matches ? (
+              <p className={styles.reconciliationWarning} role="status">
+                Расхождение{" "}
+                {formatMoneyWithCurrency(
+                  preview.reconciliation.difference,
+                  preview.controlTotals[0]?.currency ?? "RUB",
+                )}
+                . Проверьте выбранные остатки и направление сумм.
+              </p>
+            ) : null}
+          </section>
+        )
       ) : null}
 
       {preview.rows.length > 0 ? (
         <ol className={styles.previewRows}>
-          {preview.rows.map((row) => (
-            <li
-              data-status={row.status}
-              key={`${row.tableRef.pageNumber}:${row.tableRef.tableIndex}:${row.sourceRowNumber}`}
-            >
-              <ReadOnlyFinancialRow
-                context={`стр. ${row.tableRef.pageNumber} · строка ${row.sourceRowNumber}`}
-                date={formatDate(row.operationDate, row.operationDateRaw)}
-                dateTime={row.operationDate ?? undefined}
-                description={row.description || "Описание не определено"}
-                details={
-                  row.postingDate || row.postingDateRaw ? (
-                    <span>
-                      Дата проводки:{" "}
-                      {formatDate(row.postingDate, row.postingDateRaw)}
-                    </span>
-                  ) : undefined
-                }
-                issues={
-                  row.errorCodes.length > 0 ? (
-                    <ul className={styles.rowErrors}>
-                      {row.errorCodes.map((code) => (
-                        <li key={code}>{mappingRowErrorMessage(code)}</li>
-                      ))}
-                    </ul>
-                  ) : undefined
-                }
-                status={
-                  <StatusLabel
-                    tone={row.status === "valid" ? "success" : "danger"}
-                    variant="plain"
-                  >
-                    {row.status === "valid" ? "Корректно" : "Ошибка"}
-                  </StatusLabel>
-                }
-                tone={row.status === "error" ? "problem" : "default"}
-                value={
-                  <MoneyValue
-                    amount={formatPreviewAmount(
-                      row.amount,
-                      row.amountRaw,
-                      row.currency,
-                    )}
-                    currency={row.currency}
-                    tone={previewAmountTone(row.amount)}
-                  />
-                }
-              />
-            </li>
-          ))}
+          {preview.rows.map((row) => {
+            const coordinateRow = isCoordinateRow(row);
+            const pageNumber = coordinateRow
+              ? row.pageNumber
+              : row.tableRef.pageNumber;
+            const issues = coordinateRow
+              ? row.errors
+              : row.errorCodes.map(mappingRowErrorMessage);
+            return (
+              <li
+                data-status={row.status}
+                key={`${pageNumber}:${row.sourceRowNumber}`}
+              >
+                <ReadOnlyFinancialRow
+                  context={`стр. ${pageNumber} · строка ${row.sourceRowNumber}`}
+                  date={formatDate(row.operationDate, row.operationDateRaw)}
+                  dateTime={row.operationDate ?? undefined}
+                  description={row.description || "Описание не определено"}
+                  details={
+                    row.postingDate || row.postingDateRaw ? (
+                      <span>
+                        Дата проводки:{" "}
+                        {formatDate(row.postingDate, row.postingDateRaw)}
+                      </span>
+                    ) : undefined
+                  }
+                  issues={
+                    issues.length > 0 ? (
+                      <ul className={styles.rowErrors}>
+                        {issues.map((issue) => (
+                          <li key={issue}>{issue}</li>
+                        ))}
+                      </ul>
+                    ) : undefined
+                  }
+                  status={
+                    <StatusLabel
+                      tone={row.status === "valid" ? "success" : "danger"}
+                      variant="plain"
+                    >
+                      {row.status === "valid" ? "Корректно" : "Ошибка"}
+                    </StatusLabel>
+                  }
+                  tone={row.status === "error" ? "problem" : "default"}
+                  value={
+                    <MoneyValue
+                      amount={formatPreviewAmount(
+                        row.amount,
+                        row.amountRaw,
+                        row.currency,
+                      )}
+                      currency={row.currency}
+                      tone={previewAmountTone(row.amount)}
+                    />
+                  }
+                />
+              </li>
+            );
+          })}
         </ol>
       ) : (
         <p className={styles.noPreviewRows}>
@@ -253,6 +276,81 @@ export function MappingPreview({
       ) : null}
     </section>
   );
+}
+
+function CoordinateControlTotals({
+  currency,
+  preview,
+}: {
+  currency: string;
+  preview: CoordinatePreview;
+}) {
+  const hasInvalidValue = preview.controlTotals.some((total) => total.error);
+  const hasMismatch = preview.reconciliation.some((check) => !check.matches);
+  const tone =
+    hasInvalidValue || hasMismatch
+      ? "warning"
+      : preview.reconciliation.length
+        ? "success"
+        : "neutral";
+  const label = hasInvalidValue
+    ? "Нужно поправить"
+    : hasMismatch
+      ? "Есть расхождение"
+      : preview.reconciliation.length
+        ? "Совпадает"
+        : "Недостаточно данных";
+  return (
+    <section
+      aria-labelledby="coordinate-reconciliation-title"
+      className={styles.balanceReconciliation}
+    >
+      <header>
+        <div>
+          <span className={styles.sectionLabel}>Контроль</span>
+          <h3 id="coordinate-reconciliation-title">Контрольные значения</h3>
+        </div>
+        <StatusLabel tone={tone} variant="soft">
+          {label}
+        </StatusLabel>
+      </header>
+      <dl>
+        {preview.controlTotals.map((total) => (
+          <div key={total.kind}>
+            <dt>
+              {coordinateControlLabel(total.kind)} · стр. {total.pageNumber}
+            </dt>
+            <dd>
+              {total.amount === null
+                ? "Не распознано"
+                : formatMoneyWithCurrency(total.amount, currency)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {preview.reconciliation.map((check) => (
+        <p key={check.kind}>
+          <strong>{coordinateCheckLabel(check.kind)}:</strong>{" "}
+          {check.matches
+            ? "совпадает"
+            : `расхождение ${formatMoneyWithCurrency(check.difference, currency)}`}
+        </p>
+      ))}
+    </section>
+  );
+}
+
+function isCoordinatePreview(
+  preview: ImportMappingPreviewDto | CoordinatePreview,
+): preview is CoordinatePreview {
+  return !("compatibleTables" in preview);
+}
+
+function isCoordinateRow(
+  row:
+    ImportMappingPreviewDto["rows"][number] | CoordinatePreview["rows"][number],
+): row is CoordinatePreview["rows"][number] {
+  return "pageNumber" in row;
 }
 
 function formatDate(normalized: string | null, raw: string): string {
@@ -321,9 +419,10 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-function mappingWarningMessage(
-  warning: ImportMappingPreviewDto["warnings"][number],
-): string {
+function mappingWarningMessage(warning: {
+  affectedRowCount?: number | null;
+  code: string;
+}): string {
   if (warning.code === "unsigned_amount_direction_required") {
     return warning.affectedRowCount != null
       ? `${inRows(warning.affectedRowCount)} сумма указана без знака. Выберите, считать такие суммы поступлением или списанием.`
@@ -337,16 +436,23 @@ function mappingWarningMessage(
         "Не найдено ни одной корректной строки. Измените настройку колонок.",
       balance_after_parse_errors:
         "Часть значений остатка не распознана и потребует проверки.",
+      coordinate_date_anchors_missing:
+        "На части страниц не найдены строки с датами.",
+      coordinate_date_candidates_unanchored:
+        "Часть строк не удалось связать с датой операции.",
     }[warning.code] ?? "Проверьте результат распознавания перед продолжением."
   );
 }
 
 function previewStatus(
-  preview: ImportMappingPreviewDto,
+  preview: ImportMappingPreviewDto | CoordinatePreview,
   stale: boolean,
 ): { label: string; tone: "success" | "warning" | "danger" } {
   if (stale) return { label: "Нужно обновить", tone: "warning" };
-  if (preview.reconciliation && !preview.reconciliation.matches) {
+  const reconciliationMismatch = isCoordinatePreview(preview)
+    ? preview.reconciliation.some((check) => !check.matches)
+    : preview.reconciliation && !preview.reconciliation.matches;
+  if (reconciliationMismatch) {
     return { label: "Остатки не сошлись", tone: "warning" };
   }
   if (preview.invalidRowCount > 0) {
@@ -365,6 +471,25 @@ function previewStatus(
   return preview.canImport
     ? { label: "Все строки распознаны", tone: "success" }
     : { label: "Нужно исправить", tone: "danger" };
+}
+
+function coordinateControlLabel(kind: string) {
+  return (
+    {
+      opening_balance: "Входящий остаток",
+      closing_balance: "Исходящий остаток",
+      total_inflow: "Итого поступлений",
+      total_outflow: "Итого списаний",
+    }[kind] ?? kind
+  );
+}
+
+function coordinateCheckLabel(kind: string) {
+  return kind === "balance"
+    ? "Остаток по строкам"
+    : kind === "total_inflow"
+      ? "Поступления по строкам"
+      : "Списания по строкам";
 }
 
 function rowsRequireFix(count: number): string {
