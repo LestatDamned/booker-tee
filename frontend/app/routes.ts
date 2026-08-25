@@ -19,6 +19,10 @@ export default [
   route("imports/upload", "routes/import-upload.tsx"),
   route("imports/documents/:documentId", "routes/import-document-detail.tsx"),
   route("imports/documents/:documentId/mapping", "routes/import-mapping.tsx"),
+  route(
+    "imports/documents/:documentId/mapping/visual",
+    "routes/import-coordinate-mapping.tsx",
+  ),
   route("imports/documents/:documentId/review", "routes/import-review.tsx"),
   route("ledger/manual", "routes/manual-ledger.tsx"),
   route("operations", "routes/operations.tsx"),

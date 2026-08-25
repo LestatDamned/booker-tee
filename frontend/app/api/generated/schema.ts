@@ -694,6 +694,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/documents/{document_id}/coordinate-mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Coordinate Mapping */
+        get: operations["get_coordinate_mapping_api_v1_imports_documents__document_id__coordinate_mapping_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/documents/{document_id}/coordinate-mapping/pages/{page_number}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Coordinate Mapping Page Image */
+        get: operations["get_coordinate_mapping_page_image_api_v1_imports_documents__document_id__coordinate_mapping_pages__page_number__image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/documents/{document_id}/coordinate-mapping/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Coordinate Mapping */
+        post: operations["preview_coordinate_mapping_api_v1_imports_documents__document_id__coordinate_mapping_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/documents/{document_id}/coordinate-mapping/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Coordinate Mapping */
+        post: operations["import_coordinate_mapping_api_v1_imports_documents__document_id__coordinate_mapping_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/upload-reference": {
         parameters: {
             query?: never;
@@ -2190,6 +2258,193 @@ export interface components {
         ConfirmEmailChangeApiRequest: {
             /** Token */
             token: string;
+        };
+        /** CoordinateCapability */
+        CoordinateCapability: {
+            /** Allowed */
+            allowed: boolean;
+            /** Blockingreasoncodes */
+            blockingReasonCodes: string[];
+        };
+        /**
+         * CoordinateFieldRole
+         * @enum {string}
+         */
+        CoordinateFieldRole: "operation_date" | "posting_date" | "description" | "amount" | "debit" | "credit" | "currency" | "balance";
+        /** CoordinateImportApiRequest */
+        CoordinateImportApiRequest: {
+            spec: components["schemas"]["CoordinateMappingSpec"];
+            /** Templatename */
+            templateName?: string | null;
+        };
+        /** CoordinateImportApiResponse */
+        CoordinateImportApiResponse: {
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            /** Importedrowcount */
+            importedRowCount: number;
+            /** Templateid */
+            templateId: string | null;
+            /** Replayed */
+            replayed: boolean;
+            reviewTarget: components["schemas"]["CoordinateImportTargetApiResponse"];
+        };
+        /** CoordinateImportTargetApiResponse */
+        CoordinateImportTargetApiResponse: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "import_review";
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+        };
+        /** CoordinateMappingOverview */
+        CoordinateMappingOverview: {
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            /** Filename */
+            filename: string;
+            /** Pagecount */
+            pageCount: number;
+            /** Pages */
+            pages: components["schemas"]["CoordinatePageMetadata"][];
+            /** Defaultcurrency */
+            defaultCurrency: string;
+            capability: components["schemas"]["CoordinateCapability"];
+            /** Templates */
+            templates: components["schemas"]["CoordinateTemplateSnapshot"][];
+        };
+        /** CoordinateMappingSpec */
+        CoordinateMappingSpec: {
+            /**
+             * Version
+             * @default 1
+             * @constant
+             */
+            version: 1;
+            /** Defaultcurrency */
+            defaultCurrency: string;
+            /** @default require_sign */
+            unsignedAmountDirection: components["schemas"]["UnsignedAmountDirection"];
+            /** Layouts */
+            layouts: {
+                [key: string]: components["schemas"]["CoordinatePageLayout"];
+            };
+        };
+        /** CoordinatePageLayout */
+        CoordinatePageLayout: {
+            /** Pageaspectratio */
+            pageAspectRatio: number;
+            /** Transactiontop */
+            transactionTop: number;
+            /** Transactionbottom */
+            transactionBottom: number;
+            sampleRow: components["schemas"]["NormalizedRect"];
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["NormalizedRect"];
+            };
+        };
+        /** CoordinatePageMetadata */
+        CoordinatePageMetadata: {
+            /** Pagenumber */
+            pageNumber: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Aspectratio */
+            aspectRatio: number;
+            /** Hastextlayer */
+            hasTextLayer: boolean;
+        };
+        /** CoordinatePreview */
+        CoordinatePreview: {
+            /** Rows */
+            rows: components["schemas"]["CoordinatePreviewRow"][];
+            /** Totalrowcount */
+            totalRowCount: number;
+            /** Validrowcount */
+            validRowCount: number;
+            /** Invalidrowcount */
+            invalidRowCount: number;
+            /** Rowlimit */
+            rowLimit: number;
+            /** Rowstruncated */
+            rowsTruncated: boolean;
+            /** Warnings */
+            warnings: components["schemas"]["UnknownStatementMappingWarning"][];
+            /** Canimport */
+            canImport: boolean;
+        };
+        /** CoordinatePreviewApiRequest */
+        CoordinatePreviewApiRequest: {
+            spec: components["schemas"]["CoordinateMappingSpec"];
+        };
+        /** CoordinatePreviewRow */
+        CoordinatePreviewRow: {
+            /** Pagenumber */
+            pageNumber: number;
+            /** Sourcerownumber */
+            sourceRowNumber: number;
+            /**
+             * Layout
+             * @enum {string}
+             */
+            layout: "first" | "middle" | "last";
+            /** Operationdateraw */
+            operationDateRaw: string;
+            /** Operationdate */
+            operationDate: string | null;
+            /** Postingdateraw */
+            postingDateRaw: string;
+            /** Postingdate */
+            postingDate: string | null;
+            /** Descriptionraw */
+            descriptionRaw: string;
+            /** Description */
+            description: string;
+            /** Amountraw */
+            amountRaw: string;
+            /** Amount */
+            amount: string | null;
+            /** Currencyraw */
+            currencyRaw: string;
+            /** Currency */
+            currency: string;
+            /** Balanceafterraw */
+            balanceAfterRaw: string;
+            /** Balanceafter */
+            balanceAfter: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "valid" | "error";
+            /** Errors */
+            errors: string[];
+        };
+        /** CoordinateTemplateSnapshot */
+        CoordinateTemplateSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            spec: components["schemas"]["CoordinateMappingSpec"];
         };
         /** CreateAccountApiRequest */
         CreateAccountApiRequest: {
@@ -4212,6 +4467,17 @@ export interface components {
          */
         MoneyDirection: "inflow" | "outflow" | "any";
         MoneyString: string;
+        /** NormalizedRect */
+        NormalizedRect: {
+            /** X0 */
+            x0: number;
+            /** Y0 */
+            y0: number;
+            /** X1 */
+            x1: number;
+            /** Y1 */
+            y1: number;
+        };
         /** OpenCreditCardApiRequest */
         OpenCreditCardApiRequest: {
             /** Name */
@@ -5243,6 +5509,20 @@ export interface components {
             expectedPrincipalOperationVersion?: number | null;
             /** Expectedinterestoperationversion */
             expectedInterestOperationVersion?: number | null;
+        };
+        /** UnknownStatementMappingWarning */
+        UnknownStatementMappingWarning: {
+            /** Code */
+            code: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "warning" | "error";
+            /** Fields */
+            fields?: string[];
+            /** Affectedrowcount */
+            affectedRowCount?: number | null;
         };
         /**
          * UnsignedAmountDirection
@@ -8686,6 +8966,286 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MappingImportApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_coordinate_mapping_api_v1_imports_documents__document_id__coordinate_mapping_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordinateMappingOverview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_coordinate_mapping_page_image_api_v1_imports_documents__document_id__coordinate_mapping_pages__page_number__image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                page_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded PNG rendering of the requested PDF page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/png": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_coordinate_mapping_api_v1_imports_documents__document_id__coordinate_mapping_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoordinatePreviewApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordinatePreview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    import_coordinate_mapping_api_v1_imports_documents__document_id__coordinate_mapping_import_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoordinateImportApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordinateImportApiResponse"];
                 };
             };
             /** @description Unauthorized */

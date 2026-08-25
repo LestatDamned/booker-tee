@@ -44,7 +44,7 @@ def _build_spa_csp(index_html: str) -> str:
             "default-src 'none'",
             f"script-src {' '.join(script_sources)}",
             "style-src 'self'",
-            "img-src 'self' data:",
+            "img-src 'self' data: blob:",
             "font-src 'self'",
             "connect-src 'self'",
             "object-src 'none'",

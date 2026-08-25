@@ -16,6 +16,7 @@ from app.features.imports.mapping.analysis.hints import (
 from app.features.imports.mapping.control_totals import resolve_mapping_control_totals
 from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
 from app.features.imports.mapping.dto import (
+    MappedStatementRow,
     MappingControlTotalCellRef,
     MappingControlTotalKind,
     StatementMappingImportResult,
@@ -213,6 +214,24 @@ class MappedStatementRowImporter:
             exclude_duplicate_document_id=exclude_duplicate_document_id,
         )
 
+    async def replace_mapped_rows(
+        self,
+        *,
+        document: UploadedDocument,
+        attempt: ParseAttempt,
+        spec: StatementMappingSpec,
+        rows: list[MappedStatementRow],
+        exclude_duplicate_document_id: UUID | None,
+    ) -> list[RawTransaction]:
+        await self._statements.mark_reviewable_rows_superseded(document)
+        return await self._persist_rows(
+            document=document,
+            attempt=attempt,
+            spec=spec,
+            rows=rows,
+            exclude_duplicate_document_id=exclude_duplicate_document_id,
+        )
+
     async def import_rows(
         self,
         *,
@@ -234,12 +253,31 @@ class MappedStatementRowImporter:
         if not result.rows:
             raise UnknownStatementMappingError("No rows matched the selected mapping.")
 
+        return await self._persist_rows(
+            document=document,
+            attempt=attempt,
+            spec=spec,
+            rows=result.rows,
+            exclude_duplicate_document_id=exclude_duplicate_document_id,
+        )
+
+    async def _persist_rows(
+        self,
+        *,
+        document: UploadedDocument,
+        attempt: ParseAttempt,
+        spec: StatementMappingSpec,
+        rows: list[MappedStatementRow],
+        exclude_duplicate_document_id: UUID | None,
+    ) -> list[RawTransaction]:
+        if document.account_id is None:
+            raise UnknownStatementMappingError("Select an account before importing rows.")
         raw_transactions = await self._statements.create_raw_transactions(
             RawTransactionMapper.from_drafts(
                 StatementMappingDraftBuilder(
                     spec=spec,
                     account_id=document.account_id,
-                ).build_rows(result.rows),
+                ).build_rows(rows),
                 workspace_id=document.workspace_id,
                 uploaded_document_id=document.id,
                 parse_attempt_id=attempt.id,

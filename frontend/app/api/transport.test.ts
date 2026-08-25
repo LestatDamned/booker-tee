@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   parseApiError,
+  requestBlob,
   requestJson,
   restoreAccessToken,
   setAccessToken,
@@ -123,6 +124,84 @@ describe("API transport", () => {
         Authorization: "Bearer restored",
       },
     });
+  });
+
+  it("loads protected binary content with Bearer auth", async () => {
+    setAccessToken("binary-token");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("png", { status: 200 }));
+
+    const result = await requestBlob("/api/v1/protected-image");
+
+    expect(result).toMatchObject({
+      status: "response",
+      ok: true,
+      httpStatus: 200,
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/protected-image", {
+      credentials: "same-origin",
+      headers: { Authorization: "Bearer binary-token" },
+    });
+  });
+
+  it("waits for a concurrent JSON refresh before loading protected binary content", async () => {
+    setAccessToken("expired");
+    let releaseRefresh: () => void = () => undefined;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    let markRefreshStarted: () => void = () => undefined;
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve;
+    });
+    let jsonCalls = 0;
+    let blobCalls = 0;
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, options) => {
+        if (input === "/api/v1/auth/refresh") {
+          markRefreshStarted();
+          await refreshGate;
+          return new Response(
+            '{"accessToken":"fresh","expiresIn":900,"tokenType":"Bearer"}',
+          );
+        }
+        if (input === "/api/v1/example") {
+          jsonCalls += 1;
+          return jsonCalls === 1
+            ? new Response(null, { status: 401 })
+            : new Response('{"ok":true}');
+        }
+        blobCalls += 1;
+        expect(options).toMatchObject({
+          headers: { Authorization: "Bearer fresh" },
+        });
+        return new Response("png", { status: 200 });
+      });
+
+    const jsonResult = requestJson("/api/v1/example");
+    await refreshStarted;
+    const blobResult = requestBlob("/api/v1/protected-image");
+    await Promise.resolve();
+    expect(blobCalls).toBe(0);
+    releaseRefresh();
+
+    await expect(jsonResult).resolves.toMatchObject({
+      status: "response",
+      ok: true,
+    });
+    await expect(blobResult).resolves.toMatchObject({
+      status: "response",
+      ok: true,
+      httpStatus: 200,
+    });
+    expect(blobCalls).toBe(1);
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input]) => input === "/api/v1/auth/refresh",
+      ),
+    ).toHaveLength(1);
   });
 
   it("parses the shared API error envelope", () => {

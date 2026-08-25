@@ -393,6 +393,11 @@ def test_validate_statement_upload_rejects_unknown_extension() -> None:
         (ParseAttemptStatus.SUCCESS, None, False),
         (ParseAttemptStatus.REQUIRES_REVIEW, {"status": "valid"}, False),
         (ParseAttemptStatus.REQUIRES_REVIEW, {"status": "needs_mapping"}, True),
+        (
+            ParseAttemptStatus.SUCCESS,
+            {"status": "valid", "source": "visual_coordinate_mapping"},
+            True,
+        ),
         (ParseAttemptStatus.FAILED, None, True),
         (ParseAttemptStatus.RUNNING, None, True),
     ],

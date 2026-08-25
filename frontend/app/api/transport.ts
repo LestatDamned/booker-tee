@@ -25,6 +25,10 @@ export type ApiTransportResult =
     }
   | { status: "network_error" };
 
+export type ApiBlobResult =
+  | { status: "response"; blob: Blob | null; httpStatus: number; ok: boolean }
+  | { status: "network_error" };
+
 type ApiRequestOptions = Omit<RequestInit, "headers"> & {
   auth?: boolean;
   headers?: Record<string, string>;
@@ -88,6 +92,43 @@ export async function requestJson(
     if (error instanceof DOMException && error.name === "AbortError") {
       throw error;
     }
+    return { status: "network_error" };
+  }
+}
+
+export async function requestBlob(
+  input: RequestInfo | URL,
+  signal?: AbortSignal,
+): Promise<ApiBlobResult> {
+  try {
+    if (!accessToken && refreshPromise) {
+      await refreshPromise;
+    }
+    const sentAccessToken = accessToken;
+    let response = await fetch(input, {
+      credentials: "same-origin",
+      ...(signal ? { signal } : {}),
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    });
+    if (sentAccessToken && response.status === 401) {
+      accessToken = null;
+      if (await refreshAccessToken()) {
+        response = await fetch(input, {
+          credentials: "same-origin",
+          ...(signal ? { signal } : {}),
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      }
+    }
+    return {
+      status: "response",
+      blob: response.ok ? await response.blob() : null,
+      httpStatus: response.status,
+      ok: response.ok,
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError")
+      throw error;
     return { status: "network_error" };
   }
 }

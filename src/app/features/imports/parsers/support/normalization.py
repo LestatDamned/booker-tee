@@ -9,6 +9,7 @@ DATE_PATTERNS = (
     re.compile(r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b"),
     re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b"),
 )
+MINUS_SIGNS = "-−–—‒"
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ def parse_money_amount(raw: str | None) -> Decimal | None:
     cleaned = clean_cell(raw)
     if cleaned is None:
         return None
+    cleaned = cleaned.translate(str.maketrans(dict.fromkeys(MINUS_SIGNS, "-")))
     normalized = normalize_decimal_separators(re.sub(r"[^\d,.\-+]", "", cleaned))
     if normalized in {"", "-", "+", ".", "-.", "+."}:
         return None

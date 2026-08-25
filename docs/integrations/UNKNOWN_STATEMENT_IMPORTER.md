@@ -135,6 +135,27 @@ Mapping import:
 React mapping workbench использует versioned API. Исходные строки загружаются
 ограниченными окнами; preview и финансовая сверка остаются server-side.
 
+### Visual coordinate PDF mapping
+
+Для неизвестного PDF с текстовым слоем пользователь может вручную открыть
+`/app/imports/documents/:documentId/mapping/visual`. Этот режим не заменяет
+column mapping и не выбирается автоматически.
+
+Browser хранит только нормализованные `0..1` rectangles для layouts
+`first`/`middle`/`last`; одностраничный PDF использует `first`. Server повторно
+читает workspace-owned source, проверяет page aspect ratio и text layer,
+извлекает строки через date anchors и передаёт raw cells в общую normalization.
+Preview bounded и ничего не сохраняет. Import повторяет extraction под row lock,
+создаёт только reviewable `RawTransaction` через общий dedupe/rules path и
+использует `ImportMappingExecution` для replay protection.
+
+Page projection доступна только как bounded PNG с `Cache-Control: private,
+no-store`; `storage_key` и filesystem path не входят в API. Visual templates
+хранятся в существующем JSONB payload с envelope
+`{"kind":"visual_coordinates","version":1,"spec":...}` и никогда не участвуют
+в column-template auto-apply. OCR, AI, PDF без text layer и automatic visual
+template application не поддерживаются.
+
 ## Tests
 
 Обязательные cases:

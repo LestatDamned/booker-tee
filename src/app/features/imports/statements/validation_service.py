@@ -78,10 +78,14 @@ class StatementValidationService:
         control_totals: StatementControlTotals | None,
         report: StatementValidationReport,
     ) -> UploadedDocumentStatus:
+        validation_report = report.model_dump(mode="json")
+        existing_source = (attempt.validation_report_json or {}).get("source")
+        if isinstance(existing_source, str):
+            validation_report["source"] = existing_source
         await self._documents.store_attempt_validation(
             attempt,
             control_totals=(control_totals.model_dump(mode="json") if control_totals else None),
-            validation_report=report.model_dump(mode="json"),
+            validation_report=validation_report,
         )
         if report.status == StatementValidationStatus.VALID:
             await self._documents.mark_attempt_status(attempt, ParseAttemptStatus.SUCCESS)

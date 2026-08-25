@@ -16,6 +16,7 @@ from app.features.imports.documents.commands.upload import should_retain_source_
 from app.features.imports.documents.errors import UploadValidationError
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.storage import UploadStorage
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import UploadedDocument
 
 logger = logging.getLogger(__name__)
@@ -103,8 +104,13 @@ class UploadSourceCleanup:
         try:
             source_exists = self.storage.storage_key_exists(storage_key)
             latest_attempt = document.parse_attempts[0] if document.parse_attempts else None
-            retain_until_cutoff = latest_attempt is None or should_retain_source_file(
-                latest_attempt
+            retain_until_cutoff = latest_attempt is None or (
+                should_retain_source_file(latest_attempt)
+                and (
+                    (latest_attempt.validation_report_json or {}).get("source")
+                    != "visual_coordinate_mapping"
+                    or document.status is UploadedDocumentStatus.REQUIRES_REVIEW
+                )
             )
             if source_exists and retain_until_cutoff and document.created_at > cutoff:
                 return "unchanged"

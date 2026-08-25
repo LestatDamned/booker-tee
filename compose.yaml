@@ -58,8 +58,10 @@ services:
     ports:
       - "${BOOKER_TEE_APP_PORT:-8000}:8000"
     volumes:
-      - .:/app
-      - booker_tee_venv:/opt/booker-tee-venv
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./docker/entrypoint.sh:/app/docker/entrypoint.sh:ro
+      - ./migrations:/app/migrations:ro
+      - ./src:/app/src:ro
       - booker_tee_uploads:/app/var/uploads
     command: ["sh", "/app/docker/entrypoint.sh"]
     healthcheck:
@@ -90,4 +92,3 @@ services:
 volumes:
   booker_tee_postgres_data:
   booker_tee_uploads:
-  booker_tee_venv:

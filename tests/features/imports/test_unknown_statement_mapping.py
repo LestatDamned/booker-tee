@@ -148,6 +148,7 @@ def test_single_amount_column_can_require_an_explicit_sign() -> None:
                     ["Дата", "Описание", "Сумма"],
                     ["12.05.2026", "Неоднозначная строка", "10 000"],
                     ["13.05.2026", "Строка со знаком", "-500"],
+                    ["14.05.2026", "Unicode-тире", "–1 440,00 ₽"],
                 ]
             ],
         }
@@ -170,6 +171,8 @@ def test_single_amount_column_can_require_an_explicit_sign() -> None:
     assert preview.rows[0].status == "error"
     assert preview.rows[1].amount == Decimal("-500.00")
     assert preview.rows[1].status == "valid"
+    assert preview.rows[2].amount == Decimal("-1440.00")
+    assert preview.rows[2].status == "valid"
     assert mapping_row_error_codes(preview.rows[0], command) == (
         MappingRowErrorCode.UNSIGNED_AMOUNT_DIRECTION_REQUIRED,
     )

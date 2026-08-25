@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.imports.documents.source_cleanup import UploadSourceCleanup
-from app.features.imports.documents.types import ParseAttemptStatus
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.models import UploadedDocument
 
 
@@ -61,15 +61,20 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
         return storage_key, path
 
     expired_id, missing_id, recent_id, retry_id = uuid4(), uuid4(), uuid4(), uuid4()
+    visual_recent_id, visual_expired_id, visual_terminal_id = uuid4(), uuid4(), uuid4()
     expired_key, expired_path = store(expired_id)
     recent_key, recent_path = store(recent_id)
     retry_key, retry_path = store(retry_id)
+    visual_recent_key, visual_recent_path = store(visual_recent_id)
+    visual_expired_key, visual_expired_path = store(visual_expired_id)
+    visual_terminal_key, visual_terminal_path = store(visual_terminal_id)
     missing_key = f"{workspace_id}/{missing_id}/source.pdf"
     documents = [
         cast(
             UploadedDocument,
             SimpleNamespace(
                 id=expired_id,
+                status=UploadedDocumentStatus.REQUIRES_REVIEW,
                 created_at=now - timedelta(hours=49),
                 storage_key=expired_key,
                 source_file_deleted_at=None,
@@ -80,6 +85,7 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
             UploadedDocument,
             SimpleNamespace(
                 id=missing_id,
+                status=UploadedDocumentStatus.REQUIRES_REVIEW,
                 created_at=now - timedelta(hours=2),
                 storage_key=missing_key,
                 source_file_deleted_at=None,
@@ -90,6 +96,7 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
             UploadedDocument,
             SimpleNamespace(
                 id=recent_id,
+                status=UploadedDocumentStatus.REQUIRES_REVIEW,
                 created_at=now - timedelta(hours=1),
                 storage_key=recent_key,
                 source_file_deleted_at=None,
@@ -100,6 +107,7 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
             UploadedDocument,
             SimpleNamespace(
                 id=retry_id,
+                status=UploadedDocumentStatus.PARSED,
                 created_at=now - timedelta(hours=1),
                 storage_key=retry_key,
                 source_file_deleted_at=None,
@@ -107,6 +115,63 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
                     SimpleNamespace(
                         status=ParseAttemptStatus.SUCCESS,
                         validation_report_json=None,
+                    )
+                ],
+            ),
+        ),
+        cast(
+            UploadedDocument,
+            SimpleNamespace(
+                id=visual_recent_id,
+                status=UploadedDocumentStatus.REQUIRES_REVIEW,
+                created_at=now - timedelta(hours=1),
+                storage_key=visual_recent_key,
+                source_file_deleted_at=None,
+                parse_attempts=[
+                    SimpleNamespace(
+                        status=ParseAttemptStatus.SUCCESS,
+                        validation_report_json={
+                            "status": "valid",
+                            "source": "visual_coordinate_mapping",
+                        },
+                    )
+                ],
+            ),
+        ),
+        cast(
+            UploadedDocument,
+            SimpleNamespace(
+                id=visual_expired_id,
+                status=UploadedDocumentStatus.REQUIRES_REVIEW,
+                created_at=now - timedelta(hours=49),
+                storage_key=visual_expired_key,
+                source_file_deleted_at=None,
+                parse_attempts=[
+                    SimpleNamespace(
+                        status=ParseAttemptStatus.SUCCESS,
+                        validation_report_json={
+                            "status": "valid",
+                            "source": "visual_coordinate_mapping",
+                        },
+                    )
+                ],
+            ),
+        ),
+        cast(
+            UploadedDocument,
+            SimpleNamespace(
+                id=visual_terminal_id,
+                status=UploadedDocumentStatus.IMPORTED,
+                created_at=now - timedelta(hours=1),
+                storage_key=visual_terminal_key,
+                source_file_deleted_at=None,
+                parse_attempts=[
+                    SimpleNamespace(
+                        status=ParseAttemptStatus.SUCCESS,
+                        validation_report_json={
+                            "status": "valid",
+                            "source": "visual_coordinate_mapping",
+                        },
                     )
                 ],
             ),
@@ -131,8 +196,8 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
 
     result = await cleanup.run(now=now, batch_size=2)
 
-    assert result.scanned_documents == 4
-    assert result.source_deleted == 2
+    assert result.scanned_documents == 7
+    assert result.source_deleted == 4
     assert result.missing_reconciled == 1
     assert result.orphan_deleted == 1
     assert result.telegram_states_scrubbed == 2
@@ -143,12 +208,18 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
     assert documents[1].source_file_deleted_at == now
     assert documents[2].storage_key == recent_key
     assert documents[3].storage_key is None
+    assert documents[4].storage_key == visual_recent_key
+    assert documents[5].storage_key is None
+    assert documents[6].storage_key is None
     assert not expired_path.exists()  # noqa: ASYNC240
     assert recent_path.exists()  # noqa: ASYNC240
     assert not retry_path.exists()  # noqa: ASYNC240
+    assert visual_recent_path.exists()  # noqa: ASYNC240
+    assert not visual_expired_path.exists()  # noqa: ASYNC240
+    assert not visual_terminal_path.exists()  # noqa: ASYNC240
     assert not (tmp_path / old_orphan_key).exists()  # noqa: ASYNC240
     assert fresh_orphan_path.exists()  # noqa: ASYNC240
-    assert commit.await_count == 3
+    assert commit.await_count == 5
     scrub_states.assert_awaited_once_with(now=now)
 
     def fail_orphan_scan(*_args: object, **_kwargs: object) -> list[str]:

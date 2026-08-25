@@ -4,6 +4,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.mapping.coordinate_dto import (
+    CoordinateMappingSpec,
+    CoordinateTemplateSnapshot,
+)
 from app.features.imports.mapping.dto import (
     MappingTemplateSnapshot,
     StatementMappingSpec,
@@ -85,7 +89,64 @@ class MappingRepository:
             query = query.where(ImportMappingTemplate.statement_type == statement_type)
         query = query.order_by(ImportMappingTemplate.updated_at.desc())
         result = await self.session.execute(query)
-        return [_template_snapshot(template) for template in result.scalars().all()]
+        return [
+            _template_snapshot(template)
+            for template in result.scalars().all()
+            if template.column_mapping_json.get("kind") != "visual_coordinates"
+        ]
+
+    async def list_coordinate_templates(
+        self,
+        *,
+        workspace_id: UUID,
+        limit: int = 50,
+    ) -> list[CoordinateTemplateSnapshot]:
+        result = await self.session.execute(
+            select(ImportMappingTemplate)
+            .where(
+                ImportMappingTemplate.workspace_id == workspace_id,
+                ImportMappingTemplate.column_mapping_json["kind"].as_string()
+                == "visual_coordinates",
+            )
+            .order_by(ImportMappingTemplate.updated_at.desc())
+            .limit(limit)
+        )
+        templates = []
+        for template in result.scalars().all():
+            payload = template.column_mapping_json
+            if payload.get("version") != 1 or not isinstance(payload.get("spec"), dict):
+                raise ValueError("Unsupported visual coordinate template version.")
+            templates.append(
+                CoordinateTemplateSnapshot(
+                    id=template.id,
+                    name=template.name,
+                    spec=CoordinateMappingSpec.model_validate(payload["spec"]),
+                )
+            )
+        return templates
+
+    async def create_coordinate_template(
+        self,
+        *,
+        workspace_id: UUID,
+        name: str,
+        spec: CoordinateMappingSpec,
+    ) -> CoordinateTemplateSnapshot:
+        model = ImportMappingTemplate(
+            workspace_id=workspace_id,
+            name=name,
+            bank_name=None,
+            statement_type=None,
+            default_currency=spec.default_currency,
+            column_mapping_json={
+                "kind": "visual_coordinates",
+                "version": 1,
+                "spec": spec.model_dump(mode="json"),
+            },
+        )
+        self.session.add(model)
+        await self.session.flush()
+        return CoordinateTemplateSnapshot(id=model.id, name=model.name, spec=spec)
 
 
 def _template_snapshot(template: ImportMappingTemplate) -> MappingTemplateSnapshot:

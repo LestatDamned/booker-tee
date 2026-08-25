@@ -39,6 +39,7 @@ def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> No
     assert f"script-src 'self' 'sha256-{expected_hash}'" in policy
     assert unexpected_hash not in policy
     assert "default-src 'none'" in policy
+    assert "img-src 'self' data: blob:" in policy
     assert "object-src 'none'" in policy
     assert "frame-ancestors 'none'" in policy
     assert "Content-Security-Policy-Report-Only" not in nested_response.headers

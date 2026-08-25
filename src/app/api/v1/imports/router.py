@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import ApiRequestContext, require_api_raw_import_read_context
 from app.api.errors import ApiError, api_error_responses
+from app.api.v1.imports.coordinate_mapping_router import router as coordinate_mapping_router
 from app.api.v1.imports.dependencies import (
     get_import_document_detail_reader,
     get_import_document_list_reader,
@@ -48,6 +49,7 @@ from app.features.workspaces.permissions import can_manage_imports, permission_f
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 router.include_router(mapping_router)
+router.include_router(coordinate_mapping_router)
 
 
 @router.get(

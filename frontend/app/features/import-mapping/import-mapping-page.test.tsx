@@ -40,6 +40,20 @@ describe("ImportMappingPage", () => {
     navigateMock.mockReset();
   });
 
+  it("keeps the visual mode switch inside the workspace as a secondary action", () => {
+    const mapping = importMappingPayload();
+    const { container } = renderPage(mapping);
+    const link = screen.getByRole("link", { name: "Визуальная разметка PDF" });
+
+    expect(link).toHaveAttribute(
+      "href",
+      `/imports/documents/${mapping.documentId}/mapping/visual`,
+    );
+    expect(link).toHaveAttribute("data-tone", "secondary");
+    expect(container.querySelector("#app-main-content")).toContainElement(link);
+    expect(link.closest("nav")).toHaveAccessibleName("Режим настройки импорта");
+  });
+
   it("shows account context, roles above source columns and the raw table", () => {
     renderPage();
 

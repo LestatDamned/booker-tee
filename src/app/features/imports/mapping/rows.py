@@ -7,6 +7,7 @@ from app.features.imports.mapping.dto import (
     UnsignedAmountDirection,
 )
 from app.features.imports.parsers.support.normalization import (
+    MINUS_SIGNS,
     normalize_currency,
     normalize_description,
     parse_bank_date,
@@ -244,7 +245,7 @@ def explicit_amount_direction(raw: str) -> UnsignedAmountDirection | None:
     prefix = cleaned[:first_digit]
     if "(" in prefix and ")" in cleaned[first_digit:]:
         return UnsignedAmountDirection.EXPENSE
-    if "-" in prefix or "−" in prefix:
+    if any(sign in prefix for sign in MINUS_SIGNS):
         return UnsignedAmountDirection.EXPENSE
     if "+" in prefix:
         return UnsignedAmountDirection.INCOME

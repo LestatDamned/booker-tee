@@ -5,7 +5,7 @@ import type { SessionDto } from "../../api/session";
 import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { BackLink } from "../../ui/back-link/back-link";
-import { Button } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { DocumentWorkbenchHeader } from "../../ui/document-workbench-header/document-workbench-header";
 import {
   FormErrorSummary,
@@ -255,9 +255,19 @@ export function ImportMappingPage({
   return (
     <AppShell session={session}>
       <section className={styles.page}>
-        <BackLink to={`/imports/documents/${mapping.documentId}`}>
-          К документу
-        </BackLink>
+        <nav
+          aria-label="Режим настройки импорта"
+          className={styles.pageNavigation}
+        >
+          <BackLink to={`/imports/documents/${mapping.documentId}`}>
+            К документу
+          </BackLink>
+          <RouterButtonLink
+            to={`/imports/documents/${mapping.documentId}/mapping/visual`}
+          >
+            Визуальная разметка PDF
+          </RouterButtonLink>
+        </nav>
 
         <WorkbenchSurface aria-label="Настройка импорта">
           <DocumentWorkbenchHeader

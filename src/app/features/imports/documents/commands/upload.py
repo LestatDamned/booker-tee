@@ -296,4 +296,7 @@ def should_retain_source_file(attempt: ParseAttempt) -> bool:
     if attempt.status not in {ParseAttemptStatus.SUCCESS, ParseAttemptStatus.REQUIRES_REVIEW}:
         return True
     validation_report = attempt.validation_report_json or {}
-    return validation_report.get("status") == "needs_mapping"
+    return (
+        validation_report.get("status") == "needs_mapping"
+        or validation_report.get("source") == "visual_coordinate_mapping"
+    )
