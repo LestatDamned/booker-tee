@@ -263,7 +263,7 @@ async def test_authenticated_session_touch_is_bounded(
 @pytest.mark.parametrize(
     ("last_seen_ago", "expires_in"),
     [
-        pytest.param(timedelta(hours=1, seconds=1), timedelta(days=1), id="idle"),
+        pytest.param(timedelta(hours=12, seconds=1), timedelta(days=1), id="idle"),
         pytest.param(timedelta(0), timedelta(0), id="expired"),
     ],
 )
