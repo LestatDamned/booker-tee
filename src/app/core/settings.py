@@ -59,7 +59,7 @@ class Settings(BaseSettings):
         validation_alias="BOOKER_TEE_REFRESH_REUSE_GRACE_SECONDS",
     )
     session_idle_timeout_seconds: int = Field(
-        default=60 * 60,
+        default=60 * 60 * 12,
         ge=60,
         validation_alias="BOOKER_TEE_SESSION_IDLE_TIMEOUT_SECONDS",
     )
