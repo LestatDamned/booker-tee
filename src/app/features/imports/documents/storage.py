@@ -49,13 +49,13 @@ class UploadStorage:
     ) -> tuple[str, int]:
         digest = sha256()
         size = 0
-        while chunk := await upload_file.read(1024 * 1024):
+        while chunk := upload_file.file.read(1024 * 1024):
             size += len(chunk)
             if max_bytes is not None and size > max_bytes:
-                await upload_file.seek(0)
+                upload_file.file.seek(0)
                 raise UploadTooLargeError("Файл превышает допустимый размер.")
             digest.update(chunk)
-        await upload_file.seek(0)
+        upload_file.file.seek(0)
         return digest.hexdigest(), size
 
     async def delete_stored_upload(self, stored_upload: StoredUpload) -> None:
@@ -128,7 +128,7 @@ class UploadStorage:
             )
             created = True
             with os.fdopen(descriptor, "wb") as target_file:
-                while chunk := await upload_file.read(1024 * 1024):
+                while chunk := upload_file.file.read(1024 * 1024):
                     size += len(chunk)
                     if max_bytes is not None and size > max_bytes:
                         raise UploadTooLargeError("Файл превышает допустимый размер.")
@@ -137,16 +137,16 @@ class UploadStorage:
             target_path.chmod(0o600)
             validate_stored_statement(target_path, extension)
         except FileExistsError as error:
-            await upload_file.seek(0)
+            upload_file.file.seek(0)
             raise UploadValidationError("Файл с таким storage key уже существует.") from error
         except Exception:
             if created:
                 target_path.unlink(missing_ok=True)
                 remove_empty_upload_directories(target_path.parent, root_dir)
-            await upload_file.seek(0)
+            upload_file.file.seek(0)
             raise
 
-        await upload_file.seek(0)
+        upload_file.file.seek(0)
         return StoredUpload(
             storage_key=storage_key,
             path=target_path,

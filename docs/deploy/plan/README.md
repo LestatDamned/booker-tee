@@ -7,6 +7,7 @@
 
 ```text
 Internet -> Nginx 80/443 -> FastAPI + React :8000 -> PostgreSQL
+                               -> isolated parser over Unix socket
 ```
 
 PostgreSQL не публикуется наружу. Kubernetes, Redis, Celery и отдельный frontend
@@ -124,6 +125,10 @@ permissions, checksums, manifest, empty database и Alembic revision. Не
 - регулярно выполнять restore rehearsal;
 - следить за availability, 5xx, rate-limit rejects, disk и certificate expiry;
 - проверять hourly cleanup временных originals;
+- проверять status/restart count `parser` и `upload-cleanup`, сообщения
+  `partial_failure`, 429/timeout/OOM classification и свободное место uploads
+  volume;
+- подтверждать, что parser не получает secrets, networks или uploads mount;
 - обновлять OS/base images и повторять dependency/image audit перед release;
 - хранить backup отдельно от VPS и шифровать storage;
 - не отправлять raw documents или финансовые payloads во внешний monitoring.

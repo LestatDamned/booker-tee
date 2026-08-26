@@ -72,10 +72,10 @@ class LedgerReferenceResolver:
 
     async def get_import_account(self, workspace_id: UUID, account_id: UUID) -> Account:
         account = await self.get_account(workspace_id, account_id)
+        if not account.is_active:
+            raise LedgerPostingError("An archived account is not available for import.")
         if account.type is not AccountType.DEBT:
             return account
-        if not account.is_active:
-            raise LedgerPostingError("An archived debt account is not available for import.")
         debt = await self.debts.get_for_workspace(workspace_id, account_id)
         if debt is None or debt.kind is not DebtKind.CREDIT_CARD:
             raise LedgerPostingError("Only credit card debt statements can be imported.")

@@ -99,6 +99,7 @@ class TelegramPollingWorkerFactory:
             client=TelegramBotClient(
                 bot_token=settings.telegram_bot_token,
                 http_client=http_client,
+                download_max_bytes=settings.statement_upload_max_bytes,
             ),
             timeout_seconds=settings.telegram_polling_timeout_seconds,
             settings=settings,

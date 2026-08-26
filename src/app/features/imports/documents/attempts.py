@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from openpyxl.utils.exceptions import InvalidFileException
 from pdfplumber.utils.exceptions import PdfminerException
@@ -9,6 +9,7 @@ from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.models import ParseAttempt, UploadedDocument
+from app.features.imports.parsers.sidecar.protocol import ParserSidecarError
 from app.features.imports.statements.dto import StatementControlTotals
 
 PARSER_EXCEPTIONS = (OSError, ValueError, TypeError, PdfminerException, InvalidFileException)
@@ -19,8 +20,10 @@ async def create_running_parse_attempt(
     *,
     workspace_id: UUID,
     document_id: UUID,
+    attempt_id: UUID | None = None,
 ) -> ParseAttempt:
     attempt = ParseAttempt(
+        id=attempt_id or uuid4(),
         workspace_id=workspace_id,
         uploaded_document_id=document_id,
         parser_name="auto_statement_parser",
@@ -33,14 +36,14 @@ async def record_failed_parse_attempt(
     documents: DocumentRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
-    exc: OSError | ValueError | TypeError | PdfminerException | InvalidFileException,
+    exc: BaseException,
     *,
     document_status: UploadedDocumentStatus = UploadedDocumentStatus.FAILED_TO_PARSE,
 ) -> None:
     attempt.finished_at = utc_now()
     await documents.mark_attempt_failed(
         attempt,
-        error_code=type(exc).__name__,
+        error_code=(str(exc.code) if isinstance(exc, ParserSidecarError) else type(exc).__name__),
         error_message=sanitize_error_message(exc),
     )
     await transition_document_status(documents, document, document_status)
@@ -82,10 +85,9 @@ async def mark_attempt_requires_review(
 
 
 def sanitize_error_message(exc: BaseException) -> str:
-    message = str(exc).strip()
-    if not message:
-        return type(exc).__name__
-    return f"{type(exc).__name__}: {message[:300]}"
+    if isinstance(exc, ParserSidecarError):
+        return str(exc.code)
+    return type(exc).__name__
 
 
 def latest_parse_attempt(document: UploadedDocument) -> ParseAttempt | None:

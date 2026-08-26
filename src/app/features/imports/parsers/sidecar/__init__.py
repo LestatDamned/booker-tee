@@ -1,0 +1,1 @@
+"""Isolated statement parser transport."""

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from io import BytesIO
 from pathlib import Path
 from uuid import UUID
 
@@ -158,20 +157,23 @@ class ChatDocumentUploadService:
             account_index,
         )
         downloaded_file = await self.downloader.download_document(document)
-        upload_file = ChatDownloadedFileUploadAdapter.to_upload_file(downloaded_file)
 
         try:
-            upload = await StatementUploadUseCase(
-                self.session,
-                self.settings,
-            ).upload_statement(
-                context=context,
-                upload_file=upload_file,
-                account_id=account_id,
-                idempotency_key=state.id,
-            )
-        except UploadValidationError as exc:
-            raise ChatDocumentUploadError(str(exc)) from exc
+            upload_file = ChatDownloadedFileUploadAdapter.to_upload_file(downloaded_file)
+            try:
+                upload = await StatementUploadUseCase(
+                    self.session,
+                    self.settings,
+                ).upload_statement(
+                    context=context,
+                    upload_file=upload_file,
+                    account_id=account_id,
+                    idempotency_key=state.id,
+                )
+            except UploadValidationError as exc:
+                raise ChatDocumentUploadError(str(exc)) from exc
+        finally:
+            downloaded_file.file.close()
         state.state_payload = {}
         await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
         await self.session.commit()
@@ -238,8 +240,8 @@ class ChatDownloadedFileUploadAdapter:
     def to_upload_file(downloaded_file: ChatDownloadedFile) -> UploadFile:
         headers = Headers({"content-type": downloaded_file.content_type or ""})
         return UploadFile(
-            BytesIO(downloaded_file.file_bytes),
-            size=len(downloaded_file.file_bytes),
+            downloaded_file.file,
+            size=downloaded_file.file_size,
             filename=downloaded_file.filename,
             headers=headers,
         )

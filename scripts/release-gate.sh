@@ -78,6 +78,8 @@ compose run --rm --no-deps app python -m app.core.production_preflight
 compose up -d --wait postgres
 compose run --rm app alembic upgrade head
 compose up -d --wait app nginx
+compose exec -T parser python -c \
+  'import os, tempfile; handle = tempfile.NamedTemporaryFile(); path = handle.name; assert os.stat(path).st_mode & 0o777 == 0o600; handle.close(); assert not os.path.exists(path)'
 
 curl --fail --silent --show-error --insecure \
   --resolve "$domain:$https_port:127.0.0.1" "https://$domain:$https_port/health" \
@@ -86,5 +88,23 @@ test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
   --header "Host: $domain" "http://127.0.0.1:$http_port/health")" = "301"
 test "$(curl --silent --insecure --output /dev/null --write-out '%{http_code}' \
   --resolve "$domain:$https_port:127.0.0.1" "https://$domain:$https_port/health/db")" = "404"
+
+upload_url="https://$domain:$https_port/api/v1/imports/documents"
+dd if=/dev/zero of="$gate_dir/upload.bin" bs=1024 count=32 >/dev/null 2>&1
+for request_number in 1 2 3; do
+  curl --silent --insecure --output /dev/null --write-out '%{http_code}\n' \
+    --resolve "$domain:$https_port:127.0.0.1" --limit-rate 4k \
+    --request POST --data-binary "@$gate_dir/upload.bin" "$upload_url" \
+    >"$gate_dir/concurrent-$request_number.status" &
+done
+wait
+grep -q '^429$' "$gate_dir"/concurrent-*.status
+
+for request_number in 1 2 3 4 5; do
+  curl --silent --insecure --output /dev/null --write-out '%{http_code}\n' \
+    --resolve "$domain:$https_port:127.0.0.1" --request POST "$upload_url" \
+    >>"$gate_dir/sequential.status"
+done
+grep -q '^429$' "$gate_dir/sequential.status"
 
 echo "Release gate passed."

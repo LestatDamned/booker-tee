@@ -72,6 +72,21 @@ class DocumentRepository:
         await self.session.flush()
         return attempt
 
+    async def get_parse_attempt_for_workspace(
+        self,
+        workspace_id: UUID,
+        document_id: UUID,
+        attempt_id: UUID,
+    ) -> ParseAttempt | None:
+        result = await self.session.execute(
+            select(ParseAttempt).where(
+                ParseAttempt.id == attempt_id,
+                ParseAttempt.uploaded_document_id == document_id,
+                ParseAttempt.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_document_for_workspace(
         self,
         workspace_id: UUID,
@@ -165,6 +180,40 @@ class DocumentRepository:
             select(UploadedDocument.storage_key).where(UploadedDocument.storage_key.is_not(None))
         )
         return {storage_key for storage_key in result.scalars() if storage_key is not None}
+
+    async def list_documents_with_expired_raw(
+        self,
+        *,
+        cutoff: datetime,
+        limit: int,
+    ) -> list[UploadedDocument]:
+        candidate_ids = (
+            select(UploadedDocument.id)
+            .join(ParseAttempt)
+            .where(
+                UploadedDocument.created_at <= cutoff,
+                UploadedDocument.status.in_(
+                    {
+                        UploadedDocumentStatus.IMPORTED,
+                        UploadedDocumentStatus.IGNORED,
+                        UploadedDocumentStatus.FAILED_TO_PARSE,
+                    }
+                ),
+                or_(
+                    ParseAttempt.raw_text_by_page_json.is_not(None),
+                    ParseAttempt.raw_tables_json.is_not(None),
+                ),
+            )
+            .limit(limit)
+            .correlate(None)
+        )
+        result = await self.session.execute(
+            select(UploadedDocument)
+            .options(selectinload(UploadedDocument.parse_attempts))
+            .where(UploadedDocument.id.in_(candidate_ids))
+            .with_for_update(skip_locked=True)
+        )
+        return list(result.scalars().all())
 
     async def list_document_rows_for_workspace(
         self,
@@ -369,6 +418,19 @@ class DocumentRepository:
         status: ParseAttemptStatus,
     ) -> None:
         attempt.status = status
+        await self.session.flush()
+
+    async def store_attempt_extracted_raw(
+        self,
+        attempt: ParseAttempt,
+        *,
+        raw_text_by_page_json: list[str],
+        raw_tables_json: list[dict[str, object]],
+        metadata: dict[str, object],
+    ) -> None:
+        attempt.raw_text_by_page_json = raw_text_by_page_json
+        attempt.raw_tables_json = raw_tables_json
+        attempt.extra_metadata = metadata
         await self.session.flush()
 
     async def mark_attempt_failed(

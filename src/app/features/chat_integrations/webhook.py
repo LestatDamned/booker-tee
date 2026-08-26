@@ -65,6 +65,7 @@ class TelegramWebhookRegistrar:
         client = TelegramBotClient(
             bot_token=TelegramWebhookSettingsReader.require_bot_token(self.settings),
             http_client=self.http_client,
+            download_max_bytes=self.settings.statement_upload_max_bytes,
         )
         await client.set_webhook(
             url=webhook_url,
@@ -106,6 +107,7 @@ class TelegramWebhookUpdateReceiver:
         client = TelegramBotClient(
             bot_token=TelegramWebhookSettingsReader.require_bot_token(self.settings),
             http_client=self.http_client,
+            download_max_bytes=self.settings.statement_upload_max_bytes,
         )
         try:
             event = TelegramWebhookUpdateNormalizer.normalize_update(update)

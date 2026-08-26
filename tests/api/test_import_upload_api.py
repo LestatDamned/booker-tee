@@ -1,4 +1,6 @@
+import logging
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 from fastapi import FastAPI
@@ -9,9 +11,19 @@ from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
-from app.features.imports.documents.commands.upload import StatementUploadResult
-from app.features.imports.documents.errors import UploadIdempotencyConflictError
+from app.features.imports.documents.commands.upload import (
+    StatementUploadResult,
+    StatementUploadUseCase,
+)
+from app.features.imports.documents.errors import (
+    UploadAccountNotFoundError,
+    UploadIdempotencyConflictError,
+    UploadProcessingError,
+)
+from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.documents.storage import UploadStorage
 from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,
@@ -121,6 +133,85 @@ def test_upload_returns_committed_document_target(app: FastAPI, monkeypatch) -> 
     assert calls[0]["idempotency_key"] == idempotency_key
 
 
+def test_upload_masks_unexpected_processing_failure_from_response_and_logs(
+    app: FastAPI,
+    monkeypatch,
+    caplog,
+) -> None:
+    marker = "RAW_FINANCIAL_MARKER /private/statement.pdf"
+
+    class FakeUploadUseCase:
+        def __init__(self, _session, _settings) -> None:
+            pass
+
+        async def upload_statement(self, **_kwargs):
+            try:
+                raise RuntimeError(marker)
+            except RuntimeError:
+                raise UploadProcessingError("Statement processing failed.") from None
+
+    monkeypatch.setattr(imports_router_module, "StatementUploadUseCase", FakeUploadUseCase)
+    app = upload_app(app, api_context(WorkspaceRole.OWNER))
+    caplog.set_level(logging.ERROR)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/imports/documents",
+            data={"account_id": str(uuid4())},
+            files={"statement": ("statement.pdf", b"%PDF-1.4", "application/pdf")},
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "statement_processing_failed"
+    assert marker not in response.text
+    assert marker not in caplog.text
+
+
+def test_real_upload_use_case_masks_pre_attempt_failure_from_api_and_logs(
+    app: FastAPI,
+    monkeypatch,
+    caplog,
+) -> None:
+    marker = "PRE_ATTEMPT_DB_MARKER /private/upload/source.pdf sql-params"
+    context = api_context(WorkspaceRole.OWNER)
+    account_id = uuid4()
+    session = SimpleNamespace(rollback=AsyncMock(), commit=AsyncMock())
+    monkeypatch.setattr(
+        LedgerReferenceResolver,
+        "get_import_account",
+        AsyncMock(return_value=SimpleNamespace(id=account_id, currency="RUB")),
+    )
+    monkeypatch.setattr(
+        DocumentRepository,
+        "get_document_for_workspace",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        UploadStorage,
+        "save_upload",
+        AsyncMock(side_effect=RuntimeError(marker)),
+    )
+    assert imports_router_module.StatementUploadUseCase is StatementUploadUseCase
+    app = upload_app(app, context)
+    app.dependency_overrides[get_session] = lambda: session
+    caplog.set_level(logging.ERROR)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/imports/documents",
+            data={"account_id": str(account_id)},
+            files={"statement": ("statement.pdf", b"%PDF-1.4", "application/pdf")},
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "statement_processing_failed"
+    assert marker not in response.text
+    assert marker not in caplog.text
+    session.rollback.assert_awaited_once()
+
+
 def test_upload_rejects_viewer(app: FastAPI) -> None:
     app = upload_app(app, api_context(WorkspaceRole.VIEWER))
 
@@ -174,6 +265,32 @@ def test_upload_maps_idempotency_conflict_to_409(app: FastAPI, monkeypatch) -> N
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "upload_idempotency_conflict"
+
+
+def test_upload_masks_unavailable_account_as_not_found(app: FastAPI, monkeypatch) -> None:
+    class UnavailableAccountUploadUseCase:
+        def __init__(self, _session, _settings) -> None:
+            pass
+
+        async def upload_statement(self, **_kwargs):
+            raise UploadAccountNotFoundError("Выбранный счёт недоступен в текущем пространстве.")
+
+    monkeypatch.setattr(
+        imports_router_module,
+        "StatementUploadUseCase",
+        UnavailableAccountUploadUseCase,
+    )
+    app = upload_app(app, api_context(WorkspaceRole.OWNER))
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/imports/documents",
+            data={"account_id": str(uuid4())},
+            files={"statement": ("statement.pdf", b"%PDF-1.4", "application/pdf")},
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "upload_account_not_found"
 
 
 def upload_app(app: FastAPI, context: ApiRequestContext) -> FastAPI:

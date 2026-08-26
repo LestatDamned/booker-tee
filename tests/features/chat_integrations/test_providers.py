@@ -1,8 +1,12 @@
 import json
+import logging
+import traceback
+from io import BytesIO
 
 import httpx
 import pytest
 
+import app.features.chat_integrations.providers.telegram_client as telegram_client_module
 from app.features.chat_integrations.providers.fake import FakeChatProvider
 from app.features.chat_integrations.providers.telegram import TelegramUpdateNormalizer
 from app.features.chat_integrations.providers.telegram_client import (
@@ -419,9 +423,113 @@ async def test_telegram_client_downloads_document_by_file_path() -> None:
 
     assert downloaded_file.filename == "statement.pdf"
     assert downloaded_file.content_type == "application/pdf"
-    assert downloaded_file.file_bytes == b"%PDF-test"
+    assert downloaded_file.file.read() == b"%PDF-test"
+    downloaded_file.file.close()
     assert seen_requests[0] == ("/bottest-token/getFile", b'{"file_id":"file-id"}')
     assert seen_requests[1] == ("/file/bottest-token/documents/statement.pdf", b"")
+
+
+@pytest.mark.parametrize(
+    ("chunks", "maximum", "raises"),
+    [([b"ab", b"cd"], 4, False), ([b"ab", b"cde"], 4, True)],
+)
+async def test_telegram_client_enforces_streamed_download_boundary(
+    chunks: list[bytes],
+    maximum: int,
+    raises: bool,
+) -> None:
+    class ChunkStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            for chunk in chunks:
+                yield chunk
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/getFile"):
+            return httpx.Response(
+                200,
+                json={"ok": True, "result": {"file_path": "documents/statement.pdf"}},
+            )
+        return httpx.Response(200, stream=ChunkStream())
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        client = TelegramBotClient(
+            bot_token="test-token",
+            http_client=http_client,
+            download_max_bytes=maximum,
+        )
+        if raises:
+            with pytest.raises(TelegramBotClientError, match="size limit"):
+                await client.download_document(ChatDocument(file_id="file-id"))
+        else:
+            downloaded = await client.download_document(ChatDocument(file_id="file-id"))
+            assert downloaded.file_size == maximum
+            assert downloaded.file.read() == b"".join(chunks)
+            downloaded.file.close()
+
+
+async def test_telegram_download_missing_size_metadata_does_not_bypass_cap() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/getFile"):
+            return httpx.Response(200, json={"ok": True, "result": {"file_path": "x.pdf"}})
+        return httpx.Response(200, content=b"12345")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        with pytest.raises(TelegramBotClientError, match="size limit"):
+            await TelegramBotClient(
+                bot_token="test-token",
+                http_client=http_client,
+                download_max_bytes=4,
+            ).download_document(ChatDocument(file_id="file-id", file_size=None))
+
+
+@pytest.mark.parametrize("failure", ["oversize", "network", "http500"])
+async def test_telegram_download_closes_spool_and_sanitizes_provider_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    failure: str,
+) -> None:
+    token_marker = "BOT_TOKEN_PRIVATE_MARKER"
+    path_marker = "private/statement-path-marker.pdf"
+    spools: list[BytesIO] = []
+
+    def spool_factory(**_kwargs: object) -> BytesIO:
+        spool = BytesIO()
+        spools.append(spool)
+        return spool
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/getFile"):
+            return httpx.Response(
+                200,
+                json={"ok": True, "result": {"file_path": path_marker}},
+            )
+        if failure == "network":
+            raise httpx.ReadError(
+                f"network failed {token_marker} {path_marker}",
+                request=request,
+            )
+        if failure == "http500":
+            return httpx.Response(500, content=f"{token_marker} {path_marker}")
+        return httpx.Response(200, content=b"12345")
+
+    monkeypatch.setattr(telegram_client_module, "SpooledTemporaryFile", spool_factory)
+    caplog.set_level(logging.ERROR)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        with pytest.raises(TelegramBotClientError) as exc_info:
+            await TelegramBotClient(
+                bot_token=token_marker,
+                http_client=http_client,
+                download_max_bytes=4,
+            ).download_document(ChatDocument(file_id="file-id"))
+
+    assert len(spools) == 1
+    assert spools[0].closed
+    rendered = "".join(traceback.format_exception(exc_info.value))
+    assert exc_info.value.__cause__ is None
+    assert token_marker not in rendered
+    assert path_marker not in rendered
+    assert token_marker not in caplog.text
+    assert path_marker not in caplog.text
 
 
 async def test_telegram_client_sets_webhook_with_secret_token() -> None:

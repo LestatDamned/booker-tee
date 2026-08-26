@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 LOCAL_AUTH_SECRET = "change-this-local-auth-secret"
@@ -145,6 +145,50 @@ class Settings(BaseSettings):
         ge=1,
         validation_alias="BOOKER_TEE_STATEMENT_PDF_MAX_PAGES",
     )
+    statement_pdf_max_characters: int = Field(
+        default=5_000_000,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PDF_MAX_CHARACTERS",
+    )
+    statement_pdf_max_tables: int = Field(
+        default=2_000,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PDF_MAX_TABLES",
+    )
+    statement_pdf_max_cells: int = Field(
+        default=500_000,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PDF_MAX_CELLS",
+    )
+    statement_extraction_result_max_bytes: int = Field(
+        default=64 * 1024 * 1024,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_EXTRACTION_RESULT_MAX_BYTES",
+    )
+    statement_parser_wall_timeout_seconds: int = Field(
+        default=60,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PARSER_WALL_TIMEOUT_SECONDS",
+    )
+    statement_parser_cpu_seconds: int = Field(
+        default=45,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PARSER_CPU_SECONDS",
+    )
+    statement_parser_memory_bytes: int = Field(
+        default=512 * 1024 * 1024,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PARSER_MEMORY_BYTES",
+    )
+    statement_parser_socket_path: Path | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_STATEMENT_PARSER_SOCKET_PATH",
+    )
+    statement_parser_startup_timeout_seconds: int = Field(
+        default=30,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PARSER_STARTUP_TIMEOUT_SECONDS",
+    )
     statement_xlsx_max_sheets: int = Field(
         default=20,
         ge=1,
@@ -212,6 +256,12 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @model_validator(mode="after")
+    def validate_parser_limits(self) -> "Settings":
+        if self.statement_parser_cpu_seconds > self.statement_parser_wall_timeout_seconds:
+            raise ValueError("statement parser CPU limit cannot exceed wall timeout")
+        return self
 
     @property
     def is_production(self) -> bool:

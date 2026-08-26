@@ -79,6 +79,17 @@ docker compose --project-name booker-tee-production \
   -f compose.production.yaml config -q
 ```
 
+Parser и cleanup diagnostics:
+
+```bash
+docker compose -f compose.production.yaml ps parser upload-cleanup
+docker compose -f compose.production.yaml logs --tail=100 parser upload-cleanup
+docker inspect -f '{{.RestartCount}}' booker-tee-production-parser-1
+docker inspect -f '{{.RestartCount}}' booker-tee-production-upload-cleanup-1
+```
+
+Не выводите paths или содержимое retained statements в диагностические logs.
+
 Полный release/rollback порядок находится в
 [`deploy/plan/README.md`](deploy/plan/README.md).
 

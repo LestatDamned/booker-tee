@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import Any, BinaryIO
 
 
 class ChatProviderCode(StrEnum):
@@ -59,7 +59,8 @@ class ChatDocument:
 class ChatDownloadedFile:
     filename: str
     content_type: str | None
-    file_bytes: bytes
+    file: BinaryIO
+    file_size: int
 
 
 @dataclass(frozen=True)

@@ -1,14 +1,14 @@
-from dataclasses import dataclass
+from pydantic import Field
+
+from app.shared.schemas import ApplicationModel
 
 
-@dataclass(frozen=True)
-class ExtractedStatementPageTables:
+class ExtractedStatementPageTables(ApplicationModel):
     page_number: int
     tables: list[list[list[str | None]]]
 
 
-@dataclass(frozen=True)
-class ExtractedStatement:
+class ExtractedStatement(ApplicationModel):
     text_by_page: list[str]
     tables_by_page: list[ExtractedStatementPageTables]
-    metadata: dict[str, object]
+    metadata: dict[str, object] = Field(default_factory=dict)

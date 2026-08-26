@@ -44,6 +44,14 @@ class DocumentsStub:
             document.storage_key for document in self.documents if document.storage_key is not None
         }
 
+    async def list_documents_with_expired_raw(
+        self,
+        *,
+        cutoff: datetime,
+        limit: int,
+    ) -> list[UploadedDocument]:
+        return []
+
 
 async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphans(
     tmp_path: Path,
@@ -232,3 +240,42 @@ async def test_cleanup_expires_sources_reconciles_missing_and_deletes_old_orphan
     assert await cleanup._delete_orphans(set(), cutoff=now, batch_size=2) == (0, 1)
     assert "PermissionError" in caplog.text
     assert "sensitive path" not in caplog.text
+
+
+async def test_cleanup_scrubs_terminal_raw_only_after_retention_boundary() -> None:
+    now = datetime(2026, 8, 26, 12, tzinfo=UTC)
+    expired_attempt = SimpleNamespace(
+        raw_text_by_page_json=["private full text"],
+        raw_tables_json=[{"tables": [["private cell"]]}],
+        control_totals_json={"closing_balance": "10.00"},
+    )
+    review_attempt = SimpleNamespace(
+        raw_text_by_page_json=["review text"],
+        raw_tables_json=[{"tables": [["review cell"]]}],
+    )
+    expired = cast(
+        UploadedDocument,
+        SimpleNamespace(
+            status=UploadedDocumentStatus.IMPORTED,
+            created_at=now - timedelta(hours=48),
+            parse_attempts=[expired_attempt],
+        ),
+    )
+
+    class RawDocuments:
+        calls = 0
+
+        async def list_documents_with_expired_raw(self, **_kwargs: object):
+            self.calls += 1
+            return [expired] if self.calls == 1 else []
+
+    session = SimpleNamespace(commit=AsyncMock())
+    cleanup = UploadSourceCleanup(cast(AsyncSession, session), Settings())
+    cleanup.documents = cast(Any, RawDocuments())
+
+    assert await cleanup._scrub_expired_raw(now - timedelta(hours=48), 10) == 1
+    assert expired_attempt.raw_text_by_page_json is None
+    assert expired_attempt.raw_tables_json is None
+    assert expired_attempt.control_totals_json == {"closing_balance": "10.00"}
+    assert review_attempt.raw_text_by_page_json == ["review text"]
+    session.commit.assert_awaited_once()

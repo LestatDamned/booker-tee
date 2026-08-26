@@ -44,10 +44,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      parser:
+        condition: service_healthy
     env_file:
       - ${BOOKER_TEE_ENV_FILE:?Set BOOKER_TEE_ENV_FILE to the production environment file}
     environment:
       BOOKER_TEE_DOMAIN: ${BOOKER_TEE_DOMAIN:?Set BOOKER_TEE_DOMAIN}
+      BOOKER_TEE_STATEMENT_PARSER_SOCKET_PATH: /app/var/parser-ipc/parser.sock
     command:
       [
         "uvicorn",
@@ -64,6 +67,7 @@ services:
       - "8000"
     volumes:
       - booker_tee_uploads:/app/var/uploads
+      - booker_tee_parser_ipc:/app/var/parser-ipc
     networks:
       - proxy
       - database
@@ -79,6 +83,76 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+    logging: *bounded-logging
+
+  parser:
+    image: ${BOOKER_TEE_IMAGE:-booker-tee:production}
+    user: "10002:10001"
+    restart: unless-stopped
+    network_mode: none
+    cpus: ${BOOKER_TEE_PARSER_CPUS:-0.75}
+    mem_limit: ${BOOKER_TEE_PARSER_MEMORY_LIMIT:-640m}
+    pids_limit: ${BOOKER_TEE_PARSER_PIDS_LIMIT:-32}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - booker_tee_parser_ipc:/app/var/parser-ipc
+    command:
+      [
+        "python",
+        "-m",
+        "app.features.imports.parsers.sidecar.server",
+        "--socket",
+        "/app/var/parser-ipc/parser.sock",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-m",
+          "app.features.imports.parsers.sidecar.client",
+          "--socket",
+          "/app/var/parser-ipc/parser.sock",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: *bounded-logging
+
+  upload-cleanup:
+    image: ${BOOKER_TEE_IMAGE:-booker-tee:production}
+    restart: unless-stopped
+    cpus: ${BOOKER_TEE_CLEANUP_CPUS:-0.25}
+    mem_limit: ${BOOKER_TEE_CLEANUP_MEMORY_LIMIT:-256m}
+    pids_limit: ${BOOKER_TEE_CLEANUP_PIDS_LIMIT:-32}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ${BOOKER_TEE_ENV_FILE:?Set BOOKER_TEE_ENV_FILE to the production environment file}
+    volumes:
+      - booker_tee_uploads:/app/var/uploads
+    networks:
+      - database
+    command:
+      [
+        "sh",
+        "-c",
+        "while python -m app.features.imports.documents.source_cleanup; do sleep 3600; done; exit 1",
+      ]
     logging: *bounded-logging
 
   nginx:
@@ -143,6 +217,7 @@ services:
 volumes:
   booker_tee_postgres_data:
   booker_tee_uploads:
+  booker_tee_parser_ipc:
   booker_tee_letsencrypt:
   booker_tee_acme_webroot:
 
