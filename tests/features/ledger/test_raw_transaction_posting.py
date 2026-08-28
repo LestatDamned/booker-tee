@@ -387,6 +387,8 @@ def raw_row(
         suggested_property_id=None,
         suggested_by_rule_id=None,
     )
+
+
 def transfer_actor(
     *,
     session: SessionStub,

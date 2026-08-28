@@ -1,5 +1,11 @@
 limit_req_zone $binary_remote_addr zone=auth:10m rate=10r/m;
 limit_req_zone $binary_remote_addr zone=telegram:10m rate=20r/s;
+map $request_method $statement_upload_limit_key {
+    default "";
+    POST $binary_remote_addr;
+}
+limit_req_zone $statement_upload_limit_key zone=statement_upload:10m rate=6r/m;
+limit_conn_zone $statement_upload_limit_key zone=statement_upload_connections:10m;
 
 log_format safe '$remote_addr [$time_iso8601] "$request_method $uri $server_protocol" '
                 '$status $body_bytes_sent rt=$request_time urt=$upstream_response_time';
@@ -50,6 +56,7 @@ server {
     keepalive_timeout 15s;
     send_timeout 60s;
     limit_req_status 429;
+    limit_conn_status 429;
 
     proxy_http_version 1.1;
     proxy_connect_timeout 5s;
@@ -89,6 +96,8 @@ server {
 
     location = /api/v1/imports/documents {
         client_max_body_size 25m;
+        limit_req zone=statement_upload burst=3 nodelay;
+        limit_conn statement_upload_connections 2;
         proxy_pass http://booker_tee_app;
     }
 

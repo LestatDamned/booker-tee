@@ -14,6 +14,7 @@ from app.api.v1.imports.dependencies import (
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.mapping.dto import (
+    MappingBlockingReasonCode,
     MappingDefaultSource,
     StatementMappingSpec,
     UnsignedAmountDirection,
@@ -152,6 +153,29 @@ def test_mapping_read_api_returns_typed_safe_projection(app: FastAPI) -> None:
     }
     assert "storageKey" not in str(payload)
     assert reader.read_calls[0]["workspace_id"] == context.workspace.workspace.id
+
+
+def test_mapping_read_api_reports_raw_tables_unavailable_after_cleanup(app: FastAPI) -> None:
+    context = api_context(WorkspaceRole.OWNER)
+    mapping = mapping_read_model().model_copy(
+        update={
+            "capability": MappingCapabilityDto(
+                allowed=False,
+                blocking_reason_codes=(MappingBlockingReasonCode.RAW_TABLES_UNAVAILABLE,),
+            ),
+            "tables": (),
+        }
+    )
+    app = mapping_app(app, context, MappingReaderStub(mapping))
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
+
+    assert response.status_code == 200
+    assert response.json()["capability"] == {
+        "allowed": False,
+        "blockingReasonCodes": ["raw_tables_unavailable"],
+    }
 
 
 def test_mapping_preview_api_converts_visible_row_number_and_returns_scope(app: FastAPI) -> None:

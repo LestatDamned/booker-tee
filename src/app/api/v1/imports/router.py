@@ -36,6 +36,7 @@ from app.features.imports.documents.errors import (
     ImportDocumentManagementError,
     UploadAccountNotFoundError,
     UploadIdempotencyConflictError,
+    UploadProcessingError,
     UploadTooLargeError,
     UploadValidationError,
 )
@@ -145,6 +146,12 @@ async def upload_import_document(
             message=str(error),
             field_errors={"statement": [str(error)]},
         ) from error
+    except UploadProcessingError:
+        raise ApiError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="statement_processing_failed",
+            message="Не удалось обработать выписку.",
+        ) from None
 
     detail = await _read_committed_detail(
         session=session,

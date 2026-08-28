@@ -5,6 +5,9 @@ from app.shared.schemas import ApplicationModel
 
 class StatementExtractionLimits(ApplicationModel):
     pdf_max_pages: int = Field(default=200, ge=1)
+    pdf_max_characters: int = Field(default=5_000_000, ge=1)
+    pdf_max_tables: int = Field(default=2_000, ge=1)
+    pdf_max_cells: int = Field(default=500_000, ge=1)
     xlsx_max_sheets: int = Field(default=20, ge=1)
     xlsx_max_rows_per_sheet: int = Field(default=50_000, ge=1)
     xlsx_max_columns_per_sheet: int = Field(default=100, ge=1)

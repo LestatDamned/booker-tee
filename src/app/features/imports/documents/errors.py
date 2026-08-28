@@ -14,5 +14,9 @@ class UploadTooLargeError(UploadValidationError):
     pass
 
 
+class UploadProcessingError(RuntimeError):
+    pass
+
+
 class ImportDocumentManagementError(ValueError):
     pass

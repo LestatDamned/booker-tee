@@ -1,3 +1,4 @@
+from io import BytesIO
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
@@ -82,12 +83,14 @@ async def test_telegram_upload_uses_conversation_state_as_idempotency_key(
         consume_conversation_state=AsyncMock(),
     )
     session = SimpleNamespace(commit=AsyncMock())
+    downloaded_spool = BytesIO(b"pdf")
     downloader = SimpleNamespace(
         download_document=AsyncMock(
             return_value=SimpleNamespace(
                 filename="statement.pdf",
                 content_type="application/pdf",
-                file_bytes=b"pdf",
+                file=downloaded_spool,
+                file_size=3,
             )
         )
     )
@@ -112,7 +115,57 @@ async def test_telegram_upload_uses_conversation_state_as_idempotency_key(
     assert result == upload_result
     assert seen_idempotency_keys == [state_id]
     assert state.state_payload == {}
+    assert downloaded_spool.closed
     chat_repository.consume_conversation_state.assert_awaited_once()
+
+
+async def test_telegram_upload_closes_spool_when_upload_file_adapter_fails() -> None:
+    workspace_id = uuid4()
+    user_id = uuid4()
+    account_id = uuid4()
+    spool = BytesIO(b"pdf")
+    state = SimpleNamespace(
+        id=uuid4(),
+        state_payload={
+            "file_id": "file-id",
+            "file_name": "statement.pdf",
+            "account_ids": [str(account_id)],
+        },
+    )
+    service = chat_application.ChatDocumentUploadService(
+        cast(AsyncSession, SimpleNamespace()),
+        Settings(),
+        cast(
+            Any,
+            SimpleNamespace(
+                download_document=AsyncMock(
+                    return_value=SimpleNamespace(
+                        filename="statement.pdf",
+                        content_type="приложение/pdf",
+                        file=spool,
+                        file_size=3,
+                    )
+                )
+            ),
+        ),
+    )
+    service.chat_integrations = cast(
+        Any,
+        SimpleNamespace(get_active_conversation_state=AsyncMock(return_value=state)),
+    )
+
+    with pytest.raises(UnicodeEncodeError):
+        await service.complete_document_upload(
+            context=WorkspaceContext(
+                user=cast(Any, SimpleNamespace(id=user_id)),
+                workspace=cast(Any, SimpleNamespace(id=workspace_id)),
+                membership=cast(Any, SimpleNamespace()),
+            ),
+            action_token="upload-token",
+            account_index=0,
+        )
+
+    assert spool.closed
 
 
 async def test_chat_event_service_shows_upload_instructions_for_bound_callback(

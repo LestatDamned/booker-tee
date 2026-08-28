@@ -1,8 +1,13 @@
+import asyncio
+from pathlib import Path
+from time import monotonic
+
 import pytest
+from fastapi import FastAPI
 
 from api_client import ApiTestClient as TestClient
 from app.core.settings import Settings
-from app.main import create_app
+from app.main import create_app, lifespan
 
 
 def test_home_redirects_to_react_app(client: TestClient) -> None:
@@ -43,6 +48,29 @@ def test_upload_retention_reads_hours_from_env(monkeypatch) -> None:
     monkeypatch.setenv("BOOKER_TEE_UPLOAD_RETENTION_HOURS", "72")
 
     assert Settings().upload_retention_hours == 72
+
+
+async def test_lifespan_bounds_sidecar_ping_that_never_responds(monkeypatch) -> None:
+    class HangingParser:
+        async def ping(self) -> None:
+            await asyncio.Event().wait()
+
+    settings = Settings(
+        statement_parser_socket_path=Path("/tmp/test-parser.sock"),
+        statement_parser_startup_timeout_seconds=1,
+    )
+    monkeypatch.setattr("app.main.get_settings", lambda: settings)
+    monkeypatch.setattr(
+        "app.main.StatementParserSidecarClient.from_settings",
+        lambda _settings: HangingParser(),
+    )
+    started_at = monotonic()
+
+    with pytest.raises(TimeoutError):
+        async with lifespan(FastAPI()):
+            pass
+
+    assert monotonic() - started_at < 1.25
 
 
 def test_trusted_host_blocks_unknown_host(client: TestClient) -> None:

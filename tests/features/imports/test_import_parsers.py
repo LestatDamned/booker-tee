@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -303,9 +302,12 @@ def test_overlapping_statement_period_does_not_change_bank_row_hashes(
     partial_period: str,
 ) -> None:
     extracted = extracted_factory()
-    overlapping = replace(
-        extracted,
-        text_by_page=[page.replace(full_period, partial_period) for page in extracted.text_by_page],
+    overlapping = extracted.model_copy(
+        update={
+            "text_by_page": [
+                page.replace(full_period, partial_period) for page in extracted.text_by_page
+            ]
+        }
     )
     full_rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     overlapping_rows = parser.parse_transaction_drafts(

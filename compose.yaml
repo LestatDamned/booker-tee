@@ -26,6 +26,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      parser:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-booker_tee}:${POSTGRES_PASSWORD:-booker_tee}@postgres:5432/${POSTGRES_DB:-booker_tee}
       BOOKER_TEE_APP_NAME: ${BOOKER_TEE_APP_NAME:-Booker Tee}
@@ -50,6 +52,7 @@ services:
       BOOKER_TEE_SECURITY_HEADERS_ENABLED: ${BOOKER_TEE_SECURITY_HEADERS_ENABLED:-true}
       BOOKER_TEE_UPLOAD_STORAGE_DIR: /app/var/uploads
       BOOKER_TEE_STATEMENT_UPLOAD_MAX_BYTES: ${BOOKER_TEE_STATEMENT_UPLOAD_MAX_BYTES:-20971520}
+      BOOKER_TEE_STATEMENT_PARSER_SOCKET_PATH: /app/var/parser-ipc/parser.sock
       BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED: ${BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED:-false}
       BOOKER_TEE_TELEGRAM_BOT_TOKEN: ${BOOKER_TEE_TELEGRAM_BOT_TOKEN:-}
       BOOKER_TEE_TELEGRAM_MODE: ${BOOKER_TEE_TELEGRAM_MODE:-polling}
@@ -64,6 +67,7 @@ services:
       - ./migrations:/app/migrations:ro
       - ./src:/app/src:ro
       - booker_tee_uploads:/app/var/uploads
+      - booker_tee_parser_ipc:/app/var/parser-ipc
     command: ["sh", "/app/docker/entrypoint.sh"]
     healthcheck:
       test:
@@ -75,6 +79,47 @@ services:
         ]
       interval: 10s
       timeout: 5s
+      retries: 12
+
+  parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "10002:10001"
+    restart: unless-stopped
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    cpus: ${BOOKER_TEE_PARSER_CPUS:-0.75}
+    mem_limit: ${BOOKER_TEE_PARSER_MEMORY_LIMIT:-640m}
+    pids_limit: ${BOOKER_TEE_PARSER_PIDS_LIMIT:-32}
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    volumes:
+      - booker_tee_parser_ipc:/app/var/parser-ipc
+    command:
+      [
+        "python",
+        "-m",
+        "app.features.imports.parsers.sidecar.server",
+        "--socket",
+        "/app/var/parser-ipc/parser.sock",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-m",
+          "app.features.imports.parsers.sidecar.client",
+          "--socket",
+          "/app/var/parser-ipc/parser.sock",
+        ]
+      interval: 5s
+      timeout: 3s
       retries: 12
 
   frontend:
@@ -93,3 +138,4 @@ services:
 volumes:
   booker_tee_postgres_data:
   booker_tee_uploads:
+  booker_tee_parser_ipc:

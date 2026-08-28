@@ -31,9 +31,7 @@ def bound_chat_workspace(
                 Any,
                 user
                 if user is not None
-                else SimpleNamespace(
-                    id=uuid4(), name="Anna", email="anna@example.test"
-                ),
+                else SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test"),
             ),
             workspace=cast(
                 Any,

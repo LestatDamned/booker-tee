@@ -24,7 +24,8 @@ ENV PATH="/opt/booker-tee-venv/bin:$PATH" \
 WORKDIR /app
 
 RUN groupadd --gid 10001 app \
-    && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app
+    && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app \
+    && useradd --uid 10002 --gid app --no-create-home --shell /usr/sbin/nologin parser
 
 COPY pyproject.toml uv.lock README.md ./
 COPY alembic.ini ./
@@ -33,8 +34,10 @@ COPY src ./src
 COPY --from=frontend-builder /frontend/build/client ./frontend/build/client
 
 RUN uv sync --frozen --no-dev \
-    && mkdir -p /app/var/uploads \
-    && chown app:app /app/var/uploads
+    && mkdir -p /app/var/uploads /app/var/parser-ipc \
+    && chown app:app /app/var/uploads \
+    && chown parser:app /app/var/parser-ipc \
+    && chmod 0770 /app/var/parser-ipc
 
 USER app
 

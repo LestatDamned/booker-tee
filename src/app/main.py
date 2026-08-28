@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -11,13 +12,32 @@ from app.core.config import get_settings
 from app.core.middleware import install_security_middleware
 from app.db.session import session_factory
 from app.features.chat_integrations.router import router as chat_integrations_router
+from app.features.imports.parsers.sidecar.client import StatementParserSidecarClient
 from app.legacy_frontend_redirects import router as legacy_frontend_redirects_router
 from app.react_frontend import install_react_frontend
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    app.state.settings = get_settings()
+    settings = get_settings()
+    app.state.settings = settings
+    parser = StatementParserSidecarClient.from_settings(settings)
+    if parser is not None:
+        deadline = (
+            asyncio.get_running_loop().time() + settings.statement_parser_startup_timeout_seconds
+        )
+        while True:
+            try:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise TimeoutError("Parser startup timed out")
+                await asyncio.wait_for(parser.ping(), timeout=remaining)
+                break
+            except (RuntimeError, TimeoutError):
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise
+                await asyncio.sleep(min(0.25, remaining))
     yield
 
 

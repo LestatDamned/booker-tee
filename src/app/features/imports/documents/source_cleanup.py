@@ -30,6 +30,7 @@ class UploadSourceCleanupResult:
     missing_reconciled: int = 0
     orphan_deleted: int = 0
     telegram_states_scrubbed: int = 0
+    raw_attempts_scrubbed: int = 0
     failures: int = 0
 
 
@@ -74,6 +75,7 @@ class UploadSourceCleanup:
             await self.session.commit()
 
         referenced_keys = await self.documents.list_active_storage_keys()
+        raw_attempts_scrubbed = await self._scrub_expired_raw(cutoff, batch_size)
         telegram_states_scrubbed = (
             await self.chat_integrations.scrub_terminal_upload_state_payloads(now=current_time)
         )
@@ -89,6 +91,7 @@ class UploadSourceCleanup:
             missing_reconciled=missing,
             orphan_deleted=orphan_deleted,
             telegram_states_scrubbed=telegram_states_scrubbed,
+            raw_attempts_scrubbed=raw_attempts_scrubbed,
             failures=failures + orphan_failures,
         )
 
@@ -154,6 +157,22 @@ class UploadSourceCleanup:
                 deleted += 1
         return deleted, failures
 
+    async def _scrub_expired_raw(self, cutoff: datetime, batch_size: int) -> int:
+        scrubbed = 0
+        while documents := await self.documents.list_documents_with_expired_raw(
+            cutoff=cutoff,
+            limit=batch_size,
+        ):
+            for document in documents:
+                for attempt in document.parse_attempts:
+                    if attempt.raw_text_by_page_json is None and attempt.raw_tables_json is None:
+                        continue
+                    attempt.raw_text_by_page_json = None
+                    attempt.raw_tables_json = None
+                    scrubbed += 1
+            await self.session.commit()
+        return scrubbed
+
 
 def log_cleanup_failure(error: Exception) -> None:
     logger.warning("Upload source cleanup failed error_type=%s", type(error).__name__)
@@ -176,6 +195,7 @@ def main() -> None:
         f"missing_reconciled={result.missing_reconciled} "
         f"orphan_deleted={result.orphan_deleted} "
         f"telegram_states_scrubbed={result.telegram_states_scrubbed} "
+        f"raw_attempts_scrubbed={result.raw_attempts_scrubbed} "
         f"failures={result.failures}"
     )
     if result.failures:

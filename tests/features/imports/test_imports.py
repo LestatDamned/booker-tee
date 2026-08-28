@@ -1,10 +1,11 @@
+import asyncio
+import traceback
 from datetime import date
 from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from stat import S_IMODE
-from threading import get_ident
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
@@ -15,17 +16,19 @@ import pytest
 from fastapi import UploadFile
 from openpyxl import Workbook
 
+from app.features.accounts.models import AccountType
 from app.features.import_review.domain.queue import REVIEW_QUEUE_STATUSES
 from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.documents.attempts import record_failed_parse_attempt
+from app.features.imports.documents.commands import upload as upload_module
 from app.features.imports.documents.commands.upload import (
     StatementUploadUseCase,
-    extract_statement,
     should_retain_source_file,
     validate_statement_upload,
 )
 from app.features.imports.documents.errors import (
     UploadIdempotencyConflictError,
+    UploadProcessingError,
     UploadTooLargeError,
     UploadValidationError,
 )
@@ -49,7 +52,6 @@ from app.features.imports.parsers.extractors.pdf import (
     PdfPlumberStatementExtractor,
 )
 from app.features.imports.parsers.extractors.resolver import (
-    StatementExtractor,
     StatementExtractorResolver,
 )
 from app.features.imports.parsers.extractors.xlsx import (
@@ -59,8 +61,12 @@ from app.features.imports.parsers.support.normalization import (
     parse_bank_date,
 )
 from app.features.imports.statements.deduplication import possible_duplicate_fingerprint
+from app.features.imports.statements.dto import RawTransactionDraft
 from app.features.imports.statements.process import StatementParseCompletionService
+from app.features.imports.statements.raw_transactions import RawTransactionMapper
 from app.features.imports.statements.types import RawTransactionStatus
+from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
+from app.features.ledger.errors import LedgerPostingError
 
 
 def test_sanitize_upload_filename_removes_paths_and_unsafe_characters() -> None:
@@ -353,7 +359,7 @@ async def test_statement_upload_cleans_stored_file_when_first_transaction_fails(
     activity = AsyncMock(side_effect=RuntimeError("activity failed"))
     use_case.activity = cast(Any, SimpleNamespace(document_uploaded=activity))
 
-    with pytest.raises(RuntimeError, match="activity failed|document write failed"):
+    with pytest.raises(UploadProcessingError) as exc_info:
         await use_case.upload_statement(
             context=cast(
                 Any,
@@ -366,6 +372,9 @@ async def test_statement_upload_cleans_stored_file_when_first_transaction_fails(
             account_id=account.id,
         )
 
+    rendered = "".join(traceback.format_exception(exc_info.value))
+    assert "activity failed" not in rendered
+    assert "document write failed" not in rendered
     assert session.commits == 0
     assert session.rollbacks == 1
     assert activity.await_count == (1 if activity_fails else 0)
@@ -477,31 +486,6 @@ async def test_source_deletion_failure_preserves_reference_for_cleanup(
     assert "sensitive path" not in caplog.text
 
 
-async def test_statement_extraction_runs_outside_event_loop() -> None:
-    event_loop_thread = get_ident()
-    extraction_thread: int | None = None
-    extracted = ExtractedStatement(
-        text_by_page=[],
-        tables_by_page=[],
-        metadata={},
-    )
-
-    class Extractor:
-        def extract(self, _file_path: Path) -> ExtractedStatement:
-            nonlocal extraction_thread
-            extraction_thread = get_ident()
-            return extracted
-
-    result = await extract_statement(
-        cast(StatementExtractor, Extractor()),
-        Path("statement.pdf"),
-    )
-
-    assert result is extracted
-    assert extraction_thread is not None
-    assert extraction_thread != event_loop_thread
-
-
 async def test_inactive_workspace_preserves_extracted_import_without_mapping_rows() -> None:
     document = SimpleNamespace(status=UploadedDocumentStatus.PARSING)
     attempt = SimpleNamespace(finished_at=None)
@@ -604,6 +588,105 @@ def test_pdf_extractor_rejects_document_over_page_limit(
         PdfPlumberStatementExtractor(StatementExtractionLimits(pdf_max_pages=1)).extract(
             Path("oversized.pdf")
         )
+
+
+@pytest.mark.parametrize(
+    ("limits", "text", "tables", "message"),
+    [
+        (StatementExtractionLimits(pdf_max_characters=6), "four", [], "character"),
+        (StatementExtractionLimits(pdf_max_tables=3), "", [[[]], [[]]], "table"),
+        (StatementExtractionLimits(pdf_max_cells=3), "", [[["a", "b"]]], "cell"),
+    ],
+)
+def test_pdf_extractor_enforces_accumulated_output_limits(
+    monkeypatch: pytest.MonkeyPatch,
+    limits: StatementExtractionLimits,
+    text: str,
+    tables: list[list[list[str]]],
+    message: str,
+) -> None:
+    class PageStub:
+        def extract_text(self) -> str:
+            return text
+
+        def extract_tables(self) -> list[list[list[str]]]:
+            return tables
+
+    class PdfStub:
+        metadata: dict[str, object] = {}
+        pages = [PageStub(), PageStub()]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(pdf_extractor_module.pdfplumber, "open", lambda _path: PdfStub())
+
+    with pytest.raises(StatementResourceLimitError, match=message):
+        PdfPlumberStatementExtractor(limits).extract(Path("bounded.pdf"))
+
+
+def test_pdf_extractor_accepts_exact_output_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class PageStub:
+        def extract_text(self) -> str:
+            return "ab"
+
+        def extract_tables(self) -> list[list[list[str]]]:
+            return [[["cell"]]]
+
+    class PdfStub:
+        metadata: dict[str, object] = {}
+        pages = [PageStub()]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(pdf_extractor_module.pdfplumber, "open", lambda _path: PdfStub())
+
+    extracted = PdfPlumberStatementExtractor(
+        StatementExtractionLimits(pdf_max_characters=2, pdf_max_tables=1, pdf_max_cells=1)
+    ).extract(Path("boundary.pdf"))
+
+    assert extracted.text_by_page == ["ab"]
+
+
+@pytest.mark.parametrize("extra_cell", [None, "over"])
+def test_pdf_extractor_counts_only_non_none_cells(
+    monkeypatch: pytest.MonkeyPatch,
+    extra_cell: str | None,
+) -> None:
+    class PageStub:
+        def extract_text(self) -> str:
+            return ""
+
+        def extract_tables(self) -> list[list[list[str | None]]]:
+            return [[["first", None], [None, extra_cell]]]
+
+    class PdfStub:
+        metadata: dict[str, object] = {}
+        pages = [PageStub()]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(pdf_extractor_module.pdfplumber, "open", lambda _path: PdfStub())
+    extractor = PdfPlumberStatementExtractor(StatementExtractionLimits(pdf_max_cells=1))
+
+    if extra_cell is None:
+        assert extractor.extract(Path("sparse.pdf")).tables_by_page[0].tables
+    else:
+        with pytest.raises(StatementResourceLimitError, match="cell"):
+            extractor.extract(Path("sparse.pdf"))
 
 
 def test_openpyxl_extractor_preserves_sheet_tables(tmp_path: Path) -> None:
@@ -712,10 +795,391 @@ async def test_resource_limit_failure_preserves_document_and_failed_attempt() ->
 
     assert attempt.finished_at is not None
     assert documents.error_code == "StatementResourceLimitError"
-    assert documents.error_message == (
-        "StatementResourceLimitError: XLSX exceeds configured limits."
-    )
+    assert documents.error_message == "StatementResourceLimitError"
     assert document.status is UploadedDocumentStatus.FAILED_TO_PARSE
+
+
+async def test_completion_failure_rolls_back_then_commits_terminal_attempt_with_raw() -> None:
+    workspace_id = uuid4()
+    document = SimpleNamespace(id=uuid4(), status=UploadedDocumentStatus.PARSING)
+    attempt = SimpleNamespace(id=uuid4(), status=ParseAttemptStatus.RUNNING, finished_at=None)
+
+    class Documents:
+        async def get_document_for_workspace(self, requested_workspace_id, document_id):
+            assert (requested_workspace_id, document_id) == (workspace_id, document.id)
+            return document
+
+        async def get_parse_attempt_for_workspace(
+            self, requested_workspace_id, document_id, attempt_id
+        ):
+            assert (requested_workspace_id, document_id, attempt_id) == (
+                workspace_id,
+                document.id,
+                attempt.id,
+            )
+            return attempt
+
+        async def store_attempt_extracted_raw(self, target, **payload):
+            target.raw_payload = payload
+
+        async def mark_attempt_failed(self, target, *, error_code, error_message):
+            target.status = ParseAttemptStatus.FAILED
+            target.error_code = error_code
+            target.error_message = error_message
+
+        async def mark_document_status(self, target, status):
+            target.status = status
+
+    session = SimpleNamespace(rollback=AsyncMock(), commit=AsyncMock())
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.session = cast(Any, session)
+    use_case.documents = cast(Any, Documents())
+    extracted = ExtractedStatement(
+        text_by_page=["bounded raw"],
+        tables_by_page=[ExtractedStatementPageTables(page_number=1, tables=[])],
+        metadata={"source_format": "pdf"},
+    )
+
+    await use_case._commit_terminal_failure(
+        workspace_id=workspace_id,
+        document_id=document.id,
+        attempt_id=attempt.id,
+        error=RuntimeError("private /path/source.pdf contents"),
+        extracted=extracted,
+    )
+
+    session.rollback.assert_awaited_once()
+    session.commit.assert_awaited_once()
+    assert attempt.status is ParseAttemptStatus.FAILED
+    assert document.status is UploadedDocumentStatus.FAILED_TO_PARSE
+    assert attempt.raw_payload["raw_text_by_page_json"] == ["bounded raw"]
+    assert attempt.error_message == "RuntimeError"
+    assert "/path" not in attempt.error_message
+
+
+@pytest.mark.parametrize(
+    ("stage", "failure", "expected_error"),
+    [
+        pytest.param("extractor", ValueError("extractor failed"), None, id="extractor"),
+        pytest.param(
+            "completion", RuntimeError("analyzer failed"), UploadProcessingError, id="analyzer"
+        ),
+        pytest.param(
+            "completion", LookupError("mapping failed"), UploadProcessingError, id="mapping"
+        ),
+        pytest.param(
+            "extractor",
+            RuntimeError("RAW_MARKER /private/statement.pdf"),
+            UploadProcessingError,
+            id="unexpected",
+        ),
+        pytest.param(
+            "extractor", asyncio.CancelledError(), asyncio.CancelledError, id="cancellation"
+        ),
+    ],
+)
+async def test_whole_upload_failure_commits_terminal_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stage: str,
+    failure: BaseException,
+    expected_error: type[BaseException] | None,
+) -> None:
+    use_case, context, document, attempt, session = _whole_upload_harness(
+        monkeypatch,
+        tmp_path,
+        extract_error=failure if stage == "extractor" else None,
+        completion_error=failure if stage == "completion" else None,
+    )
+
+    if expected_error is None:
+        result = await use_case.upload_statement(
+            context=context,
+            upload_file=UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"),
+            account_id=document.account_id,
+        )
+        assert result.document_status is UploadedDocumentStatus.FAILED_TO_PARSE
+    else:
+        with pytest.raises(expected_error) as raised:
+            await use_case.upload_statement(
+                context=context,
+                upload_file=UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"),
+                account_id=document.account_id,
+            )
+        if expected_error is UploadProcessingError:
+            rendered = "".join(traceback.format_exception(raised.value))
+            assert "RAW_MARKER" not in rendered
+            assert "/private/statement.pdf" not in rendered
+
+    assert attempt.status is ParseAttemptStatus.FAILED
+    assert document.status is UploadedDocumentStatus.FAILED_TO_PARSE
+    assert session.commit.await_count == 3
+    session.rollback.assert_awaited_once()
+
+
+async def test_cancelled_upload_bounds_hung_terminal_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    use_case, context, document, _attempt, session = _whole_upload_harness(
+        monkeypatch,
+        tmp_path,
+        extract_error=asyncio.CancelledError(),
+    )
+
+    async def hang_rollback() -> None:
+        await asyncio.Event().wait()
+
+    session.rollback = AsyncMock(side_effect=hang_rollback)
+    monkeypatch.setattr(upload_module, "FAILURE_CLEANUP_TIMEOUT_SECONDS", 0.01)
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(
+            use_case.upload_statement(
+                context=context,
+                upload_file=UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"),
+                account_id=document.account_id,
+            ),
+            timeout=0.2,
+        )
+
+
+@pytest.mark.parametrize(
+    ("commit_error", "expected_error"),
+    [
+        pytest.param(asyncio.CancelledError(), asyncio.CancelledError, id="cancellation"),
+        pytest.param(RuntimeError("commit result unknown"), UploadProcessingError, id="error"),
+    ],
+)
+async def test_attempt_commit_boundary_recovers_persisted_running_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    commit_error: BaseException,
+    expected_error: type[BaseException],
+) -> None:
+    use_case, context, document, attempt, session = _whole_upload_harness(
+        monkeypatch,
+        tmp_path,
+    )
+    document.status = UploadedDocumentStatus.UPLOADED
+    commit_calls = 0
+
+    async def commit_with_unknown_second_result() -> None:
+        nonlocal commit_calls
+        commit_calls += 1
+        if commit_calls == 2:
+            raise commit_error
+
+    session.commit = AsyncMock(side_effect=commit_with_unknown_second_result)
+
+    with pytest.raises(expected_error):
+        await use_case.upload_statement(
+            context=context,
+            upload_file=UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"),
+            account_id=document.account_id,
+        )
+
+    assert commit_calls == 3
+    assert attempt.status is ParseAttemptStatus.FAILED
+    assert document.status is UploadedDocumentStatus.FAILED_TO_PARSE
+    session.rollback.assert_awaited_once()
+
+
+async def test_attempt_commit_boundary_does_not_create_missing_failure() -> None:
+    session = SimpleNamespace(rollback=AsyncMock(), commit=AsyncMock())
+    documents = SimpleNamespace(
+        get_parse_attempt_for_workspace=AsyncMock(return_value=None),
+        get_document_for_workspace=AsyncMock(),
+    )
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.session = cast(Any, session)
+    use_case.documents = cast(Any, documents)
+
+    await use_case._commit_terminal_failure_if_persisted(
+        workspace_id=uuid4(),
+        document_id=uuid4(),
+        attempt_id=uuid4(),
+        error=RuntimeError("commit failed before persistence"),
+    )
+
+    session.rollback.assert_awaited_once()
+    session.commit.assert_not_awaited()
+    documents.get_document_for_workspace.assert_not_awaited()
+
+
+async def test_unexpected_storage_failure_is_sanitized_and_removes_partial_file(
+    tmp_path: Path,
+) -> None:
+    marker = "STORAGE_PRIVATE_MARKER /private/source.pdf"
+
+    class FailingUploadStream(BytesIO):
+        def read(self, size: int | None = -1, /) -> bytes:
+            if self.tell() == len(self.getvalue()):
+                raise RuntimeError(marker)
+            return super().read(size)
+
+    workspace_id = uuid4()
+    account_id = uuid4()
+    session = SimpleNamespace(rollback=AsyncMock(), commit=AsyncMock())
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.session = cast(Any, session)
+    use_case.settings = SimpleNamespace(statement_upload_max_bytes=1024)
+    use_case.accounts = SimpleNamespace(
+        get_import_account=AsyncMock(return_value=SimpleNamespace(id=account_id, currency="RUB"))
+    )
+    use_case.storage = UploadStorage(tmp_path)
+    context = SimpleNamespace(workspace=SimpleNamespace(id=workspace_id))
+
+    with pytest.raises(UploadProcessingError) as exc_info:
+        await use_case.upload_statement(
+            context=context,
+            upload_file=UploadFile(
+                file=FailingUploadStream(b"%PDF-1.4 partial"),
+                filename="statement.pdf",
+            ),
+            account_id=account_id,
+        )
+
+    rendered = "".join(traceback.format_exception(exc_info.value))
+    assert exc_info.value.__cause__ is None
+    assert marker not in rendered
+    assert "/private/source.pdf" not in rendered
+    assert list(tmp_path.rglob("source.pdf")) == []  # noqa: ASYNC240
+    session.rollback.assert_awaited_once()
+
+
+async def test_unexpected_initial_document_failure_is_sanitized_and_cleans_source(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    marker = "INITIAL_DB_PRIVATE_MARKER sql-params"
+    use_case, context, document, _attempt, session = _whole_upload_harness(
+        monkeypatch,
+        tmp_path,
+    )
+    cast(Any, use_case)._create_document = AsyncMock(side_effect=RuntimeError(marker))
+
+    with pytest.raises(UploadProcessingError) as exc_info:
+        await use_case.upload_statement(
+            context=context,
+            upload_file=UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"),
+            account_id=document.account_id,
+        )
+
+    rendered = "".join(traceback.format_exception(exc_info.value))
+    assert exc_info.value.__cause__ is None
+    assert marker not in rendered
+    session.rollback.assert_awaited_once()
+    cast(Any, use_case.storage.delete_stored_upload).assert_awaited_once()
+
+
+async def test_initial_commit_reconciliation_is_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def hang_reconciliation(**_kwargs: object) -> None:
+        await asyncio.Event().wait()
+
+    use_case = object.__new__(StatementUploadUseCase)
+    cast(Any, use_case)._reconcile_initial_commit = hang_reconciliation
+    monkeypatch.setattr(upload_module, "FAILURE_CLEANUP_TIMEOUT_SECONDS", 0.01)
+
+    with pytest.raises(UploadProcessingError):
+        await asyncio.wait_for(
+            use_case._reconcile_initial_commit_bounded(
+                workspace_id=uuid4(),
+                document_id=uuid4(),
+                attempt_id=uuid4(),
+                stored_upload=StoredUpload(
+                    storage_key="workspace/document/source.pdf",
+                    path=Path("source.pdf"),
+                    sha256_hash="a" * 64,
+                    file_size_bytes=8,
+                ),
+                error=RuntimeError("ambiguous commit"),
+            ),
+            timeout=0.2,
+        )
+
+
+def _whole_upload_harness(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    extract_error: BaseException | None = None,
+    completion_error: BaseException | None = None,
+) -> tuple[StatementUploadUseCase, Any, Any, Any, Any]:
+    workspace_id = uuid4()
+    account_id = uuid4()
+    document = SimpleNamespace(
+        id=uuid4(),
+        account_id=account_id,
+        status=UploadedDocumentStatus.PARSING,
+        original_filename="statement.pdf",
+    )
+    attempt = SimpleNamespace(id=uuid4(), status=ParseAttemptStatus.RUNNING, finished_at=None)
+
+    class Documents:
+        async def get_document_for_workspace(self, _workspace_id, _document_id):
+            return document
+
+        async def get_parse_attempt_for_workspace(self, *_args):
+            return attempt
+
+        async def store_attempt_extracted_raw(self, target, **payload):
+            target.raw_payload = payload
+
+        async def mark_attempt_failed(self, target, *, error_code, error_message):
+            target.status = ParseAttemptStatus.FAILED
+            target.error_code = error_code
+            target.error_message = error_message
+
+        async def mark_document_status(self, target, status):
+            target.status = status
+
+    async def extract(_path: Path) -> ExtractedStatement:
+        if extract_error is not None:
+            raise extract_error
+        return ExtractedStatement(text_by_page=["bounded"], tables_by_page=[])
+
+    async def complete(*_args: object, **_kwargs: object) -> None:
+        if completion_error is not None:
+            raise completion_error
+
+    async def create_attempt(*_args: object, **_kwargs: object):
+        return attempt
+
+    monkeypatch.setattr(upload_module, "create_running_parse_attempt", create_attempt)
+    session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.session = cast(Any, session)
+    use_case.settings = SimpleNamespace(statement_upload_max_bytes=1024)
+    use_case.accounts = SimpleNamespace(
+        get_import_account=AsyncMock(return_value=SimpleNamespace(id=account_id, currency="RUB"))
+    )
+    use_case.documents = cast(Any, Documents())
+    use_case.storage = SimpleNamespace(
+        save_upload=AsyncMock(
+            return_value=StoredUpload(
+                storage_key=f"{workspace_id}/{document.id}/source.pdf",
+                path=tmp_path / "source.pdf",
+                sha256_hash="a" * 64,
+                file_size_bytes=8,
+            )
+        ),
+        delete_stored_upload=AsyncMock(),
+    )
+    use_case.activity = SimpleNamespace(document_uploaded=AsyncMock())
+    use_case.workspaces = SimpleNamespace(
+        lock_for_update=AsyncMock(return_value=SimpleNamespace(is_active=True))
+    )
+    use_case.parse_completion = SimpleNamespace(complete_successful_attempt=complete)
+    use_case._create_document = AsyncMock(return_value=document)
+    use_case._extract_statement = extract
+    context = SimpleNamespace(
+        workspace=SimpleNamespace(id=workspace_id),
+        user=SimpleNamespace(id=uuid4()),
+    )
+    return use_case, context, document, attempt, session
 
 
 def test_statement_extractor_resolver_selects_extractor_by_extension(tmp_path: Path) -> None:
@@ -736,6 +1200,67 @@ def test_reviewable_raw_transaction_statuses_include_normalized_rows() -> None:
     assert RawTransactionStatus.CONFIRMED not in REVIEW_QUEUE_STATUSES
     assert RawTransactionStatus.IGNORED not in REVIEW_QUEUE_STATUSES
     assert RawTransactionStatus.DUPLICATE not in REVIEW_QUEUE_STATUSES
+
+
+def test_raw_transaction_payload_keeps_provenance_without_full_source_rows() -> None:
+    draft = RawTransactionDraft(
+        row_index=0,
+        status=RawTransactionStatus.NORMALIZED,
+        raw_payload={
+            "bank_code": "test",
+            "source_row_id": "stable:1",
+            "cells": ["full", "private", "row"],
+            "raw_row": "full private source line",
+        },
+        operation_date_raw="2026-08-26",
+        posting_date_raw=None,
+        description_raw="Description retained for review",
+        amount_raw="10.00",
+        currency_raw="RUB",
+        balance_after_raw=None,
+        account_hint_raw=None,
+        account_id=uuid4(),
+        operation_date=date(2026, 8, 26),
+        posting_date=date(2026, 8, 26),
+        description_normalized="Description retained for review",
+        amount=Decimal("10.00"),
+        currency="RUB",
+        balance_after=None,
+        dedupe_hash="hash",
+        confidence_score=Decimal("1"),
+        normalization_error=None,
+    )
+
+    raw = RawTransactionMapper.from_draft(
+        draft,
+        workspace_id=uuid4(),
+        uploaded_document_id=uuid4(),
+        parse_attempt_id=uuid4(),
+    )
+
+    assert raw.raw_payload == {"bank_code": "test", "source_row_id": "stable:1"}
+    assert raw.description_raw == "Description retained for review"
+
+
+async def test_import_account_masks_archived_non_debt_account() -> None:
+    workspace_id = uuid4()
+    account_id = uuid4()
+    resolver = object.__new__(LedgerReferenceResolver)
+    resolver.accounts = cast(
+        Any,
+        SimpleNamespace(
+            get_for_workspace=AsyncMock(
+                return_value=SimpleNamespace(
+                    id=account_id,
+                    type=AccountType.CASH,
+                    is_active=False,
+                )
+            )
+        ),
+    )
+
+    with pytest.raises(LedgerPostingError, match="archived"):
+        await resolver.get_import_account(workspace_id, account_id)
 
 
 async def test_duplicate_candidate_query_is_workspace_and_document_scoped() -> None:

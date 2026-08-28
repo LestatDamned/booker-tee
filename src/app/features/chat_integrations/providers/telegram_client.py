@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any
+from tempfile import SpooledTemporaryFile
+from typing import Any, BinaryIO, cast
 
 import httpx
 
@@ -19,6 +20,8 @@ from app.features.chat_integrations.schemas import (
 )
 
 TELEGRAM_API_BASE_URL = "https://api.telegram.org"
+TELEGRAM_DOWNLOAD_SPOOL_MAX_BYTES = 1024 * 1024
+DEFAULT_TELEGRAM_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024
 
 
 class TelegramBotClientError(RuntimeError):
@@ -30,6 +33,7 @@ class TelegramBotClient:
     bot_token: str
     http_client: httpx.AsyncClient
     api_base_url: str = TELEGRAM_API_BASE_URL
+    download_max_bytes: int = DEFAULT_TELEGRAM_DOWNLOAD_MAX_BYTES
 
     async def get_updates(
         self,
@@ -98,13 +102,31 @@ class TelegramBotClient:
 
     async def download_document(self, document: ChatDocument) -> ChatDownloadedFile:
         file_path = await self.get_file_path(document.file_id)
-        response = await self.http_client.get(self._file_url(file_path))
-        response.raise_for_status()
-        return ChatDownloadedFile(
-            filename=document.file_name or "statement",
-            content_type=document.mime_type,
-            file_bytes=response.content,
-        )
+        spool = SpooledTemporaryFile(max_size=TELEGRAM_DOWNLOAD_SPOOL_MAX_BYTES, mode="w+b")
+        size = 0
+        try:
+            async with self.http_client.stream("GET", self._file_url(file_path)) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > self.download_max_bytes:
+                        raise TelegramBotClientError(
+                            "Telegram statement file exceeds the upload size limit."
+                        )
+                    spool.write(chunk)
+            spool.seek(0)
+            return ChatDownloadedFile(
+                filename=document.file_name or "statement",
+                content_type=document.mime_type,
+                file=cast(BinaryIO, spool),
+                file_size=size,
+            )
+        except httpx.HTTPError:
+            spool.close()
+            raise TelegramBotClientError("Telegram file download failed.") from None
+        except BaseException:
+            spool.close()
+            raise
 
     async def get_file_path(self, file_id: str) -> str:
         response = await self._post_json("getFile", {"file_id": file_id})
@@ -118,7 +140,10 @@ class TelegramBotClient:
         return file_path
 
     async def _post_json(self, method: str, payload: dict[str, object]) -> dict[str, Any]:
-        response = await self.http_client.post(self._method_url(method), json=payload)
+        try:
+            response = await self.http_client.post(self._method_url(method), json=payload)
+        except httpx.HTTPError:
+            raise TelegramBotClientError(f"Telegram method failed: {method}.") from None
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError:
