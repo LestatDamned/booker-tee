@@ -1,6 +1,5 @@
 import asyncio
 import signal
-from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -45,18 +44,45 @@ def client(
     )
 
 
+def write_pdf(path: Path) -> Path:
+    content = b"BT /F1 12 Tf 72 720 Td (Statement) Tj ET"
+    objects = (
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length " + str(len(content)).encode() + b" >>\nstream\n" + content + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    )
+    pdf = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(pdf))
+        pdf.extend(f"{number} 0 obj\n".encode() + body + b"\nendobj\n")
+    xref = len(pdf)
+    pdf.extend(f"xref\n0 {len(offsets)}\n0000000000 65535 f \n".encode())
+    pdf.extend(b"".join(f"{offset:010d} 00000 n \n".encode() for offset in offsets[1:]))
+    pdf.extend(
+        f"trailer\n<< /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    )
+    path.write_bytes(pdf)
+    return path
+
+
+def write_xlsx(path: Path) -> Path:
+    workbook = Workbook()
+    workbook.active.append(["Date", "Amount"])
+    workbook.active.append(["2026-08-26", "10"])
+    workbook.save(path)
+    workbook.close()
+    return path
+
+
 async def test_server_ping_busy_and_xlsx_success(tmp_path: Path) -> None:
     socket_path = tmp_path / "parser.sock"
     sidecar = ParserSidecarServer(socket_path)
     server = await asyncio.start_unix_server(sidecar._handle, path=socket_path)
-    workbook_data = BytesIO()
-    workbook = Workbook()
-    workbook.active.append(["Date", "Amount"])
-    workbook.active.append(["2026-08-26", "10"])
-    workbook.save(workbook_data)
-    workbook.close()
-    source = tmp_path / "statement.xlsx"
-    source.write_bytes(workbook_data.getvalue())
+    source = write_xlsx(tmp_path / "statement.xlsx")
 
     async with server:
         await client(socket_path).ping()
@@ -137,22 +163,22 @@ async def test_sidecar_extracts_pdf_successfully(tmp_path: Path) -> None:
     )
 
     async with server:
-        extracted = await client(socket_path).extract(Path("tests/fixtures/expobank_statement.pdf"))
+        extracted = await client(socket_path).extract(write_pdf(tmp_path / "statement.pdf"))
 
     assert extracted.metadata["source_format"] == "pdf"
     assert extracted.text_by_page
 
 
 @pytest.mark.parametrize(
-    ("source_name", "limits"),
+    ("source_format", "limits"),
     [
         pytest.param(
-            "tests/fixtures/expobank_statement.pdf",
+            "pdf",
             StatementExtractionLimits(pdf_max_characters=1),
             id="pdf",
         ),
         pytest.param(
-            "tests/fixtures/alfa_bank_card_statement.xlsx",
+            "xlsx",
             StatementExtractionLimits(xlsx_max_cells=1),
             id="xlsx",
         ),
@@ -160,7 +186,7 @@ async def test_sidecar_extracts_pdf_successfully(tmp_path: Path) -> None:
 )
 async def test_sidecar_maps_real_extractor_limits_to_resource_limit(
     tmp_path: Path,
-    source_name: str,
+    source_format: str,
     limits: StatementExtractionLimits,
 ) -> None:
     socket_path = tmp_path / "parser.sock"
@@ -170,8 +196,13 @@ async def test_sidecar_maps_real_extractor_limits_to_resource_limit(
     )
 
     async with server:
+        source = (
+            write_pdf(tmp_path / "statement.pdf")
+            if source_format == "pdf"
+            else write_xlsx(tmp_path / "statement.xlsx")
+        )
         with pytest.raises(ParserResourceLimitError):
-            await client(socket_path, limits=limits).extract(Path(source_name))
+            await client(socket_path, limits=limits).extract(source)
 
 
 async def test_sidecar_maps_worker_response_overflow_to_resource_limit(tmp_path: Path) -> None:
@@ -184,7 +215,7 @@ async def test_sidecar_maps_worker_response_overflow_to_resource_limit(tmp_path:
     async with server:
         with pytest.raises(ParserResourceLimitError):
             await client(socket_path, response_max_bytes=64).extract(
-                Path("tests/fixtures/alfa_bank_card_statement.xlsx")
+                write_xlsx(tmp_path / "statement.xlsx")
             )
 
 
@@ -200,7 +231,7 @@ async def test_sidecar_maps_real_worker_memory_exhaustion_to_resource_limit(
     async with server:
         with pytest.raises(ParserResourceLimitError):
             await client(socket_path, memory_bytes=32 * 1024 * 1024).extract(
-                Path("tests/fixtures/alfa_bank_card_statement.xlsx")
+                write_xlsx(tmp_path / "statement.xlsx")
             )
 
 
