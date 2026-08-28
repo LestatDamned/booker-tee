@@ -27,3 +27,10 @@ def test_production_app_container_is_hardened() -> None:
     assert "cap_drop:\n      - ALL" in app_service
     assert "security_opt:\n      - no-new-privileges:true" in app_service
     assert "booker_tee_uploads:/app/var/uploads" in app_service
+
+
+def test_production_assets_cannot_be_transformed_by_proxies() -> None:
+    nginx = (PROJECT_ROOT / "docker/nginx/default.conf.template").read_text()
+    assets = nginx.split("location /assets/ {", 1)[1].split("}", 1)[0]
+
+    assert 'Cache-Control "public, max-age=31536000, immutable, no-transform"' in assets

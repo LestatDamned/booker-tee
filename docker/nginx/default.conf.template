@@ -101,6 +101,11 @@ server {
         proxy_pass http://booker_tee_app;
     }
 
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable, no-transform" always;
+        proxy_pass http://booker_tee_app;
+    }
+
     location / {
         proxy_pass http://booker_tee_app;
     }
