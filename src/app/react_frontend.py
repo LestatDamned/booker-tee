@@ -76,7 +76,7 @@ def install_react_frontend(
         return FileResponse(
             index_path,
             headers={
-                "Cache-Control": "no-store",
+                "Cache-Control": "no-store, no-transform",
                 "Referrer-Policy": "no-referrer",
                 CONTENT_SECURITY_POLICY: csp or "default-src 'none'",
             },

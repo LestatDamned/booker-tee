@@ -31,7 +31,7 @@ def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> No
     assert root_response.status_code == 200
     assert nested_response.status_code == 200
     assert "React shell" in nested_response.text
-    assert nested_response.headers["Cache-Control"] == "no-store"
+    assert nested_response.headers["Cache-Control"] == "no-store, no-transform"
     assert nested_response.headers["Referrer-Policy"] == "no-referrer"
     expected_hash = base64.b64encode(hashlib.sha256(inline_script.encode()).digest()).decode()
     unexpected_hash = base64.b64encode(hashlib.sha256(b"alert('injected')").digest()).decode()
