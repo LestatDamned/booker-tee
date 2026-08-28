@@ -71,6 +71,11 @@ class TelegramWebhookRegistrar:
         await client.set_webhook(
             url=webhook_url,
             secret_token=TelegramWebhookSettingsReader.require_webhook_secret(self.settings),
+            ip_address=(
+                str(self.settings.telegram_webhook_ip_address)
+                if self.settings.telegram_webhook_ip_address
+                else None
+            ),
             drop_pending_updates=drop_pending_updates,
         )
         return webhook_url

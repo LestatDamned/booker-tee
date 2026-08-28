@@ -1,4 +1,5 @@
 import re
+from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -117,6 +118,10 @@ class Settings(BaseSettings):
     telegram_webhook_secret: str | None = Field(
         default=None,
         validation_alias="BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET",
+    )
+    telegram_webhook_ip_address: IPv4Address | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_TELEGRAM_WEBHOOK_IP_ADDRESS",
     )
     telegram_polling_timeout_seconds: int = Field(
         default=30,
@@ -247,6 +252,7 @@ class Settings(BaseSettings):
     @field_validator(
         "telegram_bot_token",
         "telegram_webhook_secret",
+        "telegram_webhook_ip_address",
         "telegram_proxy_url",
         "public_base_url",
         "domain",

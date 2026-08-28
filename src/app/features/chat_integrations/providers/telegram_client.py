@@ -90,17 +90,21 @@ class TelegramBotClient:
         *,
         url: str,
         secret_token: str,
+        ip_address: str | None = None,
         allowed_updates: tuple[str, ...] = TELEGRAM_ALLOWED_UPDATES,
         drop_pending_updates: bool = False,
     ) -> None:
+        payload: dict[str, object] = {
+            "url": url,
+            "secret_token": secret_token,
+            "allowed_updates": list(allowed_updates),
+            "drop_pending_updates": drop_pending_updates,
+        }
+        if ip_address is not None:
+            payload["ip_address"] = ip_address
         await self._post_json(
             "setWebhook",
-            {
-                "url": url,
-                "secret_token": secret_token,
-                "allowed_updates": list(allowed_updates),
-                "drop_pending_updates": drop_pending_updates,
-            },
+            payload,
         )
 
     async def delete_webhook(self, *, drop_pending_updates: bool = False) -> None:

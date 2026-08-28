@@ -110,12 +110,15 @@ async def test_telegram_webhook_registrar_sets_public_webhook() -> None:
         assert request.url.path == "/bottest-token/setWebhook"
         return httpx.Response(200, json={"ok": True, "result": True})
 
-    settings = Settings(
-        chat_integrations_enabled=True,
-        telegram_mode="webhook",
-        telegram_bot_token="test-token",
-        telegram_webhook_secret="secret",
-        public_base_url="https://booker.example",
+    settings = Settings.model_validate(
+        {
+            "chat_integrations_enabled": True,
+            "telegram_mode": "webhook",
+            "telegram_bot_token": "test-token",
+            "telegram_webhook_secret": "secret",
+            "telegram_webhook_ip_address": "104.21.9.234",
+            "public_base_url": "https://booker.example",
+        }
     )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
@@ -129,6 +132,7 @@ async def test_telegram_webhook_registrar_sets_public_webhook() -> None:
         {
             "url": webhook_url,
             "secret_token": "secret",
+            "ip_address": "104.21.9.234",
             "allowed_updates": ["message", "callback_query"],
             "drop_pending_updates": True,
         }

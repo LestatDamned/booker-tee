@@ -57,7 +57,9 @@ uv run python -m app.features.chat_integrations.polling
 ```
 
 Production webhook требует explicit public base URL, bot token, webhook secret
-и secure application settings.
+и secure application settings. Если Telegram не может разрешить или достичь
+адреса webhook напрямую, `BOOKER_TEE_TELEGRAM_WEBHOOK_IP_ADDRESS` закрепляет
+проверенный edge IP без изменения публичного URL.
 
 Совместимый случайный secret можно сгенерировать локально:
 
