@@ -2,10 +2,17 @@ name: Release Gate
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the verified images to production
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   actions: read
   contents: read
+  packages: write
 
 concurrency:
   group: release-gate-production
@@ -30,7 +37,7 @@ jobs:
           test "$successful_runs" -gt 0
 
   production:
-    name: Production images and smoke
+    name: Production images, smoke and publish
     needs: verify-ci
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -38,3 +45,51 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Run isolated production gate
         run: ./scripts/release-gate.sh
+      - name: Publish immutable images
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          app_image="ghcr.io/$owner/booker-tee:$GITHUB_SHA"
+          nginx_image="ghcr.io/$owner/booker-tee-nginx:$GITHUB_SHA"
+          echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker tag "booker-tee:release-gate-$GITHUB_SHA" "$app_image"
+          docker tag "booker-tee-nginx:release-gate-$GITHUB_SHA" "$nginx_image"
+          docker push "$app_image"
+          docker push "$nginx_image"
+
+  deploy:
+    name: Deploy production
+    if: ${{ inputs.deploy }}
+    needs: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Deploy verified commit over SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          : "${VPS_HOST:?Set VPS_HOST in the production environment}"
+          : "${VPS_KNOWN_HOSTS:?Set VPS_KNOWN_HOSTS in the production environment}"
+          : "${VPS_PORT:?Set VPS_PORT in the production environment}"
+          : "${VPS_SSH_PRIVATE_KEY:?Set VPS_SSH_PRIVATE_KEY in the production environment}"
+          : "${VPS_USER:?Set VPS_USER in the production environment}"
+          case "$VPS_PORT" in *[!0-9]* | "") exit 1 ;; esac
+          case "$VPS_HOST$VPS_USER" in *[!A-Za-z0-9._@-]*) exit 1 ;; esac
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" >"$HOME/.ssh/known_hosts"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" >"$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/known_hosts" "$HOME/.ssh/deploy_key"
+
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          app_image="ghcr.io/$owner/booker-tee:$GITHUB_SHA"
+          nginx_image="ghcr.io/$owner/booker-tee-nginx:$GITHUB_SHA"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -i "$HOME/.ssh/deploy_key" -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "cd /opt/booker-tee && git fetch --quiet origin main && git checkout --detach '$GITHUB_SHA' && BOOKER_TEE_ENV_FILE=/etc/booker-tee/production.env ./scripts/deploy-production.sh '$GITHUB_SHA' '$app_image' '$nginx_image'"

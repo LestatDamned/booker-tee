@@ -66,6 +66,12 @@ backup не входят по текущей retention policy.
 
 ## Release
 
+GitHub Actions workflow `Release Gate` сначала публикует app/nginx images с
+тегом commit SHA. Опция `deploy` запускает production deployment только после
+успешного gate; VPS получает application secrets только из локального env file.
+GitHub environment `production` хранит только `VPS_HOST`, `VPS_PORT`,
+`VPS_USER`, `VPS_KNOWN_HOSTS` и `VPS_SSH_PRIVATE_KEY`.
+
 ```text
 backup
   -> build immutable app/nginx images
