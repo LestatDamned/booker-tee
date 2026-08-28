@@ -52,6 +52,7 @@ Local polling:
 BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED=true
 BOOKER_TEE_TELEGRAM_MODE=polling
 BOOKER_TEE_TELEGRAM_BOT_TOKEN=<test token>
+BOOKER_TEE_TELEGRAM_PROXY_URL=<optional HTTP proxy URL>
 uv run python -m app.features.chat_integrations.polling
 ```
 

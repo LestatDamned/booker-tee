@@ -13,6 +13,7 @@ from app.features.chat_integrations.providers.telegram import TelegramUpdateNorm
 from app.features.chat_integrations.providers.telegram_client import (
     TelegramBotClient,
     TelegramOutboundMessageSender,
+    create_telegram_http_client,
 )
 from app.features.chat_integrations.schemas import InboundChatEvent, OutboundChatMessage
 from app.features.chat_integrations.service import ChatEventService
@@ -174,7 +175,7 @@ class TelegramWebhookSettingsReader:
 async def register_telegram_webhook_from_settings() -> str:
     settings = get_settings()
     settings.validate_for_runtime()
-    async with httpx.AsyncClient(timeout=settings.telegram_polling_timeout_seconds + 10) as client:
+    async with create_telegram_http_client(settings) as client:
         return await TelegramWebhookRegistrar(
             settings=settings,
             http_client=client,

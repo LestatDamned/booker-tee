@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AnyHttpUrl, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 LOCAL_AUTH_SECRET = "change-this-local-auth-secret"
@@ -121,6 +121,10 @@ class Settings(BaseSettings):
     telegram_polling_timeout_seconds: int = Field(
         default=30,
         validation_alias="BOOKER_TEE_TELEGRAM_POLLING_TIMEOUT_SECONDS",
+    )
+    telegram_proxy_url: AnyHttpUrl | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_TELEGRAM_PROXY_URL",
     )
     public_base_url: str | None = Field(
         default=None,
@@ -243,6 +247,7 @@ class Settings(BaseSettings):
     @field_validator(
         "telegram_bot_token",
         "telegram_webhook_secret",
+        "telegram_proxy_url",
         "public_base_url",
         "domain",
         "identity_email_from",

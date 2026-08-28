@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 import app.features.chat_integrations.providers.telegram_client as telegram_client_module
+from app.core.settings import Settings
 from app.features.chat_integrations.providers.fake import FakeChatProvider
 from app.features.chat_integrations.providers.telegram import TelegramUpdateNormalizer
 from app.features.chat_integrations.providers.telegram_client import (
@@ -15,6 +16,7 @@ from app.features.chat_integrations.providers.telegram_client import (
     TelegramEditMessageTextPayloadBuilder,
     TelegramOutboundMessageSender,
     TelegramSendMessagePayloadBuilder,
+    create_telegram_http_client,
 )
 from app.features.chat_integrations.schemas import (
     ChatConversation,
@@ -65,6 +67,27 @@ def test_telegram_normalizer_reads_text_message() -> None:
     assert event.conversation is not None
     assert event.conversation.external_chat_id == "42"
     assert event.conversation.conversation_type == ChatConversationType.PRIVATE
+
+
+def test_telegram_http_client_uses_configured_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options: dict[str, object] = {}
+
+    def fake_async_client(**kwargs: object) -> object:
+        options.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(telegram_client_module.httpx, "AsyncClient", fake_async_client)
+
+    create_telegram_http_client(
+        Settings.model_validate({"telegram_proxy_url": "http://booker-tee-xray:1080"})
+    )
+
+    assert options == {
+        "timeout": 40,
+        "proxy": "http://booker-tee-xray:1080/",
+    }
 
 
 def test_telegram_normalizer_preserves_document_metadata() -> None:

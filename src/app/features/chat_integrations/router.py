@@ -1,12 +1,14 @@
 from typing import Annotated
 
-import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
+from app.features.chat_integrations.providers.telegram_client import (
+    create_telegram_http_client,
+)
 from app.features.chat_integrations.webhook import (
     TELEGRAM_WEBHOOK_SECRET_HEADER,
     TelegramWebhookSecretPolicy,
@@ -30,7 +32,7 @@ async def telegram_webhook(
         settings=settings,
         received_secret=telegram_secret,
     )
-    async with httpx.AsyncClient(timeout=settings.telegram_polling_timeout_seconds + 10) as client:
+    async with create_telegram_http_client(settings) as client:
         await TelegramWebhookUpdateReceiver(
             session=session,
             settings=settings,

@@ -10,6 +10,7 @@ from app.features.chat_integrations.providers.telegram import TelegramUpdateNorm
 from app.features.chat_integrations.providers.telegram_client import (
     TelegramBotClient,
     TelegramOutboundMessageSender,
+    create_telegram_http_client,
 )
 from app.features.chat_integrations.schemas import InboundChatEvent, OutboundChatMessage
 from app.features.chat_integrations.service import ChatEventService
@@ -111,7 +112,7 @@ async def run_telegram_polling_from_settings() -> None:
     from app.db.session import session_factory
 
     settings = get_settings()
-    async with httpx.AsyncClient(timeout=settings.telegram_polling_timeout_seconds + 10) as client:
+    async with create_telegram_http_client(settings) as client:
         worker = TelegramPollingWorkerFactory.create_from_settings(
             settings,
             client,

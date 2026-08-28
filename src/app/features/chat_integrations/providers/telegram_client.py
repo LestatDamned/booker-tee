@@ -4,6 +4,7 @@ from typing import Any, BinaryIO, cast
 
 import httpx
 
+from app.core.settings import Settings
 from app.features.chat_integrations.providers.telegram import (
     TELEGRAM_ALLOWED_UPDATES,
     TelegramCallbackDataPolicy,
@@ -22,6 +23,14 @@ from app.features.chat_integrations.schemas import (
 TELEGRAM_API_BASE_URL = "https://api.telegram.org"
 TELEGRAM_DOWNLOAD_SPOOL_MAX_BYTES = 1024 * 1024
 DEFAULT_TELEGRAM_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024
+
+
+def create_telegram_http_client(settings: Settings) -> httpx.AsyncClient:
+    proxy = str(settings.telegram_proxy_url) if settings.telegram_proxy_url else None
+    return httpx.AsyncClient(
+        timeout=settings.telegram_polling_timeout_seconds + 10,
+        proxy=proxy,
+    )
 
 
 class TelegramBotClientError(RuntimeError):
