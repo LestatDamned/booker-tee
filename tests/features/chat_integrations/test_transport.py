@@ -102,6 +102,17 @@ def test_telegram_webhook_url_builder_uses_public_base_url() -> None:
     assert webhook_url == "https://booker.example/chat-integrations/telegram/webhook"
 
 
+def test_telegram_webhook_url_builder_prefers_dedicated_base_url() -> None:
+    settings = Settings(
+        public_base_url="https://booker.example",
+        telegram_webhook_base_url="https://booker-webhook.example/",
+    )
+
+    webhook_url = TelegramWebhookUrlBuilder.build_public_webhook_url(settings)
+
+    assert webhook_url == "https://booker-webhook.example/chat-integrations/telegram/webhook"
+
+
 async def test_telegram_webhook_registrar_sets_public_webhook() -> None:
     seen_payloads: list[dict[str, object]] = []
 

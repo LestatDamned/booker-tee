@@ -50,9 +50,10 @@ class TelegramWebhookSecretPolicy:
 class TelegramWebhookUrlBuilder:
     @staticmethod
     def build_public_webhook_url(settings: Settings) -> str:
-        if settings.public_base_url is None:
+        base_url = settings.telegram_webhook_base_url or settings.public_base_url
+        if base_url is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        return f"{settings.public_base_url.rstrip('/')}{TELEGRAM_WEBHOOK_PATH}"
+        return f"{base_url.rstrip('/')}{TELEGRAM_WEBHOOK_PATH}"
 
 
 class TelegramWebhookRegistrar:

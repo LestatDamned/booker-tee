@@ -91,6 +91,7 @@ server {
 
     location = /chat-integrations/telegram/webhook {
         limit_req zone=telegram burst=40 nodelay;
+        proxy_set_header Host ${BOOKER_TEE_DOMAIN};
         proxy_pass http://booker_tee_app;
     }
 

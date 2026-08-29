@@ -123,6 +123,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="BOOKER_TEE_TELEGRAM_WEBHOOK_IP_ADDRESS",
     )
+    telegram_webhook_base_url: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_TELEGRAM_WEBHOOK_BASE_URL",
+    )
     telegram_polling_timeout_seconds: int = Field(
         default=30,
         validation_alias="BOOKER_TEE_TELEGRAM_POLLING_TIMEOUT_SECONDS",
@@ -316,8 +320,9 @@ class Settings(BaseSettings):
         if self.chat_integrations_enabled and self.telegram_bot_token is None:
             errors.append("BOOKER_TEE_TELEGRAM_BOT_TOKEN must be set when chat integrations run.")
         if self.chat_integrations_enabled and self.telegram_mode == "webhook":
-            if self.public_base_url is None:
-                errors.append("BOOKER_TEE_PUBLIC_BASE_URL must be set for Telegram webhook mode.")
+            webhook_base_url = self.telegram_webhook_base_url or self.public_base_url
+            if webhook_base_url is None or not webhook_base_url.startswith("https://"):
+                errors.append("Telegram webhook mode requires an HTTPS public base URL.")
             if self.telegram_webhook_secret is None:
                 errors.append(
                     "BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET must be set for Telegram webhook mode."

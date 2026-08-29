@@ -34,3 +34,12 @@ def test_production_assets_cannot_be_transformed_by_proxies() -> None:
     assets = nginx.split("location /assets/ {", 1)[1].split("}", 1)[0]
 
     assert 'Cache-Control "public, max-age=31536000, immutable, no-transform"' in assets
+
+
+def test_telegram_webhook_proxy_uses_canonical_backend_host() -> None:
+    nginx = (PROJECT_ROOT / "docker/nginx/default.conf.template").read_text()
+    webhook = nginx.split("location = /chat-integrations/telegram/webhook {", 1)[1].split(
+        "proxy_pass", 1
+    )[0]
+
+    assert "proxy_set_header Host ${BOOKER_TEE_DOMAIN};" in webhook

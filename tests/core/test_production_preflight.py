@@ -56,6 +56,10 @@ def test_production_preflight_accepts_consistent_settings() -> None:
         ({"security_headers_enabled": False}, "BOOKER_TEE_SECURITY_HEADERS_ENABLED"),
         ({"domain": "other.example.com"}, "BOOKER_TEE_ALLOWED_HOSTS"),
         ({"public_base_url": "http://finance.example.com"}, "BOOKER_TEE_PUBLIC_BASE_URL"),
+        (
+            {"telegram_webhook_base_url": "http://webhook.example.com"},
+            "BOOKER_TEE_TELEGRAM_WEBHOOK_BASE_URL",
+        ),
         ({"identity_email_enabled": False}, "BOOKER_TEE_IDENTITY_EMAIL_ENABLED"),
         ({"smtp_starttls": False}, "BOOKER_TEE_SMTP_STARTTLS"),
         ({"smtp_username": None}, "BOOKER_TEE_SMTP_USERNAME"),

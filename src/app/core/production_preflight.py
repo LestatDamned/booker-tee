@@ -108,6 +108,23 @@ def _validate_telegram(settings: Settings) -> list[str]:
         errors.append("BOOKER_TEE_TELEGRAM_BOT_TOKEN must be set.")
     if settings.telegram_webhook_secret is None:
         errors.append("BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET must be set.")
+    if settings.telegram_webhook_base_url is not None:
+        try:
+            webhook_url = urlsplit(settings.telegram_webhook_base_url)
+            valid_webhook_url = (
+                webhook_url.scheme == "https"
+                and webhook_url.hostname is not None
+                and webhook_url.port is None
+                and webhook_url.username is None
+                and webhook_url.password is None
+                and webhook_url.path in {"", "/"}
+                and not webhook_url.query
+                and not webhook_url.fragment
+            )
+        except ValueError:
+            valid_webhook_url = False
+        if not valid_webhook_url:
+            errors.append("BOOKER_TEE_TELEGRAM_WEBHOOK_BASE_URL must be an HTTPS origin.")
     return errors
 
 
