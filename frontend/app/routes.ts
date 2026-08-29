@@ -13,7 +13,7 @@ export default [
   route("categories/:categoryId", "routes/category-detail.tsx"),
   route("debts", "routes/debts.tsx"),
   route("debts/:debtId", "routes/debt-detail.tsx"),
-  route("chat-integrations/telegram/dev-link", "routes/telegram-dev-link.tsx"),
+  route("chat-integrations/telegram/link", "routes/telegram-dev-link.tsx"),
   route("foundation", "routes/foundation.tsx"),
   route("imports", "routes/import-documents.tsx"),
   route("imports/upload", "routes/import-upload.tsx"),

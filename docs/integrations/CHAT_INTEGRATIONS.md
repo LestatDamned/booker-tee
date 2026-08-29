@@ -12,7 +12,7 @@ cases, не второй финансовый продукт.
 - webhook receiver с проверкой secret token;
 - local polling worker;
 - fake provider для tests;
-- dev-only identity linking page;
+- production identity linking with a one-time 10-minute code;
 - workspace/user/conversation bindings;
 - button-first routing;
 - document upload;
@@ -60,6 +60,11 @@ Production webhook требует explicit public base URL, bot token, webhook s
 и secure application settings. Если Telegram не может разрешить или достичь
 адреса webhook напрямую, `BOOKER_TEE_TELEGRAM_WEBHOOK_IP_ADDRESS` закрепляет
 проверенный edge IP без изменения публичного URL.
+
+Пользователь открывает `/app/chat-integrations/telegram/link`, получает
+одноразовый код и отправляет боту `/link КОД` в личном чате. Хранится только
+SHA-256 hash кода; новый код инвалидирует предыдущий, а успешная привязка
+атомарно погашает код.
 
 Совместимый случайный secret можно сгенерировать локально:
 

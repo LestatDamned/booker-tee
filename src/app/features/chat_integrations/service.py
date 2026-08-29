@@ -2,7 +2,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.chat_integrations.application import ChatReviewUrlBuilder
-from app.features.chat_integrations.errors import ChatWorkspaceResolutionError
+from app.features.chat_integrations.errors import (
+    ChatIdentityBindingError,
+    ChatWorkspaceResolutionError,
+)
 from app.features.chat_integrations.handlers.factory import ChatEventHandlers
 from app.features.chat_integrations.presenters import TelegramMainMenuPresenter
 from app.features.chat_integrations.providers.base import ChatDocumentDownloader, ChatProvider
@@ -18,6 +21,7 @@ from app.features.chat_integrations.use_cases.dashboard import (
     ChatPrivateStatus,
     ChatPrivateStatusReader,
 )
+from app.features.chat_integrations.use_cases.identity import TelegramLinkCodeBinder
 from app.features.chat_integrations.use_cases.workspace import (
     BoundChatWorkspace,
     WorkspaceChatResolver,
@@ -44,6 +48,9 @@ class ChatEventService:
         bound_workspace = await self._resolve_bound_workspace(event)
         if bound_workspace is not None:
             return await self._answer_bound_event(event, bound_workspace)
+
+        if self._read_link_code(event) is not None:
+            return await self._link_account(event)
 
         if self._is_start_message(event):
             return TelegramMainMenuPresenter.show_welcome_menu(event.conversation)
@@ -141,8 +148,7 @@ class ChatEventService:
         status = await self._read_private_status(bound_workspace)
         return self._show_bound_menu(event, bound_workspace, status)
 
-    @staticmethod
-    def _answer_unbound_callback_query(event: InboundChatEvent) -> OutboundChatMessage | None:
+    def _answer_unbound_callback_query(self, event: InboundChatEvent) -> OutboundChatMessage | None:
         if event.conversation is None:
             return None
 
@@ -154,10 +160,40 @@ class ChatEventService:
             case "link:start":
                 return TelegramMainMenuPresenter.show_unlinked_account_notice(
                     event.conversation,
-                    event.actor,
+                    self._telegram_link_url(),
                 )
             case _:
                 return TelegramMainMenuPresenter.show_unlinked_account_notice(
                     event.conversation,
-                    event.actor,
+                    self._telegram_link_url(),
                 )
+
+    async def _link_account(self, event: InboundChatEvent) -> OutboundChatMessage | None:
+        if (
+            self.session is None
+            or event.actor is None
+            or event.conversation is None
+            or event.conversation.conversation_type != ChatConversationType.PRIVATE
+        ):
+            return None
+        code = self._read_link_code(event)
+        assert code is not None
+        try:
+            await TelegramLinkCodeBinder(self.session).bind(code=code, actor=event.actor)
+        except ChatIdentityBindingError as error:
+            return TelegramMainMenuPresenter.show_link_failure(event.conversation, str(error))
+        return TelegramMainMenuPresenter.show_link_success(event.conversation)
+
+    @staticmethod
+    def _read_link_code(event: InboundChatEvent) -> str | None:
+        if event.event_type != InboundChatEventType.MESSAGE or event.text is None:
+            return None
+        command, separator, code = event.text.strip().partition(" ")
+        if command.casefold() != "/link" or not separator or not code.strip():
+            return None
+        return code.strip()
+
+    def _telegram_link_url(self) -> str | None:
+        if self.settings is None or self.settings.public_base_url is None:
+            return None
+        return f"{self.settings.public_base_url.rstrip('/')}/app/chat-integrations/telegram/link"

@@ -19,6 +19,7 @@ class UserTokenPurpose(StrEnum):
     VERIFY_EMAIL = "verify_email"
     RESET_PASSWORD = "reset_password"
     CHANGE_EMAIL = "change_email"
+    LINK_TELEGRAM = "link_telegram"
 
 
 def enum_values(enum_class: type[StrEnum]) -> list[str]:

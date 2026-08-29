@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import cast
 from uuid import uuid4
@@ -5,6 +6,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_user_token
 from app.features.chat_integrations.actions.identity import BindChatIdentityCommand
 from app.features.chat_integrations.errors import (
     ChatIdentityBindingError,
@@ -115,6 +117,105 @@ async def test_chat_identity_binder_creates_binding_for_active_workspace_member(
     assert binding.user_id == user_id
     assert binding.provider == ChatProviderCode.TELEGRAM
     assert binding.external_user_id == "42"
+
+
+async def test_telegram_link_code_is_consumed_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_id = uuid4()
+    workspace_id = uuid4()
+    code = f"{workspace_id}.secret"
+    seen_commands: list[BindChatIdentityCommand] = []
+
+    class FakeSession:
+        async def rollback(self) -> None:
+            pass
+
+    class FakeUserTokenRepository:
+        consumed = False
+
+        def __init__(self, _session) -> None:
+            pass
+
+        async def consume(self, **_kwargs):
+            if self.consumed:
+                return None
+            self.consumed = True
+            return SimpleNamespace(user_id=user_id)
+
+    class FakeChatIdentityBinder:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def bind_chat_identity(self, command: BindChatIdentityCommand):
+            seen_commands.append(command)
+            return SimpleNamespace(id=uuid4())
+
+    monkeypatch.setattr(chat_identity, "UserTokenRepository", FakeUserTokenRepository)
+    monkeypatch.setattr(chat_identity, "ChatIdentityBinder", FakeChatIdentityBinder)
+
+    binder = chat_identity.TelegramLinkCodeBinder(cast(AsyncSession, FakeSession()))
+    actor = ChatUser(
+        provider=ChatProviderCode.TELEGRAM,
+        external_user_id="42",
+        display_name="Anna",
+    )
+
+    await binder.bind(code=code, actor=actor)
+    with pytest.raises(ChatIdentityBindingError):
+        await binder.bind(code=code, actor=actor)
+
+    assert seen_commands == [
+        BindChatIdentityCommand(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            provider=ChatProviderCode.TELEGRAM,
+            external_user_id="42",
+            display_name="Anna",
+        )
+    ]
+
+
+async def test_telegram_link_code_is_stored_only_as_a_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_id = uuid4()
+    workspace_id = uuid4()
+    stored: dict[str, object] = {}
+
+    class FakeSession:
+        async def commit(self) -> None:
+            stored["committed"] = True
+
+    class FakeUserTokenRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def replace_active(self, **values) -> None:
+            stored.update(values)
+
+    monkeypatch.setattr(chat_identity, "UserTokenRepository", FakeUserTokenRepository)
+    monkeypatch.setattr(chat_identity, "generate_user_token", lambda: "secret")
+    monkeypatch.setattr(
+        chat_identity,
+        "utc_now",
+        lambda: datetime(2026, 8, 29, 12, 0, tzinfo=UTC),
+    )
+
+    result = await chat_identity.TelegramLinkCodeIssuer(cast(AsyncSession, FakeSession())).issue(
+        cast(
+            chat_identity.WorkspaceContext,
+            SimpleNamespace(
+                user=SimpleNamespace(id=user_id),
+                workspace=SimpleNamespace(id=workspace_id),
+            ),
+        )
+    )
+
+    assert result.code == f"{workspace_id}.secret"
+    assert stored["token_hash"] == hash_user_token(result.code)
+    assert result.code not in stored.values()
+    assert stored["committed"] is True
 
 
 async def test_workspace_chat_resolver_rejects_unbound_chat_identity(

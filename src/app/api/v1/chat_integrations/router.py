@@ -1,14 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import ApiRequestContext, get_api_request_context
+from app.api.dependencies import ApiRequestContext, get_api_request_context, verify_api_csrf
 from app.api.errors import ApiError, api_error_responses
 from app.api.v1.chat_integrations.schemas import (
     BindTelegramDevLinkApiRequest,
     BindTelegramDevLinkApiResponse,
     TelegramDevLinkConfigApiResponse,
+    TelegramLinkCodeApiResponse,
 )
 from app.core.config import get_settings
 from app.core.settings import Settings
@@ -17,7 +18,10 @@ from app.features.chat_integrations.actions.identity import BindChatIdentityComm
 from app.features.chat_integrations.errors import ChatIdentityBindingError
 from app.features.chat_integrations.router import ChatIntegrationDevModePolicy
 from app.features.chat_integrations.schemas import ChatProviderCode
-from app.features.chat_integrations.use_cases.identity import ChatIdentityBinder
+from app.features.chat_integrations.use_cases.identity import (
+    ChatIdentityBinder,
+    TelegramLinkCodeIssuer,
+)
 
 router = APIRouter(prefix="/chat-integrations", tags=["chat-integrations"])
 
@@ -26,6 +30,36 @@ def get_chat_identity_binder(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChatIdentityBinder:
     return ChatIdentityBinder(session)
+
+
+def get_telegram_link_code_issuer(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TelegramLinkCodeIssuer:
+    return TelegramLinkCodeIssuer(session)
+
+
+@router.post(
+    "/telegram/link-code",
+    response_model=TelegramLinkCodeApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+    ),
+)
+async def issue_telegram_link_code(
+    request: Request,
+    response: Response,
+    settings: Annotated[Settings, Depends(get_settings)],
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    issuer: Annotated[TelegramLinkCodeIssuer, Depends(get_telegram_link_code_issuer)],
+) -> TelegramLinkCodeApiResponse:
+    verify_api_csrf(request, session_id=context.session_id, settings=settings)
+    link_code = await issuer.issue(context.workspace)
+    response.headers["Cache-Control"] = "no-store"
+    return TelegramLinkCodeApiResponse(
+        command=f"/link {link_code.code}",
+        expires_at=link_code.expires_at,
+    )
 
 
 @router.get(

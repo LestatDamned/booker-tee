@@ -4,7 +4,6 @@ from app.features.chat_integrations.presentation.workspace import (
 )
 from app.features.chat_integrations.schemas import (
     ChatConversation,
-    ChatUser,
     OutboundChatButton,
     OutboundChatMessage,
 )
@@ -104,31 +103,34 @@ class TelegramMainMenuPresenter:
     @staticmethod
     def show_unlinked_account_notice(
         conversation: ChatConversation,
-        actor: ChatUser | None = None,
+        link_url: str | None = None,
     ) -> OutboundChatMessage:
-        telegram_hint = ""
-        if actor is not None:
-            telegram_hint = (
-                "\n\n"
-                f"Telegram ID для привязки: {actor.external_user_id}\n"
-                "Открой Booker Tee в браузере и перейди на:\n"
-                f"/app/chat-integrations/telegram/dev-link?external_user_id={actor.external_user_id}"
-            )
+        buttons = [OutboundChatButton(text="В меню", callback_data="main:menu")]
+        if link_url is not None:
+            buttons.insert(0, OutboundChatButton(text="Подключить аккаунт", url=link_url))
 
         return OutboundChatMessage(
             conversation=conversation,
             text=(
                 "Сначала нужно подключить Telegram к пользователю Booker Tee.\n\n"
                 "Пока аккаунт не привязан, бот не показывает финансовые данные и "
-                "не записывает операции."
-                f"{telegram_hint}"
+                "не записывает операции. Открой Booker Tee, получи одноразовый код "
+                "и отправь его командой /link КОД."
             ),
-            buttons=(
-                (
-                    OutboundChatButton(text="Подключить аккаунт", callback_data="link:start"),
-                    OutboundChatButton(text="В меню", callback_data="main:menu"),
-                ),
-            ),
+            buttons=(tuple(buttons),),
+        )
+
+    @staticmethod
+    def show_link_success(conversation: ChatConversation) -> OutboundChatMessage:
+        return OutboundChatMessage(
+            conversation=conversation,
+            text="✅ Telegram подключён. Отправь /start, чтобы открыть меню Booker Tee.",
+        )
+
+    @staticmethod
+    def show_link_failure(conversation: ChatConversation, message: str) -> OutboundChatMessage:
+        return OutboundChatMessage(
+            conversation=conversation, text=f"Не удалось подключить: {message}"
         )
 
     @staticmethod

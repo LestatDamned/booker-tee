@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -28,3 +29,8 @@ class BindTelegramDevLinkApiRequest(ApiRequestModel):
 
 class BindTelegramDevLinkApiResponse(ApiModel):
     bound: Literal[True] = True
+
+
+class TelegramLinkCodeApiResponse(ApiModel):
+    command: str
+    expires_at: datetime

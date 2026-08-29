@@ -49,6 +49,13 @@
   width: fit-content;
 }
 
+.code {
+  display: block;
+  margin-top: var(--space-3);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 @media (max-width: 35rem) {
   .surface {
     padding: var(--space-5) var(--space-4);
