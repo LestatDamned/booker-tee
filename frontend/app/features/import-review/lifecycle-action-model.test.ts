@@ -18,6 +18,12 @@ describe("lifecycle action model", () => {
     expect(lifecycleSuccessMessage("needs_review", "ignored")).toBe(
       "Строка возвращена на проверку.",
     );
+    expect(lifecycleActionLabel("needs_review", "confirmed")).toBe(
+      "Восстановить на проверку",
+    );
+    expect(lifecycleSuccessMessage("needs_review", "confirmed")).toBe(
+      "Строка возвращена на проверку.",
+    );
   });
 
   it("maps recoverable mutation failures to retry or authoritative refresh", () => {

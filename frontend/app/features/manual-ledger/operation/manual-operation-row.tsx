@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { ActionStack } from "../../../ui/action-stack/action-stack";
 import { Button, RouterButtonLink } from "../../../ui/button/button";
 import { ExpansionPanel } from "../../../ui/expansion-panel/expansion-panel";
+import { Icon } from "../../../ui/icon/icon";
 import { MoneyValue } from "../../../ui/money-value/money-value";
 import { StatusLabel } from "../../../ui/status-label/status-label";
 import { Tag } from "../../../ui/tag/tag";
@@ -251,7 +252,9 @@ function OperationContext({
 }) {
   const account =
     operation.transferRouteLabel ?? operation.accountLabel ?? "Счёт не указан";
-  return (
+  return operation.source === "debt" ? (
+    <>{account}</>
+  ) : (
     <>
       {account} · {operation.sourceLabel ?? "Вручную"}
     </>
@@ -264,6 +267,12 @@ function OperationMeta({ operation }: { operation: ManualOperationRowModel }) {
   return (
     <>
       <Tag tone={operation.operationTone}>{operation.operationLabel}</Tag>
+      {operation.source === "debt" ? (
+        <Tag tone="neutral" variant="soft">
+          <Icon name="debts" />
+          Долг
+        </Tag>
+      ) : null}
       {operation.transferRouteLabel ? null : (
         <>
           {operation.categoryLabel ? (

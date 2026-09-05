@@ -6,6 +6,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
+from app.features.import_review.domain.lifecycle import restored_review_status_after_unlink
+from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.domain.manual_idempotency import ManualOperationFingerprint
 from app.features.ledger.domain.money import (
@@ -57,8 +61,10 @@ class ManualOperationDeleteOutcome:
 class ManualOperationWriter:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self.documents = DocumentRepository(session)
         self.ledger = LedgerRepository(session)
         self.references = LedgerReferenceResolver(session)
+        self.statement_validation = StatementValidationService(self.documents)
 
     async def create_income_expense(
         self,
@@ -351,6 +357,24 @@ class ManualOperationWriter:
             operation_type=operation.type,
             display_label=manual_operation_activity_label(operation),
         )
+        affected_document_ids = {
+            raw_transaction.uploaded_document_id for raw_transaction in operation.raw_transactions
+        }
+        for raw_transaction in operation.raw_transactions:
+            raw_transaction.linked_operation_id = None
+            raw_transaction.status = restored_review_status_after_unlink(raw_transaction)
+        for document_id in affected_document_ids:
+            document = await self.documents.get_document_for_workspace(
+                context.workspace.id,
+                document_id,
+            )
+            if document is None:
+                continue
+            await self.statement_validation.refresh_for_document(document)
+            await self.documents.mark_document_status(
+                document,
+                UploadedDocumentStatus.REQUIRES_REVIEW,
+            )
         await self.ledger.delete_operation(operation)
         await self._flush_versioned()
         return outcome

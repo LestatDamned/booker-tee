@@ -15,6 +15,7 @@ from app.features.import_review.domain.posting import (
     prepare_income_expense_posting,
     raw_transaction_effective_account_id,
 )
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.manual_idempotency import ManualOperationFingerprint
@@ -723,6 +724,48 @@ async def test_manual_delete_removes_deletable_operation_and_returns_identity() 
     assert outcome.display_label == "Покупка"
 
 
+async def test_manual_delete_returns_linked_import_row_to_review() -> None:
+    operation, use_case, _session, ledger, context = manual_delete_context(
+        status=OperationStatus.IGNORED,
+        version=4,
+    )
+    document_id = uuid4()
+    raw_transaction = SimpleNamespace(
+        uploaded_document_id=document_id,
+        linked_operation_id=operation.id,
+        status=RawTransactionStatus.CONFIRMED,
+        suggested_by_rule_id=None,
+    )
+    operation.raw_transactions = [raw_transaction]
+    document = SimpleNamespace(id=document_id)
+    use_case.documents = cast(
+        Any,
+        SimpleNamespace(
+            get_document_for_workspace=AsyncMock(return_value=document),
+            mark_document_status=AsyncMock(),
+        ),
+    )
+    use_case.statement_validation = cast(
+        Any,
+        SimpleNamespace(refresh_for_document=AsyncMock()),
+    )
+
+    await use_case.delete(
+        context=context,
+        operation_id=operation.id,
+        expected_version=4,
+    )
+
+    assert raw_transaction.linked_operation_id is None
+    assert raw_transaction.status is RawTransactionStatus.NORMALIZED
+    use_case.statement_validation.refresh_for_document.assert_awaited_once_with(document)
+    use_case.documents.mark_document_status.assert_awaited_once_with(
+        document,
+        UploadedDocumentStatus.REQUIRES_REVIEW,
+    )
+    ledger.delete_operation.assert_awaited_once_with(operation)
+
+
 def manual_delete_context(
     *,
     status: OperationStatus,
@@ -736,6 +779,7 @@ def manual_delete_context(
         version=version,
         type=OperationType.EXPENSE,
         description="Покупка",
+        raw_transactions=[],
     )
     session = SimpleNamespace(flush=AsyncMock())
     ledger = SimpleNamespace(

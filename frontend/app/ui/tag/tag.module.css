@@ -5,6 +5,7 @@
   width: fit-content;
   min-height: 1.75rem;
   align-items: center;
+  gap: var(--space-1);
   border: 1px solid var(--tag-tone);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);

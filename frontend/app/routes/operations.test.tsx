@@ -8,6 +8,7 @@ import {
   operationFixture,
 } from "../features/operations/test-support";
 import { session } from "../features/workspaces/test-support";
+import tagStyles from "../ui/tag/tag.module.css";
 import { OperationsRouteView } from "./operations";
 import { loadOperationsRoute } from "./operations-loader";
 
@@ -125,6 +126,14 @@ describe("operations route", () => {
     renderRoute(operations, false, `/app/operations?operation_id=${debt.id}`);
 
     const debtRow = document.getElementById(`operation-${debt.id}`)!;
+    expect(within(debtRow).getByText("Долг")).toHaveClass(
+      tagStyles.tag!,
+      tagStyles.soft!,
+    );
+    expect(
+      within(debtRow).getByText("Долг").querySelector("svg"),
+    ).not.toBeNull();
+    expect(debtRow).not.toHaveTextContent(`${debt.account?.name} · Долг`);
     expect(
       within(debtRow).getByRole("link", { name: "Открыть долг" }),
     ).toHaveAttribute(

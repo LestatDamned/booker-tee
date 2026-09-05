@@ -68,6 +68,7 @@ _ALLOWED_ACTIONS = {
         ImportReviewLifecycleAction.NEEDS_REVIEW,
         ImportReviewLifecycleAction.IGNORE,
     ),
+    RawTransactionStatus.CONFIRMED: (ImportReviewLifecycleAction.NEEDS_REVIEW,),
 }
 
 

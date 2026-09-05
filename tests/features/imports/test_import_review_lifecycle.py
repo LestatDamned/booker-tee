@@ -45,7 +45,10 @@ from app.features.imports.statements.types import RawTransactionStatus
             },
         ),
         (RawTransactionStatus.IGNORED, {ImportReviewLifecycleAction.NEEDS_REVIEW}),
-        (RawTransactionStatus.CONFIRMED, set()),
+        (
+            RawTransactionStatus.CONFIRMED,
+            {ImportReviewLifecycleAction.NEEDS_REVIEW},
+        ),
         (RawTransactionStatus.FAILED, set()),
     ],
 )

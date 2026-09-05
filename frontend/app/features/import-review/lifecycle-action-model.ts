@@ -72,7 +72,9 @@ export function lifecycleActionLabel(
   if (action === "mark_unique") return "Это новая операция";
   if (action === "mark_duplicate") return "Отметить дублем";
   if (action === "ignore") return "Игнорировать";
-  return status === "ignored" || status === "duplicate"
+  return status === "ignored" ||
+    status === "duplicate" ||
+    status === "confirmed"
     ? "Восстановить на проверку"
     : "На проверку";
 }
@@ -91,7 +93,9 @@ export function lifecycleSuccessMessage(
   if (action === "ignore") return "Строка исключена из обработки.";
   if (
     action === "needs_review" &&
-    (previousStatus === "ignored" || previousStatus === "duplicate")
+    (previousStatus === "ignored" ||
+      previousStatus === "duplicate" ||
+      previousStatus === "confirmed")
   ) {
     return "Строка возвращена на проверку.";
   }
