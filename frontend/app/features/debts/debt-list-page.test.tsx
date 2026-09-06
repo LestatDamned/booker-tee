@@ -30,6 +30,46 @@ describe("DebtListPage", () => {
     ).toHaveAttribute("data-tone", "primary");
   });
 
+  it("searches by the visible kind and retains filters in record links", () => {
+    renderPage(portfolio, "/debts?search=Полученный");
+    expect(
+      screen.getAllByRole("link", { name: "Кредит на ремонт" }),
+    ).toHaveLength(2);
+    expect(
+      screen.getAllByRole("link", { name: "Кредит на ремонт" })[0],
+    ).toHaveAttribute(
+      "href",
+      `/debts/${detail.debt.accountId}?search=%D0%9F%D0%BE%D0%BB%D1%83%D1%87%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9`,
+    );
+    expect(screen.getByRole("link", { name: /Текущие/ })).toBeVisible();
+  });
+
+  it("explains existing debt and credit card opening without a cash transfer", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "Добавить долг" }));
+    expect(
+      screen.getByText(/Будет учтён уже существующий остаток/),
+    ).toBeVisible();
+    await user.selectOptions(
+      screen.getByLabelText(/Что нужно записать/),
+      "open_credit_card",
+    );
+    expect(screen.getByText(/Будут учтены кредитный лимит/)).toBeVisible();
+    await user.selectOptions(
+      screen.getByLabelText(/Что нужно записать/),
+      "give_loan",
+    );
+    expect(
+      screen.getByText(/С выбранного счёта будут выданы деньги/),
+    ).toBeVisible();
+    await user.selectOptions(
+      screen.getByLabelText(/Что нужно записать/),
+      "take_loan",
+    );
+    expect(screen.getByText(/На выбранный счёт поступят деньги/)).toBeVisible();
+  });
+
   it("validates and submits an existing debt", async () => {
     const user = userEvent.setup();
     vi.mocked(createDebt).mockResolvedValue({ status: "success", detail });
@@ -81,9 +121,9 @@ describe("DebtListPage", () => {
   });
 });
 
-function renderPage(value = portfolio) {
+function renderPage(value = portfolio, entry = "/debts") {
   return render(
-    <MemoryRouter initialEntries={["/debts"]}>
+    <MemoryRouter initialEntries={[entry]}>
       <DebtListPage accounts={[account]} portfolio={value} session={session} />
     </MemoryRouter>,
   );

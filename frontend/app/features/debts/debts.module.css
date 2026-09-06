@@ -4,13 +4,14 @@
 
 .totals {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
   gap: var(--space-3);
   margin-top: var(--space-5);
 }
 
 .total {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-3);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
@@ -36,10 +37,20 @@
 }
 
 .total dl {
-  gap: var(--space-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
 }
 
-.total dl > div,
+.total dl > div {
+  display: grid;
+  justify-content: start;
+  gap: var(--space-1);
+}
+
+.total dd {
+  text-align: left;
+}
+
 .facts > div {
   display: flex;
   align-items: baseline;
@@ -103,23 +114,6 @@
   font-size: var(--font-size-sm);
 }
 
-.mobileList {
-  display: grid;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mobileList > li {
-  display: grid;
-  gap: var(--space-3);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  background: var(--color-bg-elevated);
-}
-
 .mobileHeader,
 .mobileFacts {
   display: flex;
@@ -137,12 +131,6 @@
 
 .form {
   display: grid;
-  gap: var(--space-4);
-}
-
-.formGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
 }
 
@@ -166,13 +154,14 @@
 }
 
 .facts {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 20rem));
   gap: var(--space-3);
   margin-top: var(--space-5);
 }
 
 .facts > div {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
   border-left: 1px solid var(--color-border-default);
   padding-left: var(--space-3);
@@ -239,7 +228,6 @@
 
 @media (max-width: 42rem) {
   .toolbar,
-  .formGrid,
   .facts {
     grid-template-columns: 1fr;
   }
@@ -275,5 +263,40 @@
   .mobileHeader,
   .mobileFacts {
     display: grid;
+  }
+}
+
+.totalsHint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.termsFacts {
+  margin-top: 0;
+}
+
+.factHint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.deleteHint {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+@media (max-width: 42rem) {
+  .total,
+  .total dl {
+    grid-template-columns: 1fr;
+  }
+
+  .total dl > div {
+    display: flex;
+    justify-content: space-between;
   }
 }

@@ -3,13 +3,17 @@ import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { formatIsoDate } from "../../shared/date/format-date";
-import { formatMoneyAmount } from "../../shared/money/format-money";
+import {
+  decimalSign,
+  formatMoneyAmount,
+} from "../../shared/money/format-money";
 import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { ActionStack } from "../../ui/action-stack/action-stack";
 import { BackLink } from "../../ui/back-link/back-link";
 import { Button, RouterButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue } from "../../ui/money-value/money-value";
 import { PageFrame } from "../../ui/page-frame/page-frame";
@@ -34,6 +38,7 @@ import {
 } from "./api/debts-api";
 import {
   debtDirectionLabel,
+  debtPaymentLabel,
   debtKindLabels,
   debtStatusLabels,
 } from "./debt-model";
@@ -73,6 +78,10 @@ export function DebtDetailPage({
   const [failure, setFailure] = useState<string | null>(null);
   const { dismissToast, showToast, toast } = useToastQueue();
   const debt = detail.debt;
+  const listParams = new URLSearchParams(location.search);
+  listParams.delete("page");
+  listParams.delete("page_size");
+  const listHref = listParams.size ? `/debts?${listParams}` : "/debts";
 
   function commit(next: DebtDetailDto, message: string) {
     setLocalDetail({ source: initialDetail, value: next });
@@ -124,7 +133,7 @@ export function DebtDetailPage({
     setPending(false);
     setDeleteOpen(false);
     if (result.status === "success") {
-      void navigate("/debts", { replace: true });
+      void navigate(listHref, { replace: true });
       return;
     }
     if (redirectIfUnauthenticated(result)) return;
@@ -143,7 +152,7 @@ export function DebtDetailPage({
           className={styles.workbench}
         >
           <WorkbenchHeader>
-            <BackLink to="/debts">Все долги</BackLink>
+            <BackLink to={listHref}>Все долги</BackLink>
             <PageHeader
               actions={
                 <ActionStack
@@ -155,7 +164,7 @@ export function DebtDetailPage({
                         onClick={() => setPaymentOpen(true)}
                         tone="primary"
                       >
-                        Записать платёж
+                        {debtPaymentLabel(debt.kind)}
                       </Button>
                     ) : undefined
                   }
@@ -194,31 +203,37 @@ export function DebtDetailPage({
                       </Button>
                     ) : debt.capabilities.deleteBlockedReason ===
                       "financial_history" ? (
-                      <Button
-                        onClick={() =>
-                          setFailure(
-                            "Долг уже имеет платежи, импорт или последующие операции. Его нужно погасить и перенести в архив.",
-                          )
-                        }
-                        tone="danger"
-                      >
-                        Удалить
-                      </Button>
+                      <div>
+                        <Button
+                          disabled
+                          aria-describedby="debt-delete-blocked"
+                          tone="danger"
+                        >
+                          Удалить
+                        </Button>
+                        <p
+                          className={styles.deleteHint}
+                          id="debt-delete-blocked"
+                        >
+                          Есть финансовая история
+                        </p>
+                      </div>
                     ) : undefined
                   }
                 />
               }
-              description={detail.notes ?? debtDirectionLabel(debt.kind)}
               eyebrow={debtKindLabels[debt.kind]}
               title={debt.name}
             />
             <div className={styles.identityMeta}>
-              <Tag
-                tone={debt.kind === "loan_receivable" ? "income" : "expense"}
-                variant="soft"
-              >
-                {debtDirectionLabel(debt.kind)}
-              </Tag>
+              {debt.status === "active" ? (
+                <Tag
+                  tone={debt.kind === "loan_receivable" ? "income" : "expense"}
+                  variant="soft"
+                >
+                  {debtDirectionLabel(debt.kind)}
+                </Tag>
+              ) : null}
               <StatusLabel
                 tone={
                   debt.status === "active"
@@ -228,7 +243,9 @@ export function DebtDetailPage({
                       : "success"
                 }
               >
-                {debtStatusLabels[debt.status]}
+                {debt.status === "settled"
+                  ? "Долг погашен"
+                  : debtStatusLabels[debt.status]}
               </StatusLabel>
             </div>
             <DebtFacts detail={detail} />
@@ -300,25 +317,28 @@ export function DebtDetailPage({
                         "Платёж по долгу"
                       }
                       details={
-                        <PaymentParts
-                          payment={payment}
-                          currency={debt.currency}
-                        />
+                        <>
+                          <PaymentParts
+                            payment={payment}
+                            currency={debt.currency}
+                          />
+                          {!payment.reversedAt && payment.canUndo ? (
+                            <Button
+                              disabled={pending}
+                              icon="undo"
+                              onClick={() => setUndoCandidate(payment)}
+                              tone="ghost"
+                            >
+                              Отменить платёж
+                            </Button>
+                          ) : null}
+                        </>
                       }
                       id={`payment-${payment.paymentId}`}
                       key={payment.paymentId}
                       status={
                         payment.reversedAt ? (
                           <StatusLabel tone="neutral">Отменён</StatusLabel>
-                        ) : payment.canUndo ? (
-                          <Button
-                            disabled={pending}
-                            icon="undo"
-                            onClick={() => setUndoCandidate(payment)}
-                            tone="ghost"
-                          >
-                            Отменить
-                          </Button>
                         ) : undefined
                       }
                     />
@@ -333,7 +353,7 @@ export function DebtDetailPage({
                 </WorkbenchEmptyState>
               )}
             </WorkbenchContent>
-            {detail.payments.total > 0 ? (
+            {detail.payments.totalPages > 1 ? (
               <WorkbenchPagination
                 ariaLabel="Страницы истории платежей"
                 currentPage={detail.payments.page}
@@ -342,6 +362,7 @@ export function DebtDetailPage({
                     debt.accountId,
                     page,
                     detail.payments.pageSize,
+                    location.search,
                   )
                 }
                 hasNext={detail.payments.hasNext}
@@ -402,7 +423,7 @@ export function DebtDetailPage({
       {deleteOpen ? (
         <ConfirmationDialog
           confirmLabel="Удалить долг"
-          description={`«${debt.name}» будет удалён безвозвратно. Если при создании займа был записан transfer, он тоже будет удалён и баланс второго счёта восстановится.`}
+          description={`«${debt.name}» будет удалён безвозвратно. Если при создании займа был записан перевод, он тоже будет удалён и баланс второго счёта восстановится.`}
           onCancel={() => setDeleteOpen(false)}
           onConfirm={() => void confirmDelete()}
           pending={pending}
@@ -415,81 +436,131 @@ export function DebtDetailPage({
 
 function DebtFacts({ detail }: { detail: DebtDetailDto }) {
   const debt = detail.debt;
+  const [termsOpen, setTermsOpen] = useState(false);
   return (
-    <dl className={styles.facts}>
-      <Fact label="Остаток основного долга">
-        <MoneyValue
-          amount={formatMoneyAmount(debt.outstanding, null)}
-          currency={debt.currency}
-          size="prominent"
-          tone={debt.kind === "loan_receivable" ? "income" : "expense"}
-        />
-      </Fact>
-      {debt.originalPrincipal ? (
-        <Fact label="Первоначальная сумма">
+    <>
+      <dl className={styles.facts}>
+        <Fact
+          label={
+            debt.status === "settled" || debt.status === "no_debt"
+              ? "Остаток долга"
+              : debt.kind === "loan_receivable"
+                ? "Осталось получить"
+                : "Осталось вернуть"
+          }
+        >
           <MoneyValue
-            amount={formatMoneyAmount(debt.originalPrincipal, null)}
+            amount={formatMoneyAmount(debt.outstanding, null)}
             currency={debt.currency}
+            tone={
+              decimalSign(debt.outstanding) === 0
+                ? "neutral"
+                : debt.kind === "loan_receivable"
+                  ? "income"
+                  : "expense"
+            }
           />
         </Fact>
-      ) : null}
-      <Fact label="Проведено principal">
-        <MoneyValue
-          amount={formatMoneyAmount(detail.paymentTotals.principal, null)}
-          currency={debt.currency}
-          tone="transfer"
-        />
-      </Fact>
-      <Fact
-        label={
-          debt.kind === "loan_receivable"
-            ? "Получено процентов"
-            : "Уплачено процентов"
-        }
+        <Fact
+          label="Учтённые погашения"
+          hint="Платежи, записанные здесь, без процентов."
+        >
+          <MoneyValue
+            amount={formatMoneyAmount(detail.paymentTotals.principal, null)}
+            currency={debt.currency}
+            tone="transfer"
+          />
+        </Fact>
+        <Fact
+          label={
+            debt.kind === "loan_receivable"
+              ? "Получено процентов"
+              : "Уплачено процентов"
+          }
+        >
+          <MoneyValue
+            amount={formatMoneyAmount(detail.paymentTotals.interest, null)}
+            currency={debt.currency}
+            tone={
+              decimalSign(detail.paymentTotals.interest) === 0
+                ? "neutral"
+                : debt.kind === "loan_receivable"
+                  ? "income"
+                  : "expense"
+            }
+          />
+        </Fact>
+        {debt.creditLimit ? (
+          <Fact label="Кредитный лимит">
+            <MoneyValue
+              amount={formatMoneyAmount(debt.creditLimit, null)}
+              currency={debt.currency}
+            />
+          </Fact>
+        ) : null}
+        {debt.availableCredit ? (
+          <Fact label="Доступно по лимиту">
+            <MoneyValue
+              amount={formatMoneyAmount(debt.availableCredit, null)}
+              currency={debt.currency}
+            />
+          </Fact>
+        ) : null}
+      </dl>
+      <Button
+        id="debt-terms-toggle"
+        icon={termsOpen ? "expand" : "forward"}
+        aria-controls="debt-terms"
+        aria-expanded={termsOpen}
+        onClick={() => setTermsOpen(!termsOpen)}
+        tone="ghost"
       >
-        <MoneyValue
-          amount={formatMoneyAmount(detail.paymentTotals.interest, null)}
-          currency={debt.currency}
-          tone={debt.kind === "loan_receivable" ? "income" : "expense"}
-        />
-      </Fact>
-      {debt.creditLimit ? (
-        <Fact label="Кредитный лимит">
-          <MoneyValue
-            amount={formatMoneyAmount(debt.creditLimit, null)}
-            currency={debt.currency}
-          />
-        </Fact>
-      ) : null}
-      {debt.availableCredit ? (
-        <Fact label="Доступно по лимиту">
-          <MoneyValue
-            amount={formatMoneyAmount(debt.availableCredit, null)}
-            currency={debt.currency}
-          />
-        </Fact>
-      ) : null}
-      {debt.openedOn ? (
-        <Fact label="Дата открытия">{formatIsoDate(debt.openedOn)}</Fact>
-      ) : null}
-      {debt.maturityDate ? (
-        <Fact label="Конечный срок">{formatIsoDate(debt.maturityDate)}</Fact>
-      ) : null}
-    </dl>
+        Условия и заметки
+      </Button>
+      <ExpansionPanel
+        id="debt-terms"
+        title="Условия и заметки"
+        isOpen={termsOpen}
+        showHeader={false}
+      >
+        <dl className={`${styles.facts} ${styles.termsFacts}`}>
+          {debt.originalPrincipal ? (
+            <Fact label="Первоначальная сумма">
+              <MoneyValue
+                amount={formatMoneyAmount(debt.originalPrincipal, null)}
+                currency={debt.currency}
+              />
+            </Fact>
+          ) : null}
+          {debt.openedOn ? (
+            <Fact label="Дата открытия">{formatIsoDate(debt.openedOn)}</Fact>
+          ) : null}
+          {debt.maturityDate ? (
+            <Fact label="Конечный срок">
+              {formatIsoDate(debt.maturityDate)}
+            </Fact>
+          ) : null}
+        </dl>
+        {detail.notes ? <p>{detail.notes}</p> : null}
+      </ExpansionPanel>
+    </>
   );
 }
 
 function Fact({
   children,
   label,
+  hint,
 }: {
   children: React.ReactNode;
   label: string;
+  hint?: string;
 }) {
   return (
     <div>
       <dt>{label}</dt>
       <dd>{children}</dd>
+      {hint ? <dd className={styles.factHint}>{hint}</dd> : null}
     </div>
   );
 }
@@ -518,7 +589,7 @@ function PaymentParts({
             to={operationHref(payment.principal.operationId)}
             tone="ghost"
           >
-            Открыть основную операцию
+            Посмотреть перевод
           </RouterButtonLink>
         </div>
       ) : null}
@@ -541,7 +612,7 @@ function PaymentParts({
             to={operationHref(payment.interest.operationId)}
             tone="ghost"
           >
-            Открыть операцию процентов
+            Посмотреть проценты
           </RouterButtonLink>
         </div>
       ) : null}
@@ -554,7 +625,7 @@ function paymentBlockedReason(
   reason: DebtDetailDto["debt"]["capabilities"]["paymentBlockedReason"],
 ): string | null {
   if (reason === "debt_archived") return "Сначала восстановите долг из архива.";
-  if (reason === "debt_settled") return "Основной долг уже равен нулю.";
+  if (reason === "debt_settled") return null;
   if (reason === "no_payment_account")
     return "Добавьте активный денежный счёт в той же валюте.";
   if (reason === "financial_write_forbidden")
@@ -566,8 +637,11 @@ function debtPaymentPageUrl(
   debtId: string,
   page: number,
   pageSize: number,
+  search: string,
 ): string {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams(search);
+  params.delete("page");
+  params.delete("page_size");
   if (page > 1) params.set("page", String(page));
   if (pageSize !== 20) params.set("page_size", String(pageSize));
   const query = params.toString();

@@ -19,9 +19,9 @@ export type DebtCreateAction = DebtCreateRequest["action"];
 
 export const debtActionLabels: Record<DebtCreateAction, string> = {
   add_existing: "Добавить существующий долг",
-  give_loan: "Я выдал заём",
-  open_credit_card: "Открыть кредитную карту",
-  take_loan: "Я получил заём",
+  give_loan: "Записать выдачу денег в долг",
+  open_credit_card: "Добавить кредитную карту",
+  take_loan: "Записать получение денег в долг",
 };
 
 export type DebtCreateDraft = {
@@ -187,6 +187,10 @@ function normalizeMoney(value: string): string {
 }
 
 export class DebtMoney {
+  static fromMinor(value: bigint): string {
+    return `${value / 100n}.${(value % 100n).toString().padStart(2, "0")}`;
+  }
+
   static toMinor(value: string): bigint | null {
     const match = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(value.trim());
     if (!match?.[1]) return null;
@@ -214,6 +218,10 @@ function requirePositive(
   errors: DebtCreateFieldErrors,
 ) {
   requireMoney(value, field, errors, false);
+}
+
+export function debtPaymentLabel(kind: DebtKind): string {
+  return kind === "loan_receivable" ? "Записать возврат" : "Записать погашение";
 }
 
 export function debtDirectionLabel(kind: DebtKind): string {

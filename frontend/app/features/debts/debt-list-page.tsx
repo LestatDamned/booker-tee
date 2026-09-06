@@ -22,6 +22,7 @@ import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type { AccountSummaryDto } from "../accounts/api/accounts-api";
 import type { DebtPortfolioDto } from "./api/debts-api";
 import { DebtCreatePanel } from "./debt-create-panel";
+import { debtKindLabels } from "./debt-model";
 import { DebtRecords } from "./debt-records";
 import styles from "./debts.module.css";
 
@@ -45,7 +46,7 @@ export function DebtListPage({
   const debts = portfolio.items.filter(
     (debt) =>
       debt.isActive === (query.view === "active") &&
-      [debt.name, debt.kind, debt.currency].some((value) =>
+      [debt.name, debtKindLabels[debt.kind], debt.currency].some((value) =>
         value
           .toLocaleLowerCase("ru")
           .includes(query.search.toLocaleLowerCase("ru")),
@@ -72,6 +73,9 @@ export function DebtListPage({
             />
             {portfolio.totals.length ? (
               <div aria-label="Итоги по валютам" className={styles.totals}>
+                <p className={styles.totalsHint}>
+                  Все долги · итоги не зависят от поиска и вкладки
+                </p>
                 {portfolio.totals.map((total) => (
                   <section className={styles.total} key={total.currency}>
                     <h2>{total.currency}</h2>
@@ -97,7 +101,7 @@ export function DebtListPage({
                         </dd>
                       </div>
                       <div>
-                        <dt>Чистая позиция</dt>
+                        <dt title="Мне должны минус я должен">Разница</dt>
                         <dd>
                           <MoneyValue
                             amount={formatMoneyAmount(total.netPosition, null)}
@@ -129,7 +133,7 @@ export function DebtListPage({
                   selected={query.view === "active"}
                   to={debtListUrl("active", query.search)}
                 >
-                  Активные
+                  Текущие
                 </SelectionTabLink>
                 <SelectionTabLink
                   count={counts.archived}
@@ -141,6 +145,7 @@ export function DebtListPage({
               </SelectionTabs>
               {portfolio.capabilities.canCreate ? (
                 <Button
+                  aria-haspopup="dialog"
                   icon="plus"
                   onClick={() => setCreateOpen(true)}
                   tone="primary"
@@ -198,7 +203,9 @@ export function DebtListPage({
               >
                 {query.search
                   ? "Измените запрос или очистите поиск."
-                  : "Добавьте существующий долг или запишите новый заём."}
+                  : query.view === "archived"
+                    ? "Здесь появятся долги, перенесённые в архив."
+                    : "Добавьте существующий долг или запишите новый заём."}
               </WorkbenchEmptyState>
             )}
           </WorkbenchContent>

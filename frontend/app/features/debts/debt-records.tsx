@@ -1,3 +1,5 @@
+import { Link, useLocation } from "react-router";
+
 import { formatMoneyAmount } from "../../shared/money/format-money";
 import { RouterButtonLink } from "../../ui/button/button";
 import { MoneyValue } from "../../ui/money-value/money-value";
@@ -21,6 +23,7 @@ export function DebtRecords({ debts }: { debts: DebtSummaryDto[] }) {
 }
 
 function DebtTable({ debts }: { debts: DebtSummaryDto[] }) {
+  const { search } = useLocation();
   return (
     <table className={styles.table}>
       <thead>
@@ -36,7 +39,9 @@ function DebtTable({ debts }: { debts: DebtSummaryDto[] }) {
         {debts.map((debt) => (
           <tr key={debt.accountId}>
             <td>
-              <strong>{debt.name}</strong>
+              <Link data-record-identity to={debtHref(debt.accountId, search)}>
+                {debt.name}
+              </Link>
               <span className={styles.secondary}>
                 {debtKindLabels[debt.kind]}
               </span>
@@ -53,7 +58,7 @@ function DebtTable({ debts }: { debts: DebtSummaryDto[] }) {
               />
             </td>
             <td>
-              <RouterButtonLink to={`/debts/${debt.accountId}`}>
+              <RouterButtonLink to={debtHref(debt.accountId, search)}>
                 Открыть
               </RouterButtonLink>
             </td>
@@ -65,33 +70,41 @@ function DebtTable({ debts }: { debts: DebtSummaryDto[] }) {
 }
 
 function DebtMobileList({ debts }: { debts: DebtSummaryDto[] }) {
+  const { search } = useLocation();
   return (
-    <ul className={styles.mobileList}>
+    <ol aria-label="Долги">
       {debts.map((debt) => (
         <li key={debt.accountId}>
-          <div className={styles.mobileHeader}>
-            <div>
-              <strong>{debt.name}</strong>
-              <span className={styles.secondary}>
-                {debtKindLabels[debt.kind]}
-              </span>
+          <article data-responsive-record>
+            <div className={styles.mobileHeader}>
+              <div>
+                <Link
+                  data-record-identity
+                  to={debtHref(debt.accountId, search)}
+                >
+                  {debt.name}
+                </Link>
+                <span className={styles.secondary}>
+                  {debtKindLabels[debt.kind]}
+                </span>
+              </div>
+              <DebtStatus debt={debt} />
             </div>
-            <DebtStatus debt={debt} />
-          </div>
-          <div className={styles.mobileFacts}>
-            <span>{debtDirectionLabel(debt.kind)}</span>
-            <MoneyValue
-              amount={formatMoneyAmount(debt.outstanding, null)}
-              currency={debt.currency}
-              tone={debt.kind === "loan_receivable" ? "income" : "expense"}
-            />
-          </div>
-          <RouterButtonLink to={`/debts/${debt.accountId}`}>
-            Открыть долг
-          </RouterButtonLink>
+            <div className={styles.mobileFacts}>
+              <span>{debtDirectionLabel(debt.kind)}</span>
+              <MoneyValue
+                amount={formatMoneyAmount(debt.outstanding, null)}
+                currency={debt.currency}
+                tone={debt.kind === "loan_receivable" ? "income" : "expense"}
+              />
+            </div>
+            <RouterButtonLink to={debtHref(debt.accountId, search)}>
+              Открыть долг
+            </RouterButtonLink>
+          </article>
         </li>
       ))}
-    </ul>
+    </ol>
   );
 }
 
@@ -103,4 +116,10 @@ function DebtStatus({ debt }: { debt: DebtSummaryDto }) {
         ? "neutral"
         : "success";
   return <StatusLabel tone={tone}>{debtStatusLabels[debt.status]}</StatusLabel>;
+}
+
+function debtHref(id: string, search: string): string {
+  const query = new URLSearchParams(search);
+  query.delete("page");
+  return `/debts/${id}${query.size ? `?${query}` : ""}`;
 }

@@ -7,7 +7,7 @@ import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
 import { FormErrorSummary } from "../../ui/field/form-error-summary";
-import { FormActions } from "../../ui/field/form-layout";
+import { FormActions, FormGrid } from "../../ui/field/form-layout";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue } from "../../ui/money-value/money-value";
 import { WorkbenchPanel } from "../../ui/workbench-panel/workbench-panel";
@@ -18,7 +18,7 @@ import {
   type DebtDetailDto,
   type DebtPaymentRequest,
 } from "./api/debts-api";
-import { DebtMoney } from "./debt-model";
+import { DebtMoney, debtPaymentLabel } from "./debt-model";
 import styles from "./debts.module.css";
 
 type PaymentDraft = {
@@ -142,13 +142,18 @@ export function DebtPaymentPanel({
   );
   const principal = DebtMoney.toMinor(draft.principal);
   const interest = DebtMoney.toMinor(draft.interest);
+  const outstanding = DebtMoney.toMinor(debt.outstanding);
+  const remaining =
+    principal !== null && outstanding !== null && principal <= outstanding
+      ? outstanding - principal
+      : null;
 
   return (
     <WorkbenchPanel
       description={`Остаток основного долга: ${formatMoneyAmount(debt.outstanding, null)} ${debt.currency}.`}
       disabled={pending}
       onClose={onClose}
-      title="Записать платёж"
+      title={debtPaymentLabel(debt.kind)}
     >
       <form className={styles.form} noValidate onSubmit={submit} ref={formRef}>
         {failure || summaryErrors.length ? (
@@ -157,7 +162,7 @@ export function DebtPaymentPanel({
             message={failure ?? "Проверьте платёж."}
           />
         ) : null}
-        <div className={styles.formGrid}>
+        <FormGrid columns="two">
           <PaymentMoneyField
             draft={draft}
             errors={errors}
@@ -178,12 +183,20 @@ export function DebtPaymentPanel({
             error={errors.accountId}
             errorId="debt-payment-accountId-error"
             htmlFor="debt-payment-accountId"
-            label="Денежный счёт"
+            label={
+              debt.kind === "loan_receivable"
+                ? "На какой счёт"
+                : "С какого счёта"
+            }
             required
           >
             <select
               disabled={pending}
               id="debt-payment-accountId"
+              aria-invalid={Boolean(errors.accountId)}
+              aria-describedby={
+                errors.accountId ? "debt-payment-accountId-error" : undefined
+              }
               name="accountId"
               onChange={(event) => change("accountId", event.target.value)}
               value={draft.accountId}
@@ -206,6 +219,12 @@ export function DebtPaymentPanel({
             <input
               disabled={pending}
               id="debt-payment-operationDate"
+              aria-invalid={Boolean(errors.operationDate)}
+              aria-describedby={
+                errors.operationDate
+                  ? "debt-payment-operationDate-error"
+                  : undefined
+              }
               name="operationDate"
               onChange={(event) => change("operationDate", event.target.value)}
               type="date"
@@ -223,6 +242,12 @@ export function DebtPaymentPanel({
               <select
                 disabled={pending}
                 id="debt-payment-categoryId"
+                aria-invalid={Boolean(errors.categoryId)}
+                aria-describedby={
+                  errors.categoryId
+                    ? "debt-payment-categoryId-error"
+                    : undefined
+                }
                 name="categoryId"
                 onChange={(event) => change("categoryId", event.target.value)}
                 value={draft.categoryId}
@@ -245,10 +270,26 @@ export function DebtPaymentPanel({
               value={draft.description}
             />
           </Field>
-        </div>
+        </FormGrid>
 
         <InlineNotice title="Проверка платежа" tone="information">
           <div className={styles.preview}>
+            <span>
+              {interestKind === "income"
+                ? "Всего поступит на счёт"
+                : "Всего спишется со счёта"}
+            </span>
+            <MoneyValue
+              amount={
+                principal !== null && interest !== null
+                  ? formatMoneyAmount(
+                      DebtMoney.fromMinor(principal + interest),
+                      null,
+                    )
+                  : "—"
+              }
+              currency={debt.currency}
+            />
             <span>Основной долг уменьшится на</span>
             <MoneyValue
               amount={
@@ -272,6 +313,15 @@ export function DebtPaymentPanel({
               currency={debt.currency}
               tone={interestKind}
             />
+            <span>Остаток основного долга после платежа</span>
+            <MoneyValue
+              amount={
+                remaining !== null
+                  ? formatMoneyAmount(DebtMoney.fromMinor(remaining), null)
+                  : "—"
+              }
+              currency={debt.currency}
+            />
           </div>
         </InlineNotice>
 
@@ -290,7 +340,7 @@ export function DebtPaymentPanel({
             tone="primary"
             type="submit"
           >
-            {pending ? "Записываем…" : "Записать платёж"}
+            {pending ? "Записываем…" : debtPaymentLabel(debt.kind)}
           </Button>
         </FormActions>
       </form>
@@ -327,6 +377,9 @@ function PaymentMoneyField({
       required
     >
       <input
+        aria-describedby={
+          errors[field] ? `debt-payment-${field}-error` : undefined
+        }
         aria-invalid={Boolean(errors[field])}
         disabled={pending}
         id={`debt-payment-${field}`}

@@ -5,12 +5,14 @@ import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
 import { FormErrorSummary } from "../../ui/field/form-error-summary";
-import { FormActions } from "../../ui/field/form-layout";
+import { FormActions, FormGrid } from "../../ui/field/form-layout";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
+import { formatMoneyAmount } from "../../shared/money/format-money";
 import { WorkbenchPanel } from "../../ui/workbench-panel/workbench-panel";
 import { createDebt, type DebtDetailDto, type DebtKind } from "./api/debts-api";
 import {
   DebtCreateDrafts,
+  DebtMoney,
   debtActionLabels,
   debtKindLabels,
   type DebtCreateAction,
@@ -52,7 +54,11 @@ export function DebtCreatePanel({
     field: Field,
     value: DebtCreateDraft[Field],
   ) {
-    setDraft((current) => ({ ...current, [field]: value }));
+    setDraft((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === "currency" ? { accountId: "" } : {}),
+    }));
     setErrors((current) => ({ ...current, [field]: undefined }));
     setFailure(null);
   }
@@ -107,6 +113,13 @@ export function DebtCreatePanel({
     }
   }
 
+  const openingAmount =
+    draft.action === "add_existing"
+      ? draft.openingBalance
+      : draft.action === "open_credit_card"
+        ? draft.openingDebt
+        : draft.amount;
+
   const summaryErrors = Object.entries(errors).flatMap(([field, message]) =>
     message
       ? [{ fieldId: `debt-create-${field}`, label: fieldLabel(field), message }]
@@ -128,7 +141,7 @@ export function DebtCreatePanel({
           />
         ) : null}
 
-        <Field htmlFor="debt-create-action" label="Что произошло" required>
+        <Field htmlFor="debt-create-action" label="Что нужно записать" required>
           <select
             disabled={pending}
             id="debt-create-action"
@@ -146,7 +159,7 @@ export function DebtCreatePanel({
           </select>
         </Field>
 
-        <div className={styles.formGrid}>
+        <FormGrid columns="two">
           <TextField
             draft={draft}
             errors={errors}
@@ -243,6 +256,9 @@ export function DebtCreatePanel({
                 required
               >
                 <select
+                  aria-describedby={
+                    errors.accountId ? "debt-create-accountId-error" : undefined
+                  }
                   aria-invalid={Boolean(errors.accountId)}
                   disabled={pending}
                   id="debt-create-accountId"
@@ -291,15 +307,40 @@ export function DebtCreatePanel({
               type="date"
             />
           ) : null}
-        </div>
+        </FormGrid>
 
-        {draft.action === "give_loan" || draft.action === "take_loan" ? (
-          <InlineNotice title="Что будет записано" tone="information">
-            {draft.action === "give_loan"
-              ? "Деньги уйдут с выбранного счёта, а сумма появится как долг вам. Это перевод и он не станет расходом."
-              : "Деньги поступят на выбранный счёт, а сумма появится как ваш долг. Это перевод и он не станет доходом."}
-          </InlineNotice>
-        ) : null}
+        <InlineNotice title="Что будет записано" tone="information">
+          <p>
+            {
+              {
+                add_existing:
+                  "Будет учтён уже существующий остаток долга. Балансы денежных счетов не изменятся.",
+                give_loan:
+                  "С выбранного счёта будут выданы деньги в долг. Это перевод, а не расход.",
+                take_loan:
+                  "На выбранный счёт поступят деньги в долг. Это перевод, а не доход.",
+                open_credit_card:
+                  "Будут учтены кредитный лимит и текущая задолженность. Балансы денежных счетов не изменятся.",
+              }[draft.action]
+            }
+          </p>
+          <p>
+            {draft.kind === "loan_receivable"
+              ? "Мне будут должны: "
+              : "Я буду должен: "}
+            {DebtMoney.toMinor(openingAmount) === null
+              ? "—"
+              : formatMoneyAmount(openingAmount.trim(), null)}{" "}
+            {draft.currency}
+          </p>
+          {(draft.action === "give_loan" || draft.action === "take_loan") &&
+          !eligibleAccounts.length ? (
+            <p>
+              Нет активного денежного счёта в этой валюте. Добавьте счёт в
+              разделе «Счета».
+            </p>
+          ) : null}
+        </InlineNotice>
 
         <FormActions layout="split">
           <Button
@@ -368,6 +409,9 @@ function TextField({
       required={required}
     >
       <input
+        aria-describedby={
+          errors[field] ? `${id}-error` : hint ? `${id}-hint` : undefined
+        }
         aria-invalid={Boolean(errors[field])}
         disabled={pending}
         id={id}

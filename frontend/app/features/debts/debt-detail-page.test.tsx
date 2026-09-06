@@ -34,25 +34,31 @@ describe("DebtDetailPage", () => {
     vi.mocked(updateDebt).mockReset();
   });
 
-  it("renders debt facts without inventing overdue state", () => {
+  it("renders debt facts without inventing overdue state", async () => {
+    const user = userEvent.setup();
     renderPage();
 
     expect(
       screen.getByRole("heading", { name: "Кредит на ремонт" }),
     ).toBeVisible();
+    expect(screen.getByText("Конечный срок")).not.toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Условия и заметки" }));
     expect(screen.getByText("Конечный срок")).toBeVisible();
+    expect(screen.getAllByText("Условия и заметки")).toHaveLength(1);
     expect(screen.queryByText(/Просроч/)).not.toBeInTheDocument();
     expect(screen.getByText("Основной долг")).toBeVisible();
     expect(screen.getByText("Проценты")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Отменить" })).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Открыть основную операцию" }),
+      screen.getByRole("button", { name: "Отменить платёж" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Посмотреть перевод" }),
     ).toHaveAttribute(
       "href",
       `/operations?operation_id=${detail.payments.items[0]!.principal!.operationId}#operation-${detail.payments.items[0]!.principal!.operationId}`,
     );
     expect(
-      screen.getByRole("link", { name: "Открыть операцию процентов" }),
+      screen.getByRole("link", { name: "Посмотреть проценты" }),
     ).toHaveAttribute(
       "href",
       `/operations?operation_id=${detail.payments.items[0]!.interest!.operationId}#operation-${detail.payments.items[0]!.interest!.operationId}`,
@@ -67,14 +73,16 @@ describe("DebtDetailPage", () => {
     });
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Записать платёж" }));
-    const dialog = screen.getByRole("dialog", { name: "Записать платёж" });
+    await user.click(
+      screen.getByRole("button", { name: "Записать погашение" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Записать погашение" });
     await user.clear(within(dialog).getByLabelText(/Основной долг/));
     await user.type(within(dialog).getByLabelText(/Основной долг/), "5000");
     await user.clear(within(dialog).getByLabelText(/Проценты/));
     await user.type(within(dialog).getByLabelText(/Проценты/), "1000");
     await user.selectOptions(
-      within(dialog).getByLabelText(/Денежный счёт/),
+      within(dialog).getByLabelText(/С какого счёта/),
       account.id,
     );
     await user.selectOptions(
@@ -84,8 +92,10 @@ describe("DebtDetailPage", () => {
 
     expect(screen.getByText("Основной долг уменьшится на")).toBeVisible();
     expect(screen.getByText("Проценты станут расходом")).toBeVisible();
+    expect(within(dialog).getByLabelText(/6.*000,00 RUB/)).toBeVisible();
+    expect(within(dialog).getByLabelText(/70.*000,00 RUB/)).toBeVisible();
     await user.click(
-      within(dialog).getByRole("button", { name: "Записать платёж" }),
+      within(dialog).getByRole("button", { name: "Записать погашение" }),
     );
 
     await waitFor(() =>
@@ -103,13 +113,82 @@ describe("DebtDetailPage", () => {
     );
   });
 
+  it("preserves list filters through history pagination and back navigation", () => {
+    renderPage(
+      {
+        ...detail,
+        payments: {
+          ...detail.payments,
+          hasNext: true,
+          totalPages: 2,
+          total: 21,
+        },
+      },
+      "?view=archived&search=кредит",
+    );
+    expect(screen.getByRole("link", { name: "Все долги" })).toHaveAttribute(
+      "href",
+      "/debts?view=archived&search=%D0%BA%D1%80%D0%B5%D0%B4%D0%B8%D1%82",
+    );
+    const next = screen
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("href")?.includes("page=2"));
+    expect(next?.getAttribute("href")).toContain("view=archived");
+    expect(next?.getAttribute("href")).toContain("search=");
+  });
+
+  it("previews incoming cents exactly and rejects overpayment", async () => {
+    const user = userEvent.setup();
+    renderPage({
+      ...detail,
+      debt: { ...detail.debt, kind: "loan_receivable", outstanding: "0.30" },
+    });
+    await user.click(screen.getByRole("button", { name: "Записать возврат" }));
+    const dialog = screen.getByRole("dialog", { name: "Записать возврат" });
+    const principal = within(dialog).getByLabelText(/Основной долг/);
+    const interest = within(dialog).getByLabelText(/Проценты/);
+    await user.clear(principal);
+    await user.type(principal, "0,10");
+    await user.clear(interest);
+    await user.type(interest, "0,20");
+    expect(within(dialog).getByText("Всего поступит на счёт")).toBeVisible();
+    expect(within(dialog).getByLabelText("0,30 RUB")).toBeVisible();
+    await user.clear(principal);
+    await user.type(principal, "0,31");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Записать возврат" }),
+    );
+    expect(principal).toHaveFocus();
+    expect(principal).toHaveAccessibleDescription(
+      "Сумма больше остатка основного долга.",
+    );
+    expect(recordDebtPayment).not.toHaveBeenCalled();
+  });
+
+  it("links edit validation to the invalid field", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "Ещё действия" }));
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    const name = screen.getByLabelText("Название *");
+    await user.clear(name);
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(name).toHaveFocus();
+    expect(name).toHaveAccessibleDescription("Укажите название долга.");
+    expect(updateDebt).not.toHaveBeenCalled();
+  });
+
   it("undoes only when the server capability allows it", async () => {
     const user = userEvent.setup();
     vi.mocked(undoDebtPayment).mockResolvedValue({ status: "success", detail });
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Отменить" }));
     await user.click(screen.getByRole("button", { name: "Отменить платёж" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Отменить платёж",
+      }),
+    );
 
     await waitFor(() =>
       expect(undoDebtPayment).toHaveBeenCalledWith(
@@ -144,6 +223,14 @@ describe("DebtDetailPage", () => {
       detail: settled,
     });
     renderPage(settled);
+    expect(screen.getByText("Долг погашен")).toBeVisible();
+    expect(screen.queryByText("Должен я")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Новый платёж сейчас недоступен"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Страницы истории платежей" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "В архив" }));
     await user.click(screen.getByRole("button", { name: "Перенести в архив" }));
@@ -162,13 +249,9 @@ describe("DebtDetailPage", () => {
     renderPage();
 
     await user.click(screen.getByRole("button", { name: "Ещё действия" }));
-    await user.click(screen.getByRole("button", { name: "Удалить" }));
+    expect(screen.getByRole("button", { name: "Удалить" })).toBeDisabled();
 
-    expect(
-      screen.getByText(
-        /Долг уже имеет платежи, импорт или последующие операции/,
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("Есть финансовая история")).toBeVisible();
     expect(deleteDebt).not.toHaveBeenCalled();
   });
 
@@ -229,9 +312,9 @@ describe("DebtDetailPage", () => {
   });
 });
 
-function renderPage(value = detail) {
+function renderPage(value = detail, search = "") {
   return render(
-    <MemoryRouter initialEntries={[`/debts/${value.debt.accountId}`]}>
+    <MemoryRouter initialEntries={[`/debts/${value.debt.accountId}${search}`]}>
       <DebtDetailPage
         accounts={[account]}
         categories={[expenseCategory]}

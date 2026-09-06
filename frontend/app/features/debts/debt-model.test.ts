@@ -55,6 +55,10 @@ describe("debt form model", () => {
   });
 
   it("compares decimal money exactly and rejects an excessive card debt", () => {
+    expect(DebtMoney.fromMinor(900719925474099301n)).toBe(
+      "9007199254740993.01",
+    );
+    expect(DebtMoney.fromMinor(0n)).toBe("0.00");
     expect(DebtMoney.toMinor("9007199254740993.01")).toBe(900719925474099301n);
     const draft = {
       ...DebtCreateDrafts.empty("RUB"),

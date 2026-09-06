@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
 import { FormErrorSummary } from "../../ui/field/form-error-summary";
-import { FormActions } from "../../ui/field/form-layout";
+import { FormActions, FormGrid } from "../../ui/field/form-layout";
 import { WorkbenchPanel } from "../../ui/workbench-panel/workbench-panel";
 import { updateDebt, type DebtDetailDto } from "./api/debts-api";
 import { DebtMoney } from "./debt-model";
@@ -30,6 +30,10 @@ export function DebtEditPanel({
   onUpdated: (detail: DebtDetailDto) => void;
 }) {
   const debt = detail.debt;
+  const formRef = useRef<HTMLFormElement>(null);
+  const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>(
+    {},
+  );
   const [draft, setDraft] = useState<Draft>({
     creditLimit: debt.creditLimit ?? "",
     maturityDate: debt.maturityDate ?? "",
@@ -46,13 +50,20 @@ export function DebtEditPanel({
   ) {
     setDraft((current) => ({ ...current, [field]: value }));
     setFailure(null);
+    setErrors((current) => ({ ...current, [field]: undefined }));
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) return;
     const validation = validate(draft, debt.kind);
-    if (validation) {
-      setFailure(validation);
+    setErrors(validation);
+    setFailure(null);
+    const firstInvalid = Object.keys(validation)[0];
+    if (firstInvalid) {
+      formRef.current
+        ?.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)
+        ?.focus();
       return;
     }
     setPending(true);
@@ -84,22 +95,58 @@ export function DebtEditPanel({
       onClose={onClose}
       title="Изменить долг"
     >
-      <form className={styles.form} noValidate onSubmit={submit}>
-        {failure ? <FormErrorSummary message={failure} /> : null}
-        <div className={styles.formGrid}>
-          <Field htmlFor="debt-edit-name" label="Название" required>
+      <form className={styles.form} noValidate onSubmit={submit} ref={formRef}>
+        {failure || Object.values(errors).some(Boolean) ? (
+          <FormErrorSummary
+            message={failure ?? "Проверьте заполненные поля."}
+            errors={Object.entries(errors).flatMap(([field, message]) =>
+              message
+                ? [
+                    {
+                      fieldId: `debt-edit-${field}`,
+                      label: editLabels[field as keyof Draft],
+                      message,
+                    },
+                  ]
+                : [],
+            )}
+          />
+        ) : null}
+        <FormGrid columns="two">
+          <Field
+            htmlFor="debt-edit-name"
+            error={errors.name}
+            errorId="debt-edit-name-error"
+            label="Название"
+            required
+          >
             <input
               disabled={pending}
               id="debt-edit-name"
+              name="name"
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={
+                errors.name ? "debt-edit-name-error" : undefined
+              }
               maxLength={255}
               onChange={(event) => change("name", event.target.value)}
               value={draft.name}
             />
           </Field>
-          <Field htmlFor="debt-edit-opened-on" label="Дата открытия">
+          <Field
+            htmlFor="debt-edit-openedOn"
+            error={errors.openedOn}
+            errorId="debt-edit-openedOn-error"
+            label="Дата открытия"
+          >
             <input
               disabled={pending}
-              id="debt-edit-opened-on"
+              id="debt-edit-openedOn"
+              name="openedOn"
+              aria-invalid={Boolean(errors.openedOn)}
+              aria-describedby={
+                errors.openedOn ? "debt-edit-openedOn-error" : undefined
+              }
               onChange={(event) => change("openedOn", event.target.value)}
               type="date"
               value={draft.openedOn}
@@ -107,7 +154,8 @@ export function DebtEditPanel({
           </Field>
           {debt.kind === "credit_card" ? (
             <MoneyField
-              id="debt-edit-credit-limit"
+              error={errors.creditLimit}
+              id="debt-edit-creditLimit"
               label="Кредитный лимит"
               onChange={(value) => change("creditLimit", value)}
               pending={pending}
@@ -115,10 +163,22 @@ export function DebtEditPanel({
             />
           ) : (
             <>
-              <Field htmlFor="debt-edit-maturity-date" label="Конечный срок">
+              <Field
+                htmlFor="debt-edit-maturityDate"
+                error={errors.maturityDate}
+                errorId="debt-edit-maturityDate-error"
+                label="Конечный срок"
+              >
                 <input
                   disabled={pending}
-                  id="debt-edit-maturity-date"
+                  id="debt-edit-maturityDate"
+                  name="maturityDate"
+                  aria-invalid={Boolean(errors.maturityDate)}
+                  aria-describedby={
+                    errors.maturityDate
+                      ? "debt-edit-maturityDate-error"
+                      : undefined
+                  }
                   onChange={(event) =>
                     change("maturityDate", event.target.value)
                   }
@@ -128,7 +188,7 @@ export function DebtEditPanel({
               </Field>
             </>
           )}
-        </div>
+        </FormGrid>
         <Field htmlFor="debt-edit-notes" label="Заметки">
           <textarea
             disabled={pending}
@@ -162,12 +222,14 @@ export function DebtEditPanel({
 }
 
 function MoneyField({
+  error,
   id,
   label,
   onChange,
   pending,
   value,
 }: {
+  error?: string | undefined;
   id: string;
   label: string;
   onChange: (value: string) => void;
@@ -175,10 +237,19 @@ function MoneyField({
   value: string;
 }) {
   return (
-    <Field htmlFor={id} label={label} required>
+    <Field
+      htmlFor={id}
+      label={label}
+      required
+      error={error}
+      errorId={`${id}-error`}
+    >
       <input
         disabled={pending}
         id={id}
+        name="creditLimit"
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
         inputMode="decimal"
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -190,24 +261,33 @@ function MoneyField({
 function validate(
   draft: Draft,
   kind: DebtDetailDto["debt"]["kind"],
-): string | null {
-  if (!draft.name.trim()) return "Укажите название долга.";
+): Partial<Record<keyof Draft, string>> {
+  const errors: Partial<Record<keyof Draft, string>> = {};
+  if (!draft.name.trim()) errors.name = "Укажите название долга.";
   if (
     draft.openedOn &&
     draft.maturityDate &&
     draft.maturityDate < draft.openedOn
   ) {
-    return "Конечный срок не может быть раньше даты открытия.";
+    errors.maturityDate = "Конечный срок не может быть раньше даты открытия.";
   }
   if (kind === "credit_card") {
     const amount = DebtMoney.toMinor(draft.creditLimit);
     if (amount === null || amount === 0n) {
-      return "Укажите кредитный лимит больше нуля.";
+      errors.creditLimit = "Укажите кредитный лимит больше нуля.";
     }
   }
-  return null;
+  return errors;
 }
 
 function optional(value: string): string | null {
   return value.trim() || null;
 }
+
+const editLabels: Record<keyof Draft, string> = {
+  name: "Название",
+  openedOn: "Дата открытия",
+  maturityDate: "Конечный срок",
+  creditLimit: "Кредитный лимит",
+  notes: "Заметки",
+};
