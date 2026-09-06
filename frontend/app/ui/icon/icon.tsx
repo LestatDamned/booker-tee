@@ -1,40 +1,38 @@
 import type { Icon as PhosphorIcon, IconWeight } from "@phosphor-icons/react";
-import {
-  ArrowDown,
-  ArrowClockwise,
-  ArrowsDownUp,
-  ArrowUp,
-  ArrowUUpLeft,
-  ArrowsLeftRight,
-  Buildings,
-  CaretDown,
-  CaretLeft,
-  CaretRight,
-  ChartBar,
-  CheckCircle,
-  Copy,
-  DotsThree,
-  FileArrowUp,
-  FileText,
-  Funnel,
-  FunnelSimple,
-  HandCoins,
-  House,
-  Info,
-  Lightning,
-  ListBullets,
-  ListChecks,
-  MagnifyingGlass,
-  MinusCircle,
-  PencilSimple,
-  Plus,
-  Tag,
-  Trash,
-  Wallet,
-  WarningCircle,
-  X,
-  XCircle,
-} from "@phosphor-icons/react";
+import { ArrowDown } from "@phosphor-icons/react/dist/csr/ArrowDown";
+import { ArrowClockwise } from "@phosphor-icons/react/dist/csr/ArrowClockwise";
+import { ArrowsDownUp } from "@phosphor-icons/react/dist/csr/ArrowsDownUp";
+import { ArrowUp } from "@phosphor-icons/react/dist/csr/ArrowUp";
+import { ArrowUUpLeft } from "@phosphor-icons/react/dist/csr/ArrowUUpLeft";
+import { ArrowsLeftRight } from "@phosphor-icons/react/dist/csr/ArrowsLeftRight";
+import { Buildings } from "@phosphor-icons/react/dist/csr/Buildings";
+import { CaretDown } from "@phosphor-icons/react/dist/csr/CaretDown";
+import { CaretLeft } from "@phosphor-icons/react/dist/csr/CaretLeft";
+import { CaretRight } from "@phosphor-icons/react/dist/csr/CaretRight";
+import { ChartBar } from "@phosphor-icons/react/dist/csr/ChartBar";
+import { CheckCircle } from "@phosphor-icons/react/dist/csr/CheckCircle";
+import { Copy } from "@phosphor-icons/react/dist/csr/Copy";
+import { DotsThree } from "@phosphor-icons/react/dist/csr/DotsThree";
+import { FileArrowUp } from "@phosphor-icons/react/dist/csr/FileArrowUp";
+import { FileText } from "@phosphor-icons/react/dist/csr/FileText";
+import { Funnel } from "@phosphor-icons/react/dist/csr/Funnel";
+import { FunnelSimple } from "@phosphor-icons/react/dist/csr/FunnelSimple";
+import { HandCoins } from "@phosphor-icons/react/dist/csr/HandCoins";
+import { House } from "@phosphor-icons/react/dist/csr/House";
+import { Info } from "@phosphor-icons/react/dist/csr/Info";
+import { Lightning } from "@phosphor-icons/react/dist/csr/Lightning";
+import { ListBullets } from "@phosphor-icons/react/dist/csr/ListBullets";
+import { ListChecks } from "@phosphor-icons/react/dist/csr/ListChecks";
+import { MagnifyingGlass } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { MinusCircle } from "@phosphor-icons/react/dist/csr/MinusCircle";
+import { PencilSimple } from "@phosphor-icons/react/dist/csr/PencilSimple";
+import { Plus } from "@phosphor-icons/react/dist/csr/Plus";
+import { Tag } from "@phosphor-icons/react/dist/csr/Tag";
+import { Trash } from "@phosphor-icons/react/dist/csr/Trash";
+import { Wallet } from "@phosphor-icons/react/dist/csr/Wallet";
+import { WarningCircle } from "@phosphor-icons/react/dist/csr/WarningCircle";
+import { X } from "@phosphor-icons/react/dist/csr/X";
+import { XCircle } from "@phosphor-icons/react/dist/csr/XCircle";
 
 export type IconName =
   | "accounts"
