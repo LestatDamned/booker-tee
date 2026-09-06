@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import JSON, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -200,8 +200,8 @@ class DocumentRepository:
                     }
                 ),
                 or_(
-                    ParseAttempt.raw_text_by_page_json.is_not(None),
-                    ParseAttempt.raw_tables_json.is_not(None),
+                    ParseAttempt.raw_text_by_page_json != JSON.NULL,
+                    ParseAttempt.raw_tables_json != JSON.NULL,
                 ),
             )
             .limit(limit)

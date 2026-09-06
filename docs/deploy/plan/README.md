@@ -16,7 +16,8 @@ server не требуются.
 ## Подготовка
 
 1. Создать отдельного Unix user и каталог deployment.
-2. Установить Docker Engine/Compose и включить firewall только для SSH/80/443.
+2. Установить Docker Engine 25+ и Compose 2.20.2+ (для healthcheck
+   `start_interval`), включить firewall только для SSH/80/443.
 3. Создать untracked production env file с mode `600`.
 4. Настроить DNS `BOOKER_TEE_DOMAIN`.
 5. Подготовить persistent PostgreSQL/uploads volumes и внешний каталог backup.

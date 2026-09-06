@@ -10,7 +10,7 @@ from uuid import UUID, uuid4, uuid5
 
 import pytest
 from fastapi import UploadFile
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, null, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.settings import Settings
@@ -193,6 +193,62 @@ async def test_expired_raw_selection_covers_terminal_status_boundaries(
         await session.execute(delete(Workspace).where(Workspace.id == workspace_id))
         await session.execute(delete(User).where(User.id == user_id))
         await session.commit()
+
+
+async def test_raw_cleanup_finishes_and_skips_sql_and_json_nulls(
+    postgres_rollback_sessions: async_sessionmaker[Any],
+) -> None:
+    user_id, workspace_id = uuid4(), uuid4()
+    cutoff = datetime(2026, 8, 24, 12, tzinfo=UTC)
+    async with postgres_rollback_sessions() as session:
+        session.add(User(id=user_id, email=f"cleanup-{user_id}@example.test", password_hash="hash"))
+        session.add(
+            Workspace(
+                id=workspace_id, owner_id=user_id, name="Cleanup", type=WorkspaceType.PERSONAL
+            )
+        )
+        attempts = []
+        for raw_text, raw_tables in (
+            (null(), null()),
+            (None, None),
+            (null(), None),
+            (None, null()),
+            (["sanitized"], None),
+            (None, [{"tables": [["sanitized"]]}]),
+            (["sanitized"], [{"tables": [["sanitized"]]}]),
+        ):
+            document_id = uuid4()
+            session.add(
+                UploadedDocument(
+                    id=document_id,
+                    workspace_id=workspace_id,
+                    source=UploadedDocumentSource.WEB_UPLOAD,
+                    document_type=UploadedDocumentType.BANK_STATEMENT,
+                    status=UploadedDocumentStatus.IMPORTED,
+                    original_filename="sanitized.pdf",
+                    sha256_hash=uuid4().hex * 2,
+                    created_at=cutoff,
+                )
+            )
+            attempt = ParseAttempt(
+                workspace_id=workspace_id,
+                uploaded_document_id=document_id,
+                parser_name="test",
+                raw_text_by_page_json=raw_text,
+                raw_tables_json=raw_tables,
+            )
+            session.add(attempt)
+            attempts.append(attempt)
+        await session.commit()
+        session.expire_all()
+
+        cleanup = UploadSourceCleanup(session, Settings())
+        assert await asyncio.wait_for(cleanup._scrub_expired_raw(cutoff, 2), timeout=2) == 3
+        assert await asyncio.wait_for(cleanup._scrub_expired_raw(cutoff, 2), timeout=2) == 0
+        for attempt in attempts:
+            await session.refresh(attempt)
+            assert attempt.raw_text_by_page_json is None
+            assert attempt.raw_tables_json is None
 
 
 async def test_raw_cleanup_preserves_ledger_then_import_undo_still_works(
