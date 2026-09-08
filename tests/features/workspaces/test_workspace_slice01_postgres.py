@@ -22,6 +22,7 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.errors import WorkspaceSwitchConflictError
 from app.features.workspaces.models import Workspace, WorkspaceAuditEvent, WorkspaceMember
+from app.features.workspaces.repository import WorkspaceRepository
 
 TEST_DATABASE_URL = os.getenv("BOOKER_TEE_TEST_DATABASE_URL")
 
@@ -66,15 +67,26 @@ async def test_postgres_switch_lock_allows_one_expected_current_winner(
         assert persisted.current_workspace_id in seed.target_ids
         assert conflicts[0].current_workspace_id == persisted.current_workspace_id
     finally:
-        await delete_seed(sessions, seed.user_id, seed.workspace_ids)
+        await delete_seed(sessions, seed.user_id)
 
 
 async def test_postgres_concurrent_create_replays_one_committed_workspace(
     postgres_sessions: async_sessionmaker[Any],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sessions = postgres_sessions
     seed = await seed_switch(sessions, target_count=0)
     idempotency_key = uuid4()
+    initial_reads = asyncio.Barrier(2)
+    get_for_owner = WorkspaceRepository.get_for_owner
+
+    async def synchronized_lookup(self, *, owner_id, workspace_id):
+        workspace = await get_for_owner(self, owner_id=owner_id, workspace_id=workspace_id)
+        if workspace is None:
+            await asyncio.wait_for(initial_reads.wait(), timeout=10)
+        return workspace
+
+    monkeypatch.setattr(WorkspaceRepository, "get_for_owner", synchronized_lookup)
     command = CreateWorkspaceCommand(
         name="Concurrent workspace",
         workspace_type=WorkspaceType.PROJECT,
@@ -92,9 +104,12 @@ async def test_postgres_concurrent_create_replays_one_committed_workspace(
                 idempotency_key=idempotency_key,
             )
 
-    created_workspace_id: UUID | None = None
     try:
-        results = await asyncio.gather(create_once(), create_once())
+        outcomes = await asyncio.gather(create_once(), create_once(), return_exceptions=True)
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
+                raise outcome
+        results = [outcome for outcome in outcomes if not isinstance(outcome, BaseException)]
         created_workspace_id = results[0].workspace.id
         assert results[1].workspace.id == created_workspace_id
         assert sorted(result.replayed for result in results) == [False, True]
@@ -126,12 +141,7 @@ async def test_postgres_concurrent_create_replays_one_committed_workspace(
         assert (workspace_count, membership_count, audit_count) == (1, 1, 1)
         assert user_session.current_workspace_id == created_workspace_id
     finally:
-        workspace_ids = (
-            (*seed.workspace_ids, created_workspace_id)
-            if created_workspace_id is not None
-            else seed.workspace_ids
-        )
-        await delete_seed(sessions, seed.user_id, workspace_ids)
+        await delete_seed(sessions, seed.user_id)
 
 
 class SliceSeed:
@@ -149,7 +159,6 @@ class SliceSeed:
         self.session_token = session_token
         self.current_workspace_id = current_workspace_id
         self.target_ids = target_ids
-        self.workspace_ids = (current_workspace_id, *target_ids)
 
 
 async def seed_switch(
@@ -211,9 +220,8 @@ async def seed_switch(
 async def delete_seed(
     sessions: async_sessionmaker[Any],
     user_id: UUID,
-    workspace_ids: tuple[UUID, ...],
 ) -> None:
     async with sessions() as session:
-        await session.execute(delete(Workspace).where(Workspace.id.in_(workspace_ids)))
+        await session.execute(delete(Workspace).where(Workspace.owner_id == user_id))
         await session.execute(delete(User).where(User.id == user_id))
         await session.commit()

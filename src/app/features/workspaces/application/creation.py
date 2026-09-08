@@ -90,6 +90,7 @@ class WorkspaceCreator:
             )
         except IntegrityError:
             await self._session.rollback()
+            await self._session.refresh(actor)
             existing = await self._workspaces.get_for_owner(
                 owner_id=actor.id,
                 workspace_id=workspace_id,
