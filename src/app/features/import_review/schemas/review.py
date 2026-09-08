@@ -7,6 +7,7 @@ from typing import Literal
 from uuid import UUID
 
 from app.features.categories.models import CategoryKind
+from app.features.import_review.domain.balances import BalanceComparisonStatus
 from app.features.import_review.domain.classification import (
     ReviewBlockingReasonCode,
     ReviewClassificationSource,
@@ -206,6 +207,9 @@ class ImportReviewValidationDto(ApplicationModel):
     ignored_total_outflow: Decimal
     statement_total_inflow: Decimal | None
     statement_total_outflow: Decimal | None
+    calculated_closing_balance: Decimal | None
+    balance_difference: Decimal | None
+    balance_status: BalanceComparisonStatus
     opening_balance: Decimal | None
     closing_balance: Decimal | None
     inflow_difference: Decimal | None

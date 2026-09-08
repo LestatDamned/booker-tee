@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,11 +7,56 @@ import {
   reviewDocumentId,
 } from "../features/import-review/test-support";
 import { loadImportReviewRoute } from "./import-review-loader";
-import { ImportReviewRouteView } from "./import-review";
+import { ImportReviewRouteView, shouldRevalidate } from "./import-review";
 
 describe("import review route", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("keeps tab and row navigation local while preserving data reloads", async () => {
+    const loader = vi.fn(() => null);
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/review/:documentId",
+          loader,
+          shouldRevalidate,
+          action: () => null,
+        },
+      ],
+      { initialEntries: ["/review/first"] },
+    );
+    try {
+      await vi.waitFor(() => expect(router.state.initialized).toBe(true));
+      expect(loader).toHaveBeenCalledTimes(1);
+      for (const search of [
+        "?filter=pending",
+        "?filter=suggestions",
+        "?filter=problems",
+        "?filter=complete",
+        "?filter=complete&rows=100",
+        "",
+      ]) {
+        await router.navigate(`/review/first${search}`);
+      }
+      await router.navigate(-1);
+      expect(loader).toHaveBeenCalledTimes(1);
+
+      await router.revalidate();
+      expect(loader).toHaveBeenCalledTimes(2);
+      await router.navigate("/review/second");
+      expect(loader).toHaveBeenCalledTimes(3);
+      await router.navigate("/review/second?refresh=1");
+      expect(loader).toHaveBeenCalledTimes(4);
+      await router.navigate("/review/second?refresh=1&filter=complete", {
+        formMethod: "post",
+        formData: new FormData(),
+      });
+      expect(loader).toHaveBeenCalledTimes(5);
+    } finally {
+      router.dispose();
+    }
   });
 
   it("loads session and document review in parallel", async () => {

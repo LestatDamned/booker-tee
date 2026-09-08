@@ -156,6 +156,9 @@ def test_import_review_returns_typed_queue_and_source_data(app: FastAPI) -> None
     assert payload["references"] == {"categories": [], "properties": []}
     assert payload["validation"]["reasonCode"] == "control_totals_mismatch"
     assert payload["validation"]["calculatedTotalOutflow"] == "1250.50"
+    assert payload["validation"]["calculatedClosingBalance"] == "9000.00"
+    assert payload["validation"]["balanceDifference"] == "0.00"
+    assert payload["validation"]["balanceStatus"] == "match"
     assert payload["validation"]["rowProblems"][0]["itemId"] == str(review.items[0].id)
     assert payload["validation"]["rowProblems"][0]["expectedBalanceAfter"] == "9000.00"
     assert payload["capabilities"] == {
@@ -879,6 +882,9 @@ def review_model() -> ImportReviewReadModel:
             ignored_total_outflow=Decimal("0.00"),
             statement_total_inflow=Decimal("0.00"),
             statement_total_outflow=Decimal("1200.00"),
+            calculated_closing_balance=Decimal("9000.00"),
+            balance_difference=Decimal("0.00"),
+            balance_status="match",
             opening_balance=Decimal("10250.50"),
             closing_balance=Decimal("9000.00"),
             inflow_difference=Decimal("0.00"),

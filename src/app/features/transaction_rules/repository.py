@@ -293,6 +293,7 @@ class TransactionRuleRepository:
                 TransactionRule.id == rule_id,
                 TransactionRule.workspace_id == workspace_id,
             )
+            .options(selectinload(TransactionRule.category))
             .with_for_update()
         )
         return result.scalar_one_or_none()

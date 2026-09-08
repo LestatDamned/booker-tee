@@ -18,6 +18,11 @@ from app.features.transaction_rules.domain.matching import (
     operation_type_for_raw_transaction,
 )
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
+from app.features.transaction_rules.domain.text import (
+    clean_rule_name,
+    displayed_rule_name,
+    generated_rule_name,
+)
 from app.features.transaction_rules.domain.validation import validate_transaction_rule_fields
 from app.features.transaction_rules.errors import (
     TransactionRuleCreateReplayConflictError,
@@ -171,8 +176,14 @@ class TransactionRuleManagementUseCase:
                 category_id=command.category_id,
                 property_id=command.property_id,
             )
+            name = clean_rule_name(command.name)
+            if displayed_rule_name(rule) == generated_rule_name(rule) and name in {
+                rule.name,
+                displayed_rule_name(rule),
+            }:
+                name = None
             fields = validate_transaction_rule_fields(
-                name=command.name,
+                name=name,
                 pattern=command.pattern,
                 match_type=command.match_type,
                 category_name=targets.category.name if targets.category else None,

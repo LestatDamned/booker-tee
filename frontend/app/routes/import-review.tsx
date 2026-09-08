@@ -1,3 +1,5 @@
+import type { ShouldRevalidateFunctionArgs } from "react-router";
+
 import type { ImportReviewLoadResult } from "../features/import-review/api/import-review-api";
 import { ImportReviewPage } from "../features/import-review/import-review-page";
 import { loginHref } from "../session/unauthenticated";
@@ -7,6 +9,28 @@ import { loadImportReviewRoute } from "./import-review-loader";
 
 export function meta() {
   return [{ title: "Проверка импорта — Booker Tee" }];
+}
+
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  formMethod,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  if (
+    !formMethod &&
+    currentUrl.pathname === nextUrl.pathname &&
+    currentUrl.search !== nextUrl.search
+  ) {
+    const currentParams = new URLSearchParams(currentUrl.search);
+    const nextParams = new URLSearchParams(nextUrl.search);
+    for (const key of ["filter", "rows"]) {
+      currentParams.delete(key);
+      nextParams.delete(key);
+    }
+    if (currentParams.toString() === nextParams.toString()) return false;
+  }
+  return defaultShouldRevalidate;
 }
 
 export async function clientLoader({

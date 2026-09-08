@@ -1,6 +1,6 @@
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.errors import TransactionRuleError
-from app.features.transaction_rules.models import TransactionRuleMatchType
+from app.features.transaction_rules.models import TransactionRule, TransactionRuleMatchType
 
 
 def clean_rule_name(value: str | None) -> str | None:
@@ -54,3 +54,18 @@ def normalized_text(value: str | None) -> str:
     if token_chars:
         tokens.append("".join(token_chars))
     return " ".join(token for token in tokens if not token.isdecimal())
+
+
+def generated_rule_name(rule: TransactionRule) -> str:
+    return build_rule_name(
+        pattern=rule.pattern,
+        match_type=rule.match_type,
+        category_name=rule.category.name if rule.category else None,
+        target_operation_type=rule.target_operation_type,
+    )[:255]
+
+
+def displayed_rule_name(rule: TransactionRule) -> str:
+    if rule.name in {f"{rule.pattern} -> category", f"{rule.pattern} → category"}:
+        return generated_rule_name(rule)
+    return rule.name

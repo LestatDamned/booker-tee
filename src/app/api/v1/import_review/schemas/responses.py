@@ -7,6 +7,7 @@ from pydantic import BeforeValidator
 
 from app.api.schemas import ApiModel
 from app.features.categories.models import CategoryKind
+from app.features.import_review.domain.balances import BalanceComparisonStatus
 from app.features.import_review.domain.classification import (
     ReviewBlockingReasonCode,
     ReviewClassificationSource,
@@ -240,6 +241,9 @@ class ImportReviewValidationApiResponse(ApiModel):
     ignored_total_outflow: MoneyString
     statement_total_inflow: OptionalMoneyString
     statement_total_outflow: OptionalMoneyString
+    calculated_closing_balance: OptionalMoneyString
+    balance_difference: OptionalMoneyString
+    balance_status: BalanceComparisonStatus
     opening_balance: OptionalMoneyString
     closing_balance: OptionalMoneyString
     inflow_difference: OptionalMoneyString

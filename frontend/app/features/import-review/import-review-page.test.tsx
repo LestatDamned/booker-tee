@@ -342,10 +342,14 @@ describe("import review page", () => {
     expect(screen.getByText("По распознанным строкам")).toBeInTheDocument();
     expect(screen.getByText("Исключённые строки")).toBeInTheDocument();
     expect(screen.getByText("Итог в выписке")).toBeInTheDocument();
-    expect(screen.getByText("Разница")).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole("table", { name: "Контрольные суммы выписки" }),
+      ).getByText("Разница"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Подробнее о сверке")).not.toBeInTheDocument();
-    expect(screen.queryByText("На начало")).not.toBeInTheDocument();
-    expect(screen.queryByText("На конец")).not.toBeInTheDocument();
+    expect(screen.getByText("На начало")).toBeVisible();
+    expect(screen.getByText("На конец")).toBeVisible();
 
     const technicalSummary = screen.getByText("Технические данные");
     const technicalDetails = technicalSummary.closest("details");

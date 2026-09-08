@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
+import pytest
+
 from app.features.import_review.application.review import build_import_review_validation
 from app.features.import_review.schemas.review import ImportReviewValidationReasonCode
 from app.features.imports.models import UploadedDocument
@@ -131,3 +133,50 @@ def row(
         currency="RUB",
         balance_after=(Decimal(balance_after) if balance_after is not None else None),
     )
+
+
+@pytest.mark.parametrize(
+    ("opening", "closing", "ignored", "expected", "difference", "status"),
+    [
+        ("0.00", "100.01", None, "100.01", "0.00", "match"),
+        ("-150.00", "-49.99", None, "-49.99", "0.00", "match"),
+        ("0.00", "100.00", None, "100.01", "0.01", "mismatch"),
+        ("120000.00", "120090.01", "-10.00", "120100.01", "10.00", "explained"),
+        ("0.00", "110.01", "10.00", "100.01", "-10.00", "explained"),
+        ("0.00", "110.02", "10.00", "100.01", "-10.01", "mismatch"),
+        (None, "100.01", None, None, None, "unavailable"),
+        ("0.00", None, None, "100.01", None, "unavailable"),
+    ],
+)
+def test_statement_balance_comparison(opening, closing, ignored, expected, difference, status):
+    rows = [row(1, amount="100.01")]
+    if ignored is not None:
+        rows.append(row(2, amount=ignored, status=RawTransactionStatus.IGNORED))
+    validation = build_validation(
+        rows=rows,
+        control_totals={"currency": "RUB", "opening_balance": opening, "closing_balance": closing},
+    )
+    assert validation.calculated_closing_balance == (Decimal(expected) if expected else None)
+    assert validation.balance_difference == (Decimal(difference) if difference else None)
+    assert validation.balance_status == status
+
+
+@pytest.mark.parametrize("problem", ["review", "failed", "ignored_missing_amount", "currency"])
+def test_statement_balance_does_not_claim_success_with_incomplete_rows(problem):
+    item = row(1, amount="100.00")
+    if problem == "review":
+        item.status = RawTransactionStatus.NEEDS_REVIEW
+    elif problem == "failed":
+        item.status = RawTransactionStatus.FAILED
+    elif problem == "ignored_missing_amount":
+        item.status = RawTransactionStatus.IGNORED
+        item.amount = None
+    else:
+        item.currency = "USD"
+    validation = build_validation(
+        rows=[item],
+        control_totals={"currency": "RUB", "opening_balance": "0.00", "closing_balance": "100.00"},
+    )
+    assert validation.calculated_closing_balance is None
+    assert validation.balance_difference is None
+    assert validation.balance_status == ("unavailable" if problem == "currency" else "needs_review")

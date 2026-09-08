@@ -1972,6 +1972,8 @@ export interface components {
             /** Expiresin */
             expiresIn: number;
         };
+        /** @enum {string} */
+        BalanceComparisonStatus: "match" | "explained" | "mismatch" | "unavailable" | "needs_review";
         /** BindTelegramDevLinkApiRequest */
         BindTelegramDevLinkApiRequest: {
             /** Externaluserid */
@@ -3902,6 +3904,9 @@ export interface components {
             ignoredTotalOutflow: components["schemas"]["MoneyString"];
             statementTotalInflow: components["schemas"]["OptionalMoneyString"];
             statementTotalOutflow: components["schemas"]["OptionalMoneyString"];
+            calculatedClosingBalance: components["schemas"]["OptionalMoneyString"];
+            balanceDifference: components["schemas"]["OptionalMoneyString"];
+            balanceStatus: components["schemas"]["BalanceComparisonStatus"];
             openingBalance: components["schemas"]["OptionalMoneyString"];
             closingBalance: components["schemas"]["OptionalMoneyString"];
             inflowDifference: components["schemas"]["OptionalMoneyString"];

@@ -11,6 +11,7 @@ from app.features.import_review.application.classification import (
 from app.features.import_review.application.operation_candidates import (
     ExistingOperationCandidateReader,
 )
+from app.features.import_review.domain.balances import StatementBalanceComparison
 from app.features.import_review.domain.lifecycle import (
     import_review_lifecycle_snapshot,
 )
@@ -405,6 +406,7 @@ def build_import_review_validation(
         return None
     report = calculated.report
     control_totals = report.control_totals
+    balances = StatementBalanceComparison.calculate(report, document.raw_transactions)
     return ImportReviewValidationDto(
         status=report.status,
         reason_code=ImportReviewValidationReasonCode(
@@ -427,6 +429,9 @@ def build_import_review_validation(
         statement_total_outflow=(control_totals.total_outflow if control_totals else None),
         opening_balance=(control_totals.opening_balance if control_totals else None),
         closing_balance=(control_totals.closing_balance if control_totals else None),
+        calculated_closing_balance=balances.calculated_closing_balance,
+        balance_difference=balances.balance_difference,
+        balance_status=balances.balance_status,
         inflow_difference=report.inflow_difference,
         outflow_difference=report.outflow_difference,
         unexplained_inflow_difference=report.unexplained_inflow_difference,

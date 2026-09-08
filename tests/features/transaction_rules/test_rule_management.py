@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
@@ -7,10 +8,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.categories.models import Category
 from app.features.transaction_rules.application.commands import (
     CreateTransactionRuleCommand,
     UpdateTransactionRuleCommand,
 )
+from app.features.transaction_rules.application.directory import transaction_rule_summary
 from app.features.transaction_rules.application.rule_management import (
     TransactionRuleManagementUseCase,
 )
@@ -292,3 +295,53 @@ def workspace_context(workspace_id):
         workspace=SimpleNamespace(id=workspace_id),
         user=SimpleNamespace(id=uuid4()),
     )
+
+
+@pytest.mark.parametrize(
+    ("stored_name", "submitted_name", "expected_name"),
+    [
+        ("OZON -> Маркетплейсы", "OZON -> Маркетплейсы", "OZON -> Покупки"),
+        ("OZON -> category", "OZON -> category", "OZON -> Покупки"),
+        ("OZON → category", "OZON -> Маркетплейсы", "OZON -> Покупки"),
+        ("Моё правило", "Моё правило", "Моё правило"),
+        ("OZON -> Маркетплейсы", "Новое название", "Новое название"),
+    ],
+)
+async def test_category_change_refreshes_generated_name(
+    stored_name: str,
+    submitted_name: str,
+    expected_name: str,
+) -> None:
+    rule, service, session, _, targets = management_service(is_active=True)
+    rule.name = stored_name
+    original_category = Category(id=uuid4(), name="Маркетплейсы", is_active=True)
+    rule.category = original_category
+    rule.category_id = original_category.id
+    category = Category(id=uuid4(), name="Покупки", is_active=True)
+    targets.resolve_for_update.return_value = ResolvedTransactionRuleTargets(category, None, None)
+
+    updated = await service.update_rule(
+        context=workspace_context(rule.workspace_id),
+        command=replace(
+            update_command(rule, expected_updated_at=rule.updated_at),
+            name=submitted_name,
+            category_id=category.id,
+        ),
+    )
+
+    assert updated.name == expected_name
+    assert updated.category_id == category.id
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.parametrize("arrow", ["->", "→"])
+def test_directory_repairs_legacy_category_placeholder_without_mutating_rule(arrow: str) -> None:
+    rule, _, _, _, _ = management_service(is_active=True)
+    rule.name = f"OZON {arrow} category"
+    rule.priority = 100
+    rule.category = Category(id=uuid4(), name="Маркетплейсы", is_active=True)
+
+    summary = transaction_rule_summary(rule, direct_raw_suggestion_count=0, can_write=True)
+
+    assert summary.name == "OZON -> Маркетплейсы"
+    assert rule.name == f"OZON {arrow} category"

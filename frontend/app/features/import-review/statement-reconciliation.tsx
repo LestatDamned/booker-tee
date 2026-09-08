@@ -88,6 +88,11 @@ export function StatementReconciliation({
         </tbody>
       </table>
 
+      <StatementBalances
+        key={validation.balanceStatus}
+        validation={validation}
+      />
+
       <details className={styles.technicalReconciliationDetails}>
         <summary>Технические данные</summary>
         <div className={styles.technicalReconciliationBody}>
@@ -112,6 +117,104 @@ export function StatementReconciliation({
         </div>
       </details>
     </section>
+  );
+}
+
+function StatementBalances({ validation }: { validation: PresentValidation }) {
+  if (
+    validation.openingBalance === null &&
+    validation.closingBalance === null
+  ) {
+    return null;
+  }
+  const labels = {
+    match: "Остатки сходятся",
+    explained: "Объяснена исключениями",
+    mismatch: "Необъяснённая разница",
+    unavailable: "Недостаточно данных для сверки",
+    needs_review: "Сначала проверьте строки",
+  };
+  return (
+    <details
+      className={styles.balanceDetails}
+      open={validation.balanceStatus === "mismatch"}
+      data-status={validation.balanceStatus}
+    >
+      <summary>
+        <strong>Остатки</strong>{" "}
+        <span className={styles.balanceOutcome}>
+          {validation.balanceDifference !== null &&
+          !isZero(validation.balanceDifference) ? (
+            <span>
+              Разница{" "}
+              <MoneyValue
+                amount={formatStatementAmount(validation.balanceDifference)}
+                currency={validation.currency ?? ""}
+                size="compact"
+              />
+            </span>
+          ) : null}
+          <span>{labels[validation.balanceStatus]}</span>
+        </span>
+      </summary>
+      <table className={`${styles.flowTable} ${styles.balanceTable}`}>
+        <caption className={styles.flowTableCaption}>
+          Сравнение остатков
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Остаток</th>
+            <th scope="col">В выписке</th>
+            <th scope="col">По импортируемым строкам</th>
+          </tr>
+        </thead>
+        <tbody>
+          {validation.openingBalance !== null ? (
+            <tr className={styles.flowComparison}>
+              <th scope="row">На начало</th>
+              <MoneyFact
+                amount={validation.openingBalance}
+                currency={validation.currency}
+                label="В выписке"
+                role="statement"
+              />
+              <MoneyFact
+                amount={null}
+                currency={validation.currency}
+                label="По импортируемым строкам"
+                role="calculated"
+              />
+            </tr>
+          ) : null}
+          {validation.closingBalance !== null ||
+          validation.calculatedClosingBalance !== null ? (
+            <tr className={styles.flowComparison}>
+              <th scope="row">На конец</th>
+              <MoneyFact
+                amount={validation.closingBalance}
+                currency={validation.currency}
+                label="В выписке"
+                role="statement"
+              />
+              <MoneyFact
+                amount={validation.calculatedClosingBalance}
+                currency={validation.currency}
+                label="По импортируемым строкам"
+                role="calculated"
+              />
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+      <p className={styles.balanceHelp}>
+        {validation.balanceStatus === "explained"
+          ? "Разница объясняется исключёнными строками. "
+          : ""}
+        Расчёт: остаток на начало выписки + поступления − списания по
+        импортируемым строкам. Это не текущий баланс счёта. «—» — нет данных или
+        расчёт недоступен.
+      </p>
+    </details>
   );
 }
 

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.features.categories.models import Category
 from app.features.properties.models import Property, PropertyStatus
+from app.features.transaction_rules.domain.text import displayed_rule_name
 from app.features.transaction_rules.models import TransactionRule
 from app.features.transaction_rules.repository import (
     TransactionRuleDirectoryResult,
@@ -195,7 +196,7 @@ def transaction_rule_summary(
     )
     return TransactionRuleSummaryDto(
         id=rule.id,
-        name=rule.name,
+        name=displayed_rule_name(rule),
         priority=rule.priority,
         is_active=rule.is_active,
         updated_at=rule.updated_at,
